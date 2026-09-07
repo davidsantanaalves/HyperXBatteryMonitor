@@ -1,0 +1,48 @@
+name: Feature Request
+description: Suggest an improvement or new feature for HyperX Battery Tray
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve HyperX Battery Tray.
+
+        Please describe the feature or improvement you would like to see.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem would this feature solve, or what use case does it address?
+      placeholder: "I would like to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or improvement you would like to see.
+      placeholder: "The application could..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternative solutions or workarounds you have considered.
+      placeholder: "Another approach could be..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Add screenshots, examples, or any other information that may help.
+      placeholder: "Additional details..."
+    validations:
+      required: false

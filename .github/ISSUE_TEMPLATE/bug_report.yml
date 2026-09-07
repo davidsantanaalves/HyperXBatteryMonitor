@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a problem with HyperX Battery Tray
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve HyperX Battery Tray.
+
+        Before submitting a bug report, please make sure you are using the latest available version.
+
+  - type: input
+    id: version
+    attributes:
+      label: Application version
+      description: Which version of HyperX Battery Tray are you using?
+      placeholder: "v1.0.0-beta"
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      description: Which version of Windows are you using?
+      placeholder: "Windows 11 25H2"
+    validations:
+      required: true
+
+  - type: input
+    id: headset
+    attributes:
+      label: Headset
+      description: Which HyperX headset are you using?
+      placeholder: "HyperX Cloud III Wireless"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Clearly describe what went wrong.
+      placeholder: "Describe the problem..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps needed to reproduce the problem.
+      placeholder: |
+        1. Start HyperX Battery Tray
+        2. Open Settings
+        3. Change...
+        4. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect the application to do?
+      placeholder: "The application should..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+      placeholder: "The application..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Add screenshots, logs, or any other information that may help.
+      placeholder: "Additional details..."
+    validations:
+      required: false
