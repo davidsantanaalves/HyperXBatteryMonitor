@@ -26,6 +26,11 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     private int _battery = -1;
     private bool _isConnected;
 
+	private readonly object _chargeStatusRequestLock = new();
+	private TaskCompletionSource<bool>? _chargeStatusRequest;
+
+	private bool _isCharging;
+
     public string Name => Definition.Name;
 
     public ushort VendorId => Definition.VendorId;
@@ -37,6 +42,10 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     public int Battery => _battery;
 
     public event EventHandler<int>? BatteryChanged;
+
+	public bool IsCharging => _isCharging;
+
+	public event EventHandler<bool>? ChargingChanged;
 
     public bool Connect()
     {
@@ -73,6 +82,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
             _readerCancellation = null;
 
             _isConnected = false;
+			_isCharging = false;
 
             return false;
         }
@@ -81,11 +91,18 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     public void Disconnect()
     {
         _isConnected = false;
+        UpdateChargingState(false);
 
         lock (_batteryRequestLock)
         {
             _batteryRequest?.TrySetCanceled();
             _batteryRequest = null;
+        }
+
+        lock (_chargeStatusRequestLock)
+        {
+            _chargeStatusRequest?.TrySetCanceled();
+            _chargeStatusRequest = null;
         }
 
         _readerCancellation?.Cancel();
@@ -195,28 +212,37 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         if (report[0] != Definition.ReportId)
             return;
 
-        // Cloud III Wireless battery response:
-        //
-        // 66 89 xx xx battery ...
-        //
-        // NGENUITY also accepts command 0x0D.
-        if (report[1] != 0x89 && report[1] != 0x0D)
-            return;
-
-        if (report[2] == 0 && report[3] == 0)
-            return;
-
-        int battery = report[Definition.BatteryByteIndex];
-
-        if (battery < 0 || battery > 100)
-            return;
-
-        UpdateBattery(battery);
-
-        lock (_batteryRequestLock)
+		if (report[1] == 0x0C || report[1] == 0x8A)
         {
-            _batteryRequest?.TrySetResult(battery);
-        }
+			bool isCharging = report[2] == 1;
+
+			UpdateChargingState(isCharging);
+
+			lock (_chargeStatusRequestLock)
+			{
+				_chargeStatusRequest?.TrySetResult(isCharging);
+			}
+
+			return;
+		}
+
+        if (report[1] != 0x89 && report[1] != 0x0D)
+			return;
+
+		if (report[2] == 0 && report[3] == 0)
+			return;
+
+		int battery = report[Definition.BatteryByteIndex];
+
+		if (battery < 0 || battery > 100)
+			return;
+
+		UpdateBattery(battery);
+
+		lock (_batteryRequestLock)
+		{
+			_batteryRequest?.TrySetResult(battery);
+		}
     }
 
     private void UpdateBattery(int battery)
@@ -238,6 +264,71 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
 
         BatteryChanged?.Invoke(this, -1);
     }
+
+	public async Task<bool?> QueryChargeStatusAsync(
+		CancellationToken cancellationToken = default)
+	{
+		if (!_isConnected)
+			return null;
+
+		var response = new TaskCompletionSource<bool>(
+			TaskCreationOptions.RunContinuationsAsynchronously);
+
+		lock (_chargeStatusRequestLock)
+		{
+			_chargeStatusRequest = response;
+		}
+
+		try
+		{
+			byte[] command = new byte[Definition.ReportLength];
+
+			command[0] = Definition.ReportId;
+			command[1] = 0x8A;
+
+			_connection.Write(command);
+
+			using var timeoutCancellation =
+				CancellationTokenSource.CreateLinkedTokenSource(
+					cancellationToken);
+
+			timeoutCancellation.CancelAfter(
+				TimeSpan.FromSeconds(2));
+
+			return await response.Task.WaitAsync(
+				timeoutCancellation.Token);
+		}
+		catch (OperationCanceledException)
+		{
+			return null;
+		}
+		catch (IOException)
+		{
+			return null;
+		}
+		catch
+		{
+			return null;
+		}
+		finally
+		{
+			lock (_chargeStatusRequestLock)
+			{
+				if (ReferenceEquals(_chargeStatusRequest, response))
+					_chargeStatusRequest = null;
+			}
+		}
+	}
+
+	private void UpdateChargingState(bool isCharging)
+	{
+		if (_isCharging == isCharging)
+			return;
+
+		_isCharging = isCharging;
+
+		ChargingChanged?.Invoke(this, isCharging);
+	}
 
     public void Dispose()
     {

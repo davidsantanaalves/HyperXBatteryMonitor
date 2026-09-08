@@ -20,4 +20,7 @@ public interface IHyperXDevice : IDisposable
 
     Task<int?> QueryBatteryAsync(
         CancellationToken cancellationToken = default);
+
+	Task<bool?> QueryChargeStatusAsync(
+    CancellationToken cancellationToken = default);
 }

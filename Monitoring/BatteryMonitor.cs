@@ -22,6 +22,8 @@ public sealed class BatteryMonitor : IDisposable
 
     public event EventHandler<bool>? ConnectionChanged;
 
+	public event EventHandler<bool>? ChargingChanged;
+
     public void Start()
     {
         if (_monitorTask != null)
@@ -60,11 +62,21 @@ public sealed class BatteryMonitor : IDisposable
                     cancellationToken);
 
                 if (battery.HasValue)
-                {
-                    BatteryChanged?.Invoke(
-                        this,
-                        battery.Value);
-                }
+				{
+					BatteryChanged?.Invoke(
+						this,
+						battery.Value);
+
+					bool? chargeStatus = await _device.QueryChargeStatusAsync(
+						cancellationToken);
+
+					if (chargeStatus.HasValue)
+					{
+						ChargingChanged?.Invoke(
+							this,
+							chargeStatus.Value);
+					}
+				}
                 else
                 {
                     _device.Disconnect();
@@ -72,7 +84,7 @@ public sealed class BatteryMonitor : IDisposable
                     UpdateConnectionState(false);
                 }
 
-                await Task.Delay(
+				await Task.Delay(
                     IntervalMilliseconds,
                     cancellationToken);
             }

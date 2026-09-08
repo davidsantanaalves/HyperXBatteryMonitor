@@ -28,6 +28,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     private Icon? _currentApplicationIcon;
     private SettingsForm? _settingsForm;
     private bool _blinkState;
+	private bool _isCharging;
     private System.Windows.Forms.Timer? _blinkTimer;
 
     public HyperXTrayApplicationContext()
@@ -89,6 +90,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
             };
             _batteryMonitor.BatteryChanged += BatteryMonitor_BatteryChanged;
             _batteryMonitor.ConnectionChanged += BatteryMonitor_ConnectionChanged;
+			_batteryMonitor.ChargingChanged += BatteryMonitor_ChargingChanged;
             UpdateTray();
             _batteryMonitor.Start();
         }
@@ -204,9 +206,22 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
     private void BatteryMonitor_ConnectionChanged(object? sender, bool connected)
     {
+        if (!connected)
+            _isCharging = false;
+
         UpdateTrayIcon();
         UpdateTray();
     }
+
+	private void BatteryMonitor_ChargingChanged(
+		object? sender,
+		bool charging)
+	{
+		_isCharging = charging;
+
+		UpdateTrayIcon();
+		UpdateTray();
+	}
 
     private void UpdateTray()
     {
@@ -224,7 +239,16 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
         if (connected)
         {
-            _batteryMenuItem.Text = string.Format(L("TrayBattery"), _device.Battery);
+            _batteryMenuItem.Text =
+				string.Format(
+					L("TrayBattery"),
+					_device.Battery);
+
+			if (_isCharging)
+			{
+				_batteryMenuItem.Text +=
+					$" {L("TrayCharging")}";
+			}
             _statusMenuItem.Text = L("TrayConnected");
             _notifyIcon.Text = string.Format(L("TrayTooltip"), $"{_device.Battery}%");
         }
@@ -266,29 +290,54 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     }
 
     private void UpdateTrayIcon()
-    {
-        Icon? newIcon = null;
-        try
-        {
-            if (_blinkState && IsCriticalBattery())
-            {
-                newIcon = CreateThemeIcon();
-            }
-            else
-            {
-                newIcon = CreateTrayIcon();
-            }
+	{
+		Icon? baseIcon = null;
+		Icon? newIcon = null;
 
-            Icon? oldIcon = _currentApplicationIcon;
-            _currentApplicationIcon = newIcon;
-            _notifyIcon.Icon = newIcon;
-            oldIcon?.Dispose();
-        }
-        catch
-        {
-            newIcon?.Dispose();
-        }
-    }
+		try
+		{
+			if (_blinkState && IsCriticalBattery())
+			{
+				baseIcon = CreateThemeIcon();
+			}
+			else
+			{
+				baseIcon = CreateTrayIcon();
+			}
+
+			if (_isCharging &&
+				_device?.IsConnected == true &&
+				_device.Battery >= 0)
+			{
+				newIcon = CreateChargingOverlayIcon(
+					baseIcon,
+					_settings.DisplayMode);
+
+				baseIcon.Dispose();
+				baseIcon = null;
+			}
+			else
+			{
+				newIcon = baseIcon;
+				baseIcon = null;
+			}
+
+			Icon? oldIcon = _currentApplicationIcon;
+
+			_currentApplicationIcon = newIcon;
+			_notifyIcon.Icon = newIcon;
+
+			oldIcon?.Dispose();
+		}
+		catch
+		{
+			newIcon?.Dispose();
+		}
+		finally
+		{
+			baseIcon?.Dispose();
+		}
+	}
 
     private bool IsCriticalBattery() =>
         _device != null &&
@@ -335,6 +384,170 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
                 CreateThemeIcon()
         };
     }
+
+	private Icon CreateChargingOverlayIcon(
+		Icon baseIcon,
+		BatteryDisplayMode displayMode)
+	{
+		using Bitmap bitmap =
+			new Bitmap(
+				16,
+				16,
+				PixelFormat.Format32bppArgb);
+
+		using Graphics graphics =
+			Graphics.FromImage(bitmap);
+
+		graphics.SmoothingMode =
+			SmoothingMode.AntiAlias;
+
+		graphics.InterpolationMode =
+			InterpolationMode.HighQualityBicubic;
+
+		graphics.PixelOffsetMode =
+			PixelOffsetMode.HighQuality;
+
+		graphics.Clear(Color.Transparent);
+
+		using Bitmap iconBitmap =
+			RenderIcon(
+				baseIcon,
+				16,
+				16,
+				replacementColor: null);
+
+		graphics.DrawImage(
+			iconBitmap,
+			0,
+			0,
+			16,
+			16);
+
+		switch (displayMode)
+		{
+			case BatteryDisplayMode.IconAndBattery:
+				DrawChargingBoltInsideBattery(graphics);
+				break;
+
+			case BatteryDisplayMode.IconAndPercentage:
+				DrawChargingBoltAfterPercentage(graphics);
+				break;
+
+			default:
+				DrawChargingBoltOnRight(graphics);
+				break;
+		}
+
+		return BitmapToIcon(bitmap);
+	}
+
+	private void DrawChargingBoltOnRight(Graphics graphics)
+	{
+		using var path = new GraphicsPath();
+
+		path.AddPolygon(new[]
+		{
+			new PointF(15.5f, 0.5f),
+			new PointF(8.8f, 8.0f),
+			new PointF(11.9f, 8.0f),
+			new PointF(9.5f, 15.5f),
+			new PointF(17.0f, 6.0f),
+			new PointF(13.6f, 6.0f)
+		});
+
+		using var outlineBrush = new SolidBrush(
+			Color.FromArgb(235, 0, 0, 0));
+
+		graphics.FillPath(outlineBrush, path);
+
+		using var innerPath = new GraphicsPath();
+
+		innerPath.AddPolygon(new[]
+		{
+			new PointF(14.8f, 2.2f),
+			new PointF(10.5f, 7.2f),
+			new PointF(13.0f, 7.2f),
+			new PointF(11.2f, 12.8f),
+			new PointF(15.5f, 6.8f),
+			new PointF(13.2f, 6.8f)
+		});
+
+		using var chargingBrush = new SolidBrush(Color.LimeGreen);
+
+		graphics.FillPath(chargingBrush, innerPath);
+	}
+
+	private void DrawChargingBoltInsideBattery(Graphics graphics)
+	{
+		using var path = new GraphicsPath();
+
+		path.AddPolygon(new[]
+		{
+			new PointF(15.5f, 2.0f),
+			new PointF(10.5f, 8.0f),
+			new PointF(12.9f, 8.0f),
+			new PointF(11.0f, 14.5f),
+			new PointF(16.8f, 6.0f),
+			new PointF(13.9f, 6.0f)
+		});
+
+		using var outlineBrush = new SolidBrush(
+			Color.FromArgb(235, 0, 0, 0));
+
+		graphics.FillPath(outlineBrush, path);
+
+		using var innerPath = new GraphicsPath();
+
+		innerPath.AddPolygon(new[]
+		{
+			new PointF(14.8f, 3.0f),
+			new PointF(11.5f, 7.5f),
+			new PointF(13.5f, 7.5f),
+			new PointF(12.2f, 12.0f),
+			new PointF(15.3f, 6.8f),
+			new PointF(13.5f, 6.8f)
+		});
+
+		using var chargingBrush = new SolidBrush(Color.LimeGreen);
+
+		graphics.FillPath(chargingBrush, innerPath);
+	}
+
+	private void DrawChargingBoltAfterPercentage(Graphics graphics)
+	{
+		using var path = new GraphicsPath();
+
+		path.AddPolygon(new[]
+		{
+			new PointF(15.8f, 2.5f),
+			new PointF(12.8f, 7.0f),
+			new PointF(14.3f, 7.0f),
+			new PointF(13.0f, 12.5f),
+			new PointF(16.5f, 7.0f),
+			new PointF(14.9f, 7.0f)
+		});
+
+		using var outlineBrush = new SolidBrush(
+			Color.FromArgb(235, 0, 0, 0));
+
+		graphics.FillPath(outlineBrush, path);
+
+		using var innerPath = new GraphicsPath();
+
+		innerPath.AddPolygon(new[]
+		{
+			new PointF(15.3f, 3.5f),
+			new PointF(13.5f, 6.5f),
+			new PointF(14.8f, 6.5f),
+			new PointF(13.9f, 10.3f),
+			new PointF(15.7f, 6.7f),
+			new PointF(14.5f, 6.7f)
+		});
+
+		using var chargingBrush = new SolidBrush(Color.LimeGreen);
+
+		graphics.FillPath(chargingBrush, innerPath);
+	}
 
     private Icon CreateDisconnectedIcon()
     {
@@ -943,6 +1156,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         {
             _batteryMonitor.BatteryChanged -= BatteryMonitor_BatteryChanged;
             _batteryMonitor.ConnectionChanged -= BatteryMonitor_ConnectionChanged;
+			_batteryMonitor.ChargingChanged -= BatteryMonitor_ChargingChanged;
             _batteryMonitor.Dispose();
         }
         else
