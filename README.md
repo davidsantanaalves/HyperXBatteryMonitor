@@ -40,9 +40,11 @@ Additional HyperX devices may be supported in the future.
 ## Screenshots
 
 Configuration Screen:
+
 <img width="622" height="767" alt="image" src="https://github.com/user-attachments/assets/bb9c275b-6aab-418d-9c9c-d479a65a0ac1" />
 
 Systray Menu:
+
 <img width="182" height="142" alt="image" src="https://github.com/user-attachments/assets/9e6a3ce0-427d-45c8-9db2-5b0bf591b045" />
 
 ## Installation
