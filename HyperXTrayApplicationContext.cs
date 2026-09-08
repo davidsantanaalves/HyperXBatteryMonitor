@@ -915,13 +915,14 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     }
 
     private void ShowAbout(object? sender, EventArgs e)
-    {
-        MessageBox.Show(
-            L("AboutText"),
-            L("AboutTitle"),
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information);
-    }
+	{
+		using var aboutForm =
+			new AboutForm(
+				_settings.Language,
+				_settings.Theme);
+
+		aboutForm.ShowDialog();
+	}
 
     private void ExitApplication(object? sender, EventArgs e) => ExitThread();
 
