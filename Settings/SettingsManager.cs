@@ -82,10 +82,13 @@ public sealed class SettingsManager
 
     private static void Normalize(AppSettings settings)
     {
-        if (string.IsNullOrWhiteSpace(settings.SelectedDevice))
+        if (settings.SelectedDevice == null)
+            settings.SelectedDevice = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(settings.SelectedDevice) &&
+            settings.SelectedDevice != "HyperX Cloud III Wireless")
         {
-            settings.SelectedDevice =
-                "HyperX Cloud III Wireless";
+            settings.SelectedDevice = string.Empty;
         }
 
         settings.GradientPercent =
@@ -101,7 +104,7 @@ public sealed class SettingsManager
                 100);
 
         if (settings.BatteryColors == null ||
-            settings.BatteryColors.Count != 5)
+            settings.BatteryColors.Count != 3)
         {
             settings.BatteryColors =
                 AppSettings.CreateDefault().BatteryColors;
@@ -122,5 +125,17 @@ public sealed class SettingsManager
                 .OrderByDescending(
                     color => color.MinimumPercent)
                 .ToList();
+
+        if (!Enum.IsDefined(settings.Language))
+            settings.Language = AppLanguage.English;
+
+        if (!Enum.IsDefined(settings.Theme))
+            settings.Theme = AppTheme.System;
+
+        if (!Enum.IsDefined(settings.DisplayMode))
+            settings.DisplayMode = BatteryDisplayMode.StaticIcon;
+
+        if (!Enum.IsDefined(settings.AdvancedDisplayMode))
+            settings.AdvancedDisplayMode = AdvancedDisplayMode.BatteryGradient;
     }
 }

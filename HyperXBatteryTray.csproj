@@ -5,14 +5,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>HyperXBatteryTray.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <ApplicationIcon>Icons\Light\light.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="WhiteTheme.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="DarkTheme.ico">
+    <None Update="Icons\**\*.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

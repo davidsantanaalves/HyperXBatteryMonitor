@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -38,16 +39,17 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
         if (!_settings.ThemeConfigured)
         {
-            _settings.Theme = GetWindowsTheme();
+            _settings.Theme = AppTheme.System;
+            _settings.ThemeConfigured = true;
             _settingsManager.Save(_settings);
         }
 
         _deviceManager = new HyperXDeviceManager();
         _device = _deviceManager.GetFirstAvailableDevice();
 
-        _deviceMenuItem = new ToolStripMenuItem { Enabled = false };
-        _batteryMenuItem = new ToolStripMenuItem { Enabled = false };
-        _statusMenuItem = new ToolStripMenuItem { Enabled = false };
+        _deviceMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
+        _batteryMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
+        _statusMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
 
         _contextMenu = new ContextMenuStrip { ShowImageMargin = false };
         _settingsMenuItem = new ToolStripMenuItem();
@@ -76,6 +78,8 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
             ContextMenuStrip = _contextMenu
         };
         _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+        _contextMenu.Opening += ContextMenu_Opening;
+        SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
         ApplyLocalization();
         ApplyTheme();
@@ -102,6 +106,34 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
     private void NotifyIcon_DoubleClick(object? sender, EventArgs e) => ShowSettings(sender, e);
 
+    private void ContextMenu_Opening(object? sender, CancelEventArgs e)
+    {
+        // Re-evaluate the Windows theme every time the tray menu opens.
+        // This guarantees the menu uses the current system theme even if
+        // Windows changed its theme while the application was running.
+        ApplyTheme();
+    }
+
+    private void SystemEvents_UserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        if (_settings.Theme != AppTheme.System)
+            return;
+
+        // UserPreferenceChanged can be raised from a non-UI thread.
+        // Marshal the menu update back to the Windows Forms UI thread.
+        if (_contextMenu.IsHandleCreated && !_contextMenu.IsDisposed)
+        {
+            try
+            {
+                _contextMenu.BeginInvoke((MethodInvoker)ApplyTheme);
+            }
+            catch (InvalidOperationException)
+            {
+                // The application is shutting down or the handle is no longer valid.
+            }
+        }
+    }
+
     private static AppTheme GetWindowsTheme()
     {
         try
@@ -125,6 +157,12 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     }
 
     private string L(string key) => Localization.Get(key, _settings.Language);
+    private AppTheme GetEffectiveTheme() =>
+        _settings.Theme == AppTheme.System
+            ? GetWindowsTheme()
+            : _settings.Theme;
+
+
 
     private void ApplyLocalization()
     {
@@ -136,8 +174,8 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
     private void ApplyTheme()
     {
-        bool dark = _settings.Theme == AppTheme.Dark;
-        _contextMenu.Renderer = new ToolStripProfessionalRenderer(new TrayColorTable(dark));
+        bool dark = GetEffectiveTheme() == AppTheme.Dark;
+        _contextMenu.Renderer = new TrayMenuRenderer(new TrayColorTable(dark), dark);
         Color back = dark ? Color.FromArgb(45, 45, 48) : SystemColors.Menu;
         Color fore = dark ? Color.WhiteSmoke : SystemColors.MenuText;
         _contextMenu.BackColor = back;
@@ -225,42 +263,56 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
     private void UpdateTray()
     {
-        if (_device == null)
+        bool deviceSelected =
+            !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
+
+        _deviceMenuItem.Text = deviceSelected
+            ? _settings.SelectedDevice
+            : L("UnknownHeadphones");
+
+        if (!deviceSelected || _device == null)
         {
-            _deviceMenuItem.Text = "HyperX Cloud III Wireless";
             _batteryMenuItem.Text = L("TrayBatteryNA");
             _statusMenuItem.Text = L("TrayDisconnected");
-            _notifyIcon.Text = string.Format(L("TrayTooltip"), "N/A");
+            UpdateNotifyIconTooltip();
             return;
         }
 
         bool connected = _device.IsConnected && _device.Battery >= 0;
-        _deviceMenuItem.Text = "HyperX Cloud III Wireless";
 
         if (connected)
         {
             _batteryMenuItem.Text =
-				string.Format(
-					L("TrayBattery"),
-					_device.Battery);
+                string.Format(
+                    L("TrayBattery"),
+                    _device.Battery);
 
-			if (_isCharging)
-			{
-				_batteryMenuItem.Text +=
-					$" {L("TrayCharging")}";
-			}
+            if (_isCharging)
+            {
+                _batteryMenuItem.Text +=
+                    $" {L("TrayCharging")}";
+            }
+
             _statusMenuItem.Text = L("TrayConnected");
-            _notifyIcon.Text = string.Format(L("TrayTooltip"), $"{_device.Battery}%");
         }
         else
         {
             _batteryMenuItem.Text = L("TrayBatteryNA");
             _statusMenuItem.Text = L("TrayDisconnected");
-            _notifyIcon.Text = string.Format(L("TrayTooltip"), "N/A");
         }
 
-        if (_notifyIcon.Text.Length > 63)
-            _notifyIcon.Text = _notifyIcon.Text[..63];
+        UpdateNotifyIconTooltip();
+    }
+
+    private void UpdateNotifyIconTooltip()
+    {
+        string deviceName = _deviceMenuItem.Text ?? string.Empty;
+        string battery = _batteryMenuItem.Text ?? string.Empty;
+        string status = _statusMenuItem.Text ?? string.Empty;
+
+        // .NET 6+ supports up to 127 characters for NotifyIcon.Text.
+        // Do not truncate the localized tooltip manually.
+        _notifyIcon.Text = $"{deviceName}\n{battery}\n{status}";
     }
 
     private void RestartBlinkTimer()
@@ -309,12 +361,19 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 				_device?.IsConnected == true &&
 				_device.Battery >= 0)
 			{
-				newIcon = CreateChargingOverlayIcon(
-					baseIcon,
-					_settings.DisplayMode);
+				if (_settings.DisplayMode == BatteryDisplayMode.BatteryIndicator)
+				{
+					baseIcon.Dispose();
+					baseIcon = null;
+					newIcon = CreateChargingIcon();
+				}
+				else
+				{
+					newIcon = CreateChargingOverlayIcon(baseIcon);
 
-				baseIcon.Dispose();
-				baseIcon = null;
+					baseIcon.Dispose();
+					baseIcon = null;
+				}
 			}
 			else
 			{
@@ -348,6 +407,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     private Icon CreateTrayIcon()
     {
         bool connected =
+            !string.IsNullOrWhiteSpace(_settings.SelectedDevice) &&
             _device?.IsConnected == true &&
             _device.Battery >= 0 &&
             _device.Battery <= 100;
@@ -358,24 +418,27 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         int battery = _device!.Battery;
         Color batteryColor = GetBatteryColor(battery);
 
-        return _settings.DisplayMode switch
-        {
-            BatteryDisplayMode.StaticIcon =>
-                CreateThemeIcon(),
+        if (_settings.DisplayMode == BatteryDisplayMode.StaticIcon)
+            return CreateThemeIcon();
 
-            BatteryDisplayMode.ColoredIcon =>
+        if (_settings.DisplayMode == BatteryDisplayMode.BatteryIndicator)
+            return CreateBatteryIndicatorIcon(battery);
+
+        return _settings.AdvancedDisplayMode switch
+        {
+            AdvancedDisplayMode.BatteryGradient =>
                 CreateRenderedIcon(
                     batteryColor,
                     null,
                     colorizeHeadset: true),
 
-            BatteryDisplayMode.IconAndBattery =>
+            AdvancedDisplayMode.BatteryIndicator =>
                 CreateRenderedIcon(
                     batteryColor,
                     battery,
                     colorizeHeadset: false),
 
-            BatteryDisplayMode.IconAndPercentage =>
+            AdvancedDisplayMode.PercentageText =>
                 CreatePercentageOverlayIcon(
                     battery,
                     connected),
@@ -385,9 +448,47 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         };
     }
 
-	private Icon CreateChargingOverlayIcon(
-		Icon baseIcon,
-		BatteryDisplayMode displayMode)
+    private Icon CreateBatteryIndicatorIcon(int battery)
+    {
+        string suffix = battery switch
+        {
+            >= 50 => "green",
+            >= 30 => "yellow",
+            >= 15 => "orange",
+            _ => "red"
+        };
+
+        return LoadIconFile($"{GetThemePrefix()}_{suffix}.ico");
+    }
+
+    private Icon CreateChargingIcon() =>
+        LoadIconFile($"{GetThemePrefix()}_charging.ico");
+
+    private string GetThemePrefix() =>
+        GetEffectiveTheme() == AppTheme.Dark ? "dark" : "light";
+
+    private Icon LoadIconFile(string fileName)
+    {
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            "Icons",
+            GetEffectiveTheme() == AppTheme.Dark ? "Dark" : "Light",
+            fileName);
+
+        try
+        {
+            if (File.Exists(path))
+                return new Icon(path);
+        }
+        catch
+        {
+        }
+
+        return Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+            ?? new Icon(SystemIcons.Application, SystemIcons.Application.Size);
+    }
+
+	private Icon CreateChargingOverlayIcon(Icon baseIcon)
 	{
 		using Bitmap bitmap =
 			new Bitmap(
@@ -423,19 +524,19 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 			16,
 			16);
 
-		switch (displayMode)
+		if (_settings.DisplayMode == BatteryDisplayMode.Advanced &&
+			_settings.AdvancedDisplayMode == AdvancedDisplayMode.BatteryIndicator)
 		{
-			case BatteryDisplayMode.IconAndBattery:
-				DrawChargingBoltInsideBattery(graphics);
-				break;
-
-			case BatteryDisplayMode.IconAndPercentage:
-				DrawChargingBoltAfterPercentage(graphics);
-				break;
-
-			default:
-				DrawChargingBoltOnRight(graphics);
-				break;
+			DrawChargingBoltInsideBattery(graphics);
+		}
+		else if (_settings.DisplayMode == BatteryDisplayMode.Advanced &&
+			_settings.AdvancedDisplayMode == AdvancedDisplayMode.PercentageText)
+		{
+			DrawChargingBoltAfterPercentage(graphics);
+		}
+		else
+		{
+			DrawChargingBoltOnRight(graphics);
 		}
 
 		return BitmapToIcon(bitmap);
@@ -606,43 +707,16 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         return BitmapToIcon(bitmap);
     }
 
-    private Icon CreateThemeIcon()
-    {
-        string fileName =
-            _settings.Theme == AppTheme.Dark
-                ? "DarkTheme.ico"
-                : "WhiteTheme.ico";
-
-        string path =
-            Path.Combine(
-                AppContext.BaseDirectory,
-                fileName);
-
-        try
-        {
-            if (File.Exists(path))
-                return new Icon(path);
-        }
-        catch
-        {
-        }
-
-        return
-            Icon.ExtractAssociatedIcon(
-                Application.ExecutablePath)
-            ?? new Icon(
-                SystemIcons.Application,
-                SystemIcons.Application.Size);
-    }
+    private Icon CreateThemeIcon() =>
+        LoadIconFile($"{GetThemePrefix()}.ico");
 
     private Icon CreateRenderedIcon(
         Color batteryColor,
         int? battery,
         bool colorizeHeadset)
     {
-        // ColoredIcon is intentionally independent from the composite
-        // IconAndBattery layout. It must preserve the exact 16x16 scale of
-        // the static tray icon and change only its color.
+        // Battery-gradient mode preserves the exact 16x16 scale of the
+        // static tray icon and changes only its color.
         if (colorizeHeadset && !battery.HasValue)
         {
             using Bitmap bitmap =
@@ -706,8 +780,8 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
         using Icon compositeSource = CreateThemeIcon();
 
-        // This layout is exclusively for IconAndBattery:
-        // the headset is on the left and the battery is beside it.
+        // This layout is exclusively for the advanced battery-indicator
+        // mode: the headset is on the left and the battery is beside it.
         const int headsetWidth = 11;
         const int headsetHeight = 16;
 
@@ -813,7 +887,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
             (16f - backgroundHeight) / 2f;
 
         Color backgroundColor =
-            _settings.Theme == AppTheme.Dark
+            GetEffectiveTheme() == AppTheme.Dark
                 ? Color.FromArgb(205, 20, 20, 22)
                 : Color.FromArgb(215, 245, 245, 245);
 
@@ -872,7 +946,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
         using var outlineBrush =
             new SolidBrush(
-                _settings.Theme == AppTheme.Dark
+                GetEffectiveTheme() == AppTheme.Dark
                     ? Color.Black
                     : Color.White);
 
@@ -939,7 +1013,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         Color fillColor)
     {
         Color outlineColor =
-            _settings.Theme == AppTheme.Dark
+            GetEffectiveTheme() == AppTheme.Dark
                 ? Color.FromArgb(248, 248, 248)
                 : Color.FromArgb(70, 70, 70);
 
@@ -978,7 +1052,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         // This is deliberately not transparent: the tray background must
         // never show through the empty charge area.
         Color emptyColor =
-            _settings.Theme == AppTheme.Dark
+            GetEffectiveTheme() == AppTheme.Dark
                 ? Color.FromArgb(38, 38, 40)
                 : Color.FromArgb(55, 55, 58);
 
@@ -1132,7 +1206,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 		using var aboutForm =
 			new AboutForm(
 				_settings.Language,
-				_settings.Theme);
+				GetEffectiveTheme());
 
 		aboutForm.ShowDialog();
 	}
@@ -1145,6 +1219,9 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         _blinkTimer?.Stop();
         _blinkTimer?.Dispose();
         _blinkTimer = null;
+
+        SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+        _contextMenu.Opening -= ContextMenu_Opening;
 
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -1166,6 +1243,39 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 
         _deviceManager.Dispose();
         base.ExitThreadCore();
+    }
+}
+
+
+internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
+{
+    private readonly bool _dark;
+
+    public TrayMenuRenderer(ProfessionalColorTable colorTable, bool dark) : base(colorTable)
+    {
+        _dark = dark;
+    }
+
+    protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+    {
+        if (e.Item.Tag is string tag && tag == "NonInteractive")
+        {
+            using var brush = new SolidBrush(_dark ? Color.FromArgb(45, 45, 48) : SystemColors.Menu);
+            e.Graphics.FillRectangle(brush, new Rectangle(Point.Empty, e.Item.Size));
+            return;
+        }
+
+        base.OnRenderMenuItemBackground(e);
+    }
+
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    {
+        if (e.Item.Tag is string tag && tag == "NonInteractive")
+        {
+            e.TextColor = _dark ? Color.WhiteSmoke : SystemColors.MenuText;
+        }
+
+        base.OnRenderItemText(e);
     }
 }
 

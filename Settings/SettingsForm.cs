@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using HyperXBatteryTray;
 
 namespace HyperXBatteryTray.Settings;
@@ -18,11 +19,13 @@ public sealed class SettingsForm : Form
     private readonly Label _startupLabel;
     private readonly RadioButton _lightThemeRadioButton;
     private readonly RadioButton _darkThemeRadioButton;
+    private readonly RadioButton _systemThemeRadioButton;
 
     private readonly GroupBox _deviceGroup;
     private readonly GroupBox _interfaceGroup;
     private readonly GroupBox _displayGroup;
     private readonly GroupBox _colorsGroup;
+    private GroupBox _batteryColorsGroup = null!;
     private readonly GroupBox _criticalGroup;
 
     private readonly Label _deviceLabel;
@@ -34,9 +37,11 @@ public sealed class SettingsForm : Form
     private readonly Label _criticalLimitLabel;
 
     private readonly RadioButton _staticIconRadioButton;
-    private readonly RadioButton _coloredIconRadioButton;
-    private readonly RadioButton _iconAndBatteryRadioButton;
-    private readonly RadioButton _iconAndPercentageRadioButton;
+    private readonly RadioButton _batteryIndicatorRadioButton;
+    private readonly RadioButton _advancedRadioButton;
+    private readonly RadioButton _gradientAdvancedRadioButton;
+    private readonly RadioButton _advancedBatteryIndicatorRadioButton;
+    private readonly RadioButton _percentageAdvancedRadioButton;
 
     private readonly CheckBox _gradientCheckBox;
     private readonly NumericUpDown _gradientPercentNumeric;
@@ -47,6 +52,7 @@ public sealed class SettingsForm : Form
     private readonly List<Panel> _colorPreviewPanels = new();
     private readonly List<Label> _percentLabels = new();
     private readonly List<PictureBox> _previewBoxes = new();
+    private readonly List<PictureBox> _advancedPreviewBoxes = new();
 
     private readonly List<BatteryColorSettings> _workingColors;
 
@@ -62,7 +68,7 @@ public sealed class SettingsForm : Form
     private AppTheme _selectedTheme;
 
     private const int WindowWidth = 620;
-    private const int WindowHeightWithColors = 735;
+    private const int WindowHeightWithColors = 835;
     private const int WindowHeightWithoutColors = 530;
 
     public event EventHandler? SettingsApplied;
@@ -96,15 +102,16 @@ public sealed class SettingsForm : Form
         _transitionLabel = new Label { Text = L("Transition"), AutoSize = true };
         _criticalLimitLabel = new Label { Text = L("BatteryLimit"), AutoSize = true };
 
-        _deviceComboBox = new ComboBox
+        _deviceComboBox = new DeviceSelectionComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
             Width = 400
         };
+        _deviceComboBox.Items.Add(string.Empty);
         _deviceComboBox.Items.Add("HyperX Cloud III Wireless");
-        _deviceComboBox.SelectedItem = settings.SelectedDevice;
-        if (_deviceComboBox.SelectedIndex < 0)
-            _deviceComboBox.SelectedIndex = 0;
+        _deviceComboBox.SelectedIndex =
+            settings.SelectedDevice == "HyperX Cloud III Wireless" ? 1 : 0;
+        _deviceComboBox.SelectedIndexChanged += DeviceComboBox_SelectedIndexChanged;
 
         _languageComboBox = new ComboBox
         {
@@ -129,13 +136,29 @@ public sealed class SettingsForm : Form
             AutoSize = true,
             Checked = _selectedTheme == AppTheme.Dark
         };
+        _systemThemeRadioButton = new RadioButton
+        {
+            Text = ThemeText(AppTheme.System),
+            AutoSize = true,
+            Checked = _selectedTheme == AppTheme.System
+        };
         _lightThemeRadioButton.CheckedChanged += ThemeRadioButton_CheckedChanged;
         _darkThemeRadioButton.CheckedChanged += ThemeRadioButton_CheckedChanged;
+        _systemThemeRadioButton.CheckedChanged += ThemeRadioButton_CheckedChanged;
 
         _staticIconRadioButton = CreateDisplayRadioButton(L("StaticIcon"), BatteryDisplayMode.StaticIcon);
-        _coloredIconRadioButton = CreateDisplayRadioButton(L("ColoredIcon"), BatteryDisplayMode.ColoredIcon);
-        _iconAndBatteryRadioButton = CreateDisplayRadioButton(L("IconAndBattery"), BatteryDisplayMode.IconAndBattery);
-        _iconAndPercentageRadioButton = CreateDisplayRadioButton(L("IconAndPercentage"), BatteryDisplayMode.IconAndPercentage);
+        _batteryIndicatorRadioButton = CreateDisplayRadioButton(L("BatteryIndicatorMode"), BatteryDisplayMode.BatteryIndicator);
+        _advancedRadioButton = CreateDisplayRadioButton(L("AdvancedDynamic"), BatteryDisplayMode.Advanced);
+
+        _gradientAdvancedRadioButton = CreateAdvancedDisplayRadioButton(
+            L("BatteryGradientMode"),
+            AdvancedDisplayMode.BatteryGradient);
+        _advancedBatteryIndicatorRadioButton = CreateAdvancedDisplayRadioButton(
+            L("AdvancedBatteryIndicatorMode"),
+            AdvancedDisplayMode.BatteryIndicator);
+        _percentageAdvancedRadioButton = CreateAdvancedDisplayRadioButton(
+            L("PercentageTextMode"),
+            AdvancedDisplayMode.PercentageText);
 
         _gradientCheckBox = new CheckBox
         {
@@ -187,7 +210,7 @@ public sealed class SettingsForm : Form
         AcceptButton = _okButton;
         CancelButton = _cancelButton;
 
-        UpdateColorsVisibility();
+        UpdateAdvancedOptionsVisibility();
         ApplyTheme(_selectedTheme);
         PositionWindowAtTop();
     }
@@ -224,8 +247,8 @@ public sealed class SettingsForm : Form
 
         _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 165));
-        _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 195));
+        _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 125));
+        _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 315));
         _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
         _mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
 
@@ -285,6 +308,7 @@ public sealed class SettingsForm : Form
         };
         themePanel.Controls.Add(_lightThemeRadioButton);
         themePanel.Controls.Add(_darkThemeRadioButton);
+        themePanel.Controls.Add(_systemThemeRadioButton);
         panel.Controls.Add(themePanel, 1, 1);
 
         _startupLabel.Anchor = AnchorStyles.Left;
@@ -313,43 +337,58 @@ public sealed class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 4,
-            Padding = new Padding(8, 5, 8, 5)
+            RowCount = 3,
+            Padding = new Padding(8, 5, 8, 5),
+            Margin = new Padding(0)
         };
 
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
-        for (int i = 0; i < 4; i++)
-            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+        for (int i = 0; i < 3; i++)
+            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
 
-        AddDisplayOption(panel, 0, _staticIconRadioButton, BatteryDisplayMode.StaticIcon);
-        AddDisplayOption(panel, 1, _coloredIconRadioButton, BatteryDisplayMode.ColoredIcon);
-        AddDisplayOption(panel, 2, _iconAndBatteryRadioButton, BatteryDisplayMode.IconAndBattery);
-        AddDisplayOption(panel, 3, _iconAndPercentageRadioButton, BatteryDisplayMode.IconAndPercentage);
+        AddPrimaryDisplayOption(panel, 0, _staticIconRadioButton);
+        AddPrimaryDisplayOption(panel, 1, _batteryIndicatorRadioButton);
+        AddPrimaryDisplayOption(panel, 2, _advancedRadioButton);
+
+        AddPrimaryDisplayPreview(panel, 0, BatteryDisplayMode.StaticIcon);
+        AddPrimaryDisplayPreview(panel, 1, BatteryDisplayMode.BatteryIndicator);
 
         _staticIconRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
-        _coloredIconRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
-        _iconAndBatteryRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
-        _iconAndPercentageRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
+        _batteryIndicatorRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
+        _advancedRadioButton.CheckedChanged += DisplayModeRadioButton_CheckedChanged;
 
         group.Controls.Add(panel);
         return group;
     }
 
-    private void AddDisplayOption(TableLayoutPanel panel, int row, RadioButton radioButton, BatteryDisplayMode mode)
+    private void AddPrimaryDisplayPreview(
+        TableLayoutPanel panel,
+        int row,
+        BatteryDisplayMode mode)
     {
-        panel.Controls.Add(radioButton, 0, row);
-
         var preview = new PictureBox
         {
             Image = CreateModePreview(mode),
             SizeMode = PictureBoxSizeMode.CenterImage,
-            Dock = DockStyle.Fill,
-            Margin = new Padding(5, 1, 5, 1)
+            Size = new Size(170, 30),
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 2, 0, 2),
+            BackColor = Color.Transparent
         };
 
         _previewBoxes.Add(preview);
         panel.Controls.Add(preview, 1, row);
+    }
+
+    private static void AddPrimaryDisplayOption(
+        TableLayoutPanel panel,
+        int row,
+        RadioButton radioButton)
+    {
+        radioButton.Anchor = AnchorStyles.Left;
+        radioButton.Margin = new Padding(3, 2, 3, 2);
+        panel.Controls.Add(radioButton, 0, row);
     }
 
     private RadioButton CreateDisplayRadioButton(string text, BatteryDisplayMode mode)
@@ -364,120 +403,269 @@ public sealed class SettingsForm : Form
         };
     }
 
+    private RadioButton CreateAdvancedDisplayRadioButton(string text, AdvancedDisplayMode mode)
+    {
+        return new RadioButton
+        {
+            Text = text,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Checked = _settings.AdvancedDisplayMode == mode,
+            Tag = mode
+        };
+    }
+
     private Bitmap CreateModePreview(BatteryDisplayMode mode)
     {
         const int width = 170;
         const int height = 30;
         const int iconSize = 24;
-        const int iconX = 8;
+        const int spacing = 10;
+        const int firstX = 8;
         const int iconY = 3;
-        const int previewBattery = 54;
 
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         using Graphics graphics = Graphics.FromImage(bitmap);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
         graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        graphics.Clear(PreviewBackColor);
+        graphics.Clear(Color.Transparent);
 
-        using Icon? sourceIcon = TryGetApplicationIcon(_selectedTheme);
-        if (sourceIcon != null)
+        if (mode == BatteryDisplayMode.StaticIcon)
         {
-            using Bitmap iconBitmap = RenderIconToBitmap(
-                sourceIcon,
-                iconSize,
-                iconSize,
-                mode == BatteryDisplayMode.ColoredIcon
-                    ? GetBatteryColor(previewBattery)
-                    : null);
-
-            graphics.DrawImage(iconBitmap, iconX, iconY, iconSize, iconSize);
-        }
-        else
-        {
-            DrawHeadsetFallback(
-                graphics,
-                iconX,
-                iconY,
-                iconSize,
-                mode == BatteryDisplayMode.ColoredIcon
-                    ? GetBatteryColor(previewBattery)
-                    : PreviewForeColor);
+            DrawApplicationIcon(graphics, firstX, iconY, iconSize, null);
+            DrawChargingIcon(graphics, firstX + iconSize + spacing, iconY, iconSize);
+            return bitmap;
         }
 
-        if (mode == BatteryDisplayMode.IconAndBattery)
+        // The primary Battery Indicator mode demonstrates the four battery
+        // states used by the tray indicator, followed by the charging icon.
+        string[] suffixes = { "green", "yellow", "orange", "red" };
+        for (int i = 0; i < suffixes.Length; i++)
         {
-            const int previewHeadsetWidth = 23;
-            const int previewHeadsetHeight = 30;
-
-            // Match the tray composition: the headset remains dominant and
-            // the battery sits beside it with an opaque dark interior.
-            graphics.Clear(PreviewBackColor);
-
-            using Icon? previewIcon =
-                TryGetApplicationIcon(_selectedTheme);
-
-            if (previewIcon != null)
-            {
-                using Bitmap previewBitmap =
-                    RenderIconToBitmap(
-                        previewIcon,
-                        previewHeadsetWidth,
-                        previewHeadsetHeight,
-                        null);
-
-                graphics.DrawImage(
-                    previewBitmap,
-                    iconX,
-                    0,
-                    previewHeadsetWidth,
-                    previewHeadsetHeight);
-            }
-
-            DrawVerticalBattery(
-                graphics,
-                iconX + previewHeadsetWidth - 3,
-                5,
-                15,
-                22,
-                previewBattery,
-                GetBatteryColor(previewBattery),
-                _selectedTheme);
+            int x = firstX + i * (iconSize + spacing);
+            DrawBatteryStateIcon(graphics, x, iconY, iconSize, suffixes[i]);
         }
-        else if (mode == BatteryDisplayMode.IconAndPercentage)
+
+        // Charging state is shown as the final icon in the Battery Indicator
+        // preview, using the same theme-specific charging asset as the tray.
+        int chargingX = firstX + suffixes.Length * (iconSize + spacing);
+        DrawChargingIcon(graphics, chargingX, iconY, iconSize);
+
+        return bitmap;
+    }
+
+    private Bitmap CreateAdvancedModePreview(AdvancedDisplayMode mode)
+    {
+        const int width = 170;
+        const int height = 30;
+        const int iconSize = 24;
+        const int spacing = 10;
+        const int firstX = 8;
+        const int iconY = 3;
+
+        var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        using Graphics graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        graphics.Clear(Color.Transparent);
+
+        switch (mode)
         {
-            DrawCenteredPercentageOverIcon(
-                graphics,
-                "54%",
-                PreviewForeColor);
+            case AdvancedDisplayMode.BatteryGradient:
+                for (int i = 0; i < _workingColors.Count && i < 3; i++)
+                {
+                    int x = firstX + i * (iconSize + spacing);
+                    DrawApplicationIcon(graphics, x, iconY, iconSize, _workingColors[i].Color);
+                }
+                break;
+
+            case AdvancedDisplayMode.BatteryIndicator:
+                DrawAdvancedBatteryIndicatorPreview(graphics, firstX, iconY, iconSize, spacing);
+                break;
+
+            case AdvancedDisplayMode.PercentageText:
+                int[] percentages = { 100, 50, 10 };
+                for (int i = 0; i < _workingColors.Count && i < 3; i++)
+                {
+                    int x = firstX + i * (iconSize + spacing);
+                    // Text percentage keeps the standard static headset icon for the
+                    // selected theme. Only the percentage text changes color.
+                    DrawApplicationIcon(graphics, x, iconY, iconSize, null);
+                    DrawCenteredPercentageOverIcon(
+                        graphics,
+                        $"{percentages[i]}%",
+                        x,
+                        iconY,
+                        iconSize,
+                        _workingColors[i].Color);
+                }
+                break;
         }
 
         return bitmap;
     }
 
-    private Color PreviewBackColor => _selectedTheme == AppTheme.Dark
+    private void DrawApplicationIcon(
+        Graphics graphics,
+        int x,
+        int y,
+        int size,
+        Color? replacementColor)
+    {
+        using Icon? sourceIcon = TryGetApplicationIcon(EffectiveSelectedTheme);
+        if (sourceIcon != null)
+        {
+            using Bitmap iconBitmap = RenderIconToBitmap(sourceIcon, size, size, replacementColor);
+            graphics.DrawImage(iconBitmap, x, y, size, size);
+        }
+        else
+        {
+            DrawHeadsetFallback(
+                graphics,
+                x,
+                y,
+                size,
+                replacementColor ?? PreviewForeColor);
+        }
+    }
+
+    private void DrawBatteryStateIcon(
+        Graphics graphics,
+        int x,
+        int y,
+        int size,
+        string suffix)
+    {
+        AppTheme theme = EffectiveSelectedTheme;
+        string prefix = theme == AppTheme.Dark ? "dark" : "light";
+        string themeFolder = theme == AppTheme.Dark ? "Dark" : "Light";
+        string path = Path.Combine(
+            Application.StartupPath,
+            "Icons",
+            themeFolder,
+            $"{prefix}_{suffix}.ico");
+
+        using Icon? icon = TryLoadIcon(path);
+        if (icon != null)
+        {
+            using Bitmap bitmap = RenderIconToBitmap(icon, size, size, null);
+            graphics.DrawImage(bitmap, x, y, size, size);
+        }
+        else
+        {
+            DrawApplicationIcon(graphics, x, y, size, GetPreviewStateColor(suffix));
+        }
+    }
+
+    private void DrawChargingIcon(Graphics graphics, int x, int y, int size)
+    {
+        AppTheme theme = EffectiveSelectedTheme;
+        string prefix = theme == AppTheme.Dark ? "dark" : "light";
+        string themeFolder = theme == AppTheme.Dark ? "Dark" : "Light";
+        string path = Path.Combine(
+            Application.StartupPath,
+            "Icons",
+            themeFolder,
+            $"{prefix}_charging.ico");
+
+        using Icon? icon = TryLoadIcon(path);
+        if (icon != null)
+        {
+            using Bitmap bitmap = RenderIconToBitmap(icon, size, size, null);
+            graphics.DrawImage(bitmap, x, y, size, size);
+        }
+        else
+        {
+            DrawApplicationIcon(graphics, x, y, size, null);
+        }
+    }
+
+    private void DrawAdvancedBatteryIndicatorPreview(
+        Graphics graphics,
+        int firstX,
+        int y,
+        int size,
+        int spacing)
+    {
+        int[] percentages = { 100, 50, 10 };
+
+        for (int i = 0; i < 3 && i < _workingColors.Count; i++)
+        {
+            int x = firstX + i * (size + spacing);
+            Color color = _workingColors[i].Color;
+
+            DrawApplicationIcon(graphics, x, y, size, null);
+            DrawVerticalBattery(
+                graphics,
+                x + 15,
+                y + 3,
+                8,
+                18,
+                percentages[i],
+                color,
+                EffectiveSelectedTheme);
+        }
+    }
+
+    private Color GetPreviewStateColor(string suffix) => suffix switch
+    {
+        "green" => Color.LimeGreen,
+        "yellow" => Color.Gold,
+        "orange" => Color.Orange,
+        "red" => Color.Red,
+        _ => PreviewForeColor
+    };
+
+    private Color PreviewBackColor => EffectiveSelectedTheme == AppTheme.Dark
         ? Color.FromArgb(45, 45, 48)
         : SystemColors.Window;
 
-    private Color PreviewForeColor => _selectedTheme == AppTheme.Dark
+    private Color PreviewForeColor => EffectiveSelectedTheme == AppTheme.Dark
         ? Color.WhiteSmoke
         : SystemColors.ControlText;
 
     private static Icon? TryGetApplicationIcon(AppTheme theme)
     {
+        string prefix = theme == AppTheme.Dark ? "dark" : "light";
+        return TryLoadIcon(Path.Combine(
+            Application.StartupPath,
+            "Icons",
+            theme == AppTheme.Dark ? "Dark" : "Light",
+            $"{prefix}.ico"));
+    }
+
+    private static Icon? TryGetBatteryIndicatorIcon(AppTheme theme, int battery)
+    {
+        string prefix = theme == AppTheme.Dark ? "dark" : "light";
+        string suffix = battery switch
+        {
+            >= 50 => "green",
+            >= 30 => "yellow",
+            >= 15 => "orange",
+            _ => "red"
+        };
+
+        return TryLoadIcon(Path.Combine(
+            Application.StartupPath,
+            "Icons",
+            theme == AppTheme.Dark ? "Dark" : "Light",
+            $"{prefix}_{suffix}.ico"));
+    }
+
+    private static Icon? TryLoadIcon(string path)
+    {
         try
         {
-            string fileName = theme == AppTheme.Dark ? "DarkTheme.ico" : "WhiteTheme.ico";
-            string path = Path.Combine(Application.StartupPath, fileName);
             if (File.Exists(path))
                 return new Icon(path);
-
-            return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         }
         catch
         {
-            return null;
         }
+
+        return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
     }
 
     private static Bitmap RenderIconToBitmap(Icon sourceIcon, int width, int height, Color? replacementColor)
@@ -590,29 +778,36 @@ public sealed class SettingsForm : Form
     private static void DrawCenteredPercentageOverIcon(
         Graphics graphics,
         string text,
+        int iconX,
+        int iconY,
+        int iconSize,
         Color color)
     {
         using var font =
             new Font(
                 "Segoe UI",
-                8.5f,
+                7.5f,
                 FontStyle.Bold,
                 GraphicsUnit.Point);
 
-        SizeF size = graphics.MeasureString(text, font);
+        SizeF textSize = graphics.MeasureString(text, font);
 
-        float x = (32f - size.Width) / 2f;
-        float y = (30f - size.Height) / 2f - 1f;
+        float x = iconX + (iconSize - textSize.Width) / 2f;
+        float y = iconY + (iconSize - textSize.Height) / 2f;
 
-        using var shadow =
-            new SolidBrush(Color.FromArgb(190, Color.White));
+        // Draw a compact dark background directly behind the percentage so
+        // the text remains legible over the headset artwork.
+        const float horizontalPadding = 1.5f;
+        const float verticalPadding = 0.5f;
+        RectangleF backgroundRect = new RectangleF(
+            x - horizontalPadding,
+            y - verticalPadding,
+            textSize.Width + horizontalPadding * 2,
+            textSize.Height + verticalPadding * 2);
 
-        graphics.DrawString(
-            text,
-            font,
-            shadow,
-            x + 0.7f,
-            y + 0.7f);
+        using var backgroundBrush =
+            new SolidBrush(Color.FromArgb(205, Color.Black));
+        graphics.FillRectangle(backgroundBrush, backgroundRect);
 
         using var brush = new SolidBrush(color);
 
@@ -633,24 +828,83 @@ public sealed class SettingsForm : Form
 
     private GroupBox CreateColorsSection()
     {
-        var group = new GroupBox { Text = L("BatteryColors"), Dock = DockStyle.Fill };
-        var table = new TableLayoutPanel
+        var group = new GroupBox { Text = L("AdvancedDynamic"), Dock = DockStyle.Fill };
+        var outer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(8, 4, 8, 4),
+            Margin = new Padding(0)
+        };
+
+        outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
+        outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var modesTable = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 3,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+
+        modesTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
+        modesTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+        for (int i = 0; i < 3; i++)
+            modesTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+
+        AddAdvancedDisplayOption(modesTable, 0, _gradientAdvancedRadioButton, AdvancedDisplayMode.BatteryGradient);
+        AddAdvancedDisplayOption(modesTable, 1, _advancedBatteryIndicatorRadioButton, AdvancedDisplayMode.BatteryIndicator);
+        AddAdvancedDisplayOption(modesTable, 2, _percentageAdvancedRadioButton, AdvancedDisplayMode.PercentageText);
+
+        _gradientAdvancedRadioButton.CheckedChanged += AdvancedDisplayModeRadioButton_CheckedChanged;
+        _advancedBatteryIndicatorRadioButton.CheckedChanged += AdvancedDisplayModeRadioButton_CheckedChanged;
+        _percentageAdvancedRadioButton.CheckedChanged += AdvancedDisplayModeRadioButton_CheckedChanged;
+
+        outer.Controls.Add(modesTable, 0, 0);
+
+        _batteryColorsGroup = new GroupBox
+        {
+            Text = L("BatteryColors"),
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 3, 0, 0),
+            Padding = new Padding(8, 4, 8, 4)
+        };
+
+        var colorsOuter = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        colorsOuter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        colorsOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        colorsOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+        var colorsContainer = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 4,
-            Padding = new Padding(8, 5, 8, 38)
+            Margin = new Padding(0),
+            Padding = new Padding(0)
         };
 
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 53));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (int i = 0; i < 4; i++)
-            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        colorsContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 53));
+        colorsContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        colorsContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        for (int i = 1; i < 4; i++)
+            colorsContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
 
         _colorHeaderLabel.Anchor = AnchorStyles.Left;
         _startingAtHeaderLabel.Anchor = AnchorStyles.Left;
-        table.Controls.Add(_colorHeaderLabel, 0, 0);
-        table.Controls.Add(_startingAtHeaderLabel, 1, 0);
+        colorsContainer.Controls.Add(_colorHeaderLabel, 0, 0);
+        colorsContainer.Controls.Add(_startingAtHeaderLabel, 1, 0);
 
         for (int i = 0; i < _workingColors.Count; i++)
         {
@@ -678,10 +932,10 @@ public sealed class SettingsForm : Form
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 Margin = new Padding(0),
-                Padding = new Padding(0)
+                Padding = new Padding(0, 3, 0, 0)
             };
             colorContainer.Controls.Add(colorPanel);
-            table.Controls.Add(colorContainer, 0, row);
+            colorsContainer.Controls.Add(colorContainer, 0, row);
 
             var minimumPercent = new NumericUpDown
             {
@@ -693,24 +947,18 @@ public sealed class SettingsForm : Form
             };
             minimumPercent.ValueChanged += (_, _) => UpdateColorRanges();
             _minimumPercentControls.Add(minimumPercent);
-            table.Controls.Add(minimumPercent, 1, row);
-
-            var percentLabel = new Label
-            {
-                Text = "%",
-                AutoSize = true,
-                Visible = false
-            };
-            _percentLabels.Add(percentLabel);
+            colorsContainer.Controls.Add(minimumPercent, 1, row);
         }
+
+        colorsOuter.Controls.Add(colorsContainer, 0, 0);
 
         var gradientPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom,
-            Height = 33,
+            Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Padding = new Padding(8, 2, 0, 0)
+            Padding = new Padding(0, 3, 0, 0),
+            Margin = new Padding(0)
         };
 
         gradientPanel.Controls.Add(_gradientCheckBox);
@@ -724,9 +972,37 @@ public sealed class SettingsForm : Form
             Margin = new Padding(4, 4, 0, 0)
         });
 
-        group.Controls.Add(table);
-        group.Controls.Add(gradientPanel);
+        colorsOuter.Controls.Add(gradientPanel, 0, 1);
+        _batteryColorsGroup.Controls.Add(colorsOuter);
+        outer.Controls.Add(_batteryColorsGroup, 0, 1);
+        group.Controls.Add(outer);
+
+        UpdateColorRanges();
         return group;
+    }
+
+    private void AddAdvancedDisplayOption(
+        TableLayoutPanel panel,
+        int row,
+        RadioButton radioButton,
+        AdvancedDisplayMode mode)
+    {
+        radioButton.Anchor = AnchorStyles.Left;
+        radioButton.Margin = new Padding(3, 0, 3, 0);
+        panel.Controls.Add(radioButton, 0, row);
+
+        var preview = new PictureBox
+        {
+            Image = CreateAdvancedModePreview(mode),
+            SizeMode = PictureBoxSizeMode.CenterImage,
+            Size = new Size(170, 30),
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 2, 0, 2),
+            BackColor = Color.Transparent
+        };
+
+        _advancedPreviewBoxes.Add(preview);
+        panel.Controls.Add(preview, 1, row);
     }
 
     private GroupBox CreateAlertSection()
@@ -816,7 +1092,8 @@ public sealed class SettingsForm : Form
             _deviceGroup.Text = L("Device");
             _interfaceGroup.Text = L("Interface");
             _displayGroup.Text = L("BatteryDisplay");
-            _colorsGroup.Text = L("BatteryColors");
+            _colorsGroup.Text = L("AdvancedDynamic");
+            _batteryColorsGroup.Text = L("BatteryColors");
             _criticalGroup.Text = L("CriticalBattery");
 
             _deviceLabel.Text = L("DeviceLabel");
@@ -830,10 +1107,13 @@ public sealed class SettingsForm : Form
 
             _lightThemeRadioButton.Text = ThemeText(AppTheme.Light);
             _darkThemeRadioButton.Text = ThemeText(AppTheme.Dark);
+            _systemThemeRadioButton.Text = ThemeText(AppTheme.System);
             _staticIconRadioButton.Text = L("StaticIcon");
-            _coloredIconRadioButton.Text = L("ColoredIcon");
-            _iconAndBatteryRadioButton.Text = L("IconAndBattery");
-            _iconAndPercentageRadioButton.Text = L("IconAndPercentage");
+            _batteryIndicatorRadioButton.Text = L("BatteryIndicatorMode");
+            _advancedRadioButton.Text = L("AdvancedDynamic");
+            _gradientAdvancedRadioButton.Text = L("BatteryGradientMode");
+            _advancedBatteryIndicatorRadioButton.Text = L("AdvancedBatteryIndicatorMode");
+            _percentageAdvancedRadioButton.Text = L("PercentageTextMode");
             _gradientCheckBox.Text = L("UseGradient");
             _blinkCheckBox.Text = L("BlinkCritical");
             _okButton.Text = L("Ok");
@@ -851,8 +1131,12 @@ public sealed class SettingsForm : Form
     }
 
     private string ThemeText(AppTheme theme) =>
-        (theme == AppTheme.Dark ? "🌙 " : "☀ ") +
-        Localization.Get(theme == AppTheme.Dark ? "ThemeDark" : "ThemeLight", _selectedLanguage);
+        theme switch
+        {
+            AppTheme.Dark => "🌙 " + Localization.Get("ThemeDark", _selectedLanguage),
+            AppTheme.System => "🖥 " + Localization.Get("ThemeSystem", _selectedLanguage),
+            _ => "☀ " + Localization.Get("ThemeLight", _selectedLanguage)
+        };
 
     private string L(string key) => Localization.Get(key, _selectedLanguage);
 
@@ -867,6 +1151,8 @@ public sealed class SettingsForm : Form
             _selectedTheme = AppTheme.Light;
         else if (_darkThemeRadioButton.Checked)
             _selectedTheme = AppTheme.Dark;
+        else if (_systemThemeRadioButton.Checked)
+            _selectedTheme = AppTheme.System;
         else
             return;
 
@@ -875,6 +1161,7 @@ public sealed class SettingsForm : Form
 
     private void ApplyTheme(AppTheme theme)
     {
+        theme = ResolveTheme(theme);
         bool dark = theme == AppTheme.Dark;
         Color back = dark ? Color.FromArgb(32, 32, 32) : SystemColors.Control;
         Color fore = dark ? Color.WhiteSmoke : SystemColors.ControlText;
@@ -911,7 +1198,7 @@ public sealed class SettingsForm : Form
             else if (child is Button)
                 child.BackColor = dark ? Color.FromArgb(55, 55, 58) : SystemColors.Control;
             else if (child is PictureBox)
-                child.BackColor = dark ? Color.FromArgb(45, 45, 48) : SystemColors.Window;
+                child.BackColor = Color.Transparent;
             else
                 child.BackColor = back;
 
@@ -924,15 +1211,27 @@ public sealed class SettingsForm : Form
         BatteryDisplayMode[] modes =
         {
             BatteryDisplayMode.StaticIcon,
-            BatteryDisplayMode.ColoredIcon,
-            BatteryDisplayMode.IconAndBattery,
-            BatteryDisplayMode.IconAndPercentage
+            BatteryDisplayMode.BatteryIndicator
         };
 
-        for (int i = 0; i < _previewBoxes.Count; i++)
+        for (int i = 0; i < _previewBoxes.Count && i < modes.Length; i++)
         {
             Image? oldImage = _previewBoxes[i].Image;
             _previewBoxes[i].Image = CreateModePreview(modes[i]);
+            oldImage?.Dispose();
+        }
+
+        AdvancedDisplayMode[] advancedModes =
+        {
+            AdvancedDisplayMode.BatteryGradient,
+            AdvancedDisplayMode.BatteryIndicator,
+            AdvancedDisplayMode.PercentageText
+        };
+
+        for (int i = 0; i < _advancedPreviewBoxes.Count && i < advancedModes.Length; i++)
+        {
+            Image? oldImage = _advancedPreviewBoxes[i].Image;
+            _advancedPreviewBoxes[i].Image = CreateAdvancedModePreview(advancedModes[i]);
             oldImage?.Dispose();
         }
     }
@@ -986,6 +1285,7 @@ public sealed class SettingsForm : Form
 
         color.Color = dialog.Color;
         panel.BackColor = dialog.Color;
+        RefreshPreviewImages();
     }
 
     private static void ColorPanel_MouseEnter(object? sender, EventArgs e)
@@ -1002,37 +1302,74 @@ public sealed class SettingsForm : Form
 
     private void UpdateColorRanges()
     {
+        // Keep the three thresholds strictly descending while the user edits
+        // them. The first color may be 0..100; each following color must be
+        // strictly below the value directly above it.
         for (int i = 0; i < _minimumPercentControls.Count; i++)
-            _workingColors[i].MinimumPercent = (int)_minimumPercentControls[i].Value;
+        {
+            NumericUpDown control = _minimumPercentControls[i];
+
+            decimal maximum = i == 0
+                ? 100
+                : Math.Max(0, _minimumPercentControls[i - 1].Value - 1);
+
+            if (control.Maximum != maximum)
+                control.Maximum = maximum;
+
+            if (control.Value > maximum)
+                control.Value = maximum;
+
+            _workingColors[i].MinimumPercent = (int)control.Value;
+        }
 
         RefreshPreviewImages();
+    }
+
+    private BatteryDisplayMode GetSelectedDisplayMode()
+    {
+        if (_advancedRadioButton.Checked)
+            return BatteryDisplayMode.Advanced;
+        if (_batteryIndicatorRadioButton.Checked)
+            return BatteryDisplayMode.BatteryIndicator;
+        return BatteryDisplayMode.StaticIcon;
+    }
+
+    private AdvancedDisplayMode GetSelectedAdvancedDisplayMode()
+    {
+        if (_advancedBatteryIndicatorRadioButton.Checked)
+            return AdvancedDisplayMode.BatteryIndicator;
+        if (_percentageAdvancedRadioButton.Checked)
+            return AdvancedDisplayMode.PercentageText;
+        return AdvancedDisplayMode.BatteryGradient;
+    }
+
+    private void UpdateAdvancedOptionsVisibility()
+    {
+        bool showAdvanced = _advancedRadioButton.Checked;
+        _colorsGroup.Visible = showAdvanced;
+
+        _mainPanel.RowStyles[3] =
+            new RowStyle(
+                SizeType.Absolute,
+                showAdvanced ? 340 : 0);
+
+        ClientSize = new Size(
+            WindowWidth,
+            showAdvanced ? WindowHeightWithColors : WindowHeightWithoutColors);
+
+        PositionWindowAtTop();
+    }
+
+    private void AdvancedDisplayModeRadioButton_CheckedChanged(object? sender, EventArgs e)
+    {
+        if (sender is RadioButton radioButton && radioButton.Checked)
+            UpdateAdvancedOptionsVisibility();
     }
 
     private void DisplayModeRadioButton_CheckedChanged(object? sender, EventArgs e)
     {
         if (sender is RadioButton radioButton && radioButton.Checked)
-            UpdateColorsVisibility();
-    }
-
-    private BatteryDisplayMode GetSelectedDisplayMode()
-    {
-        if (_coloredIconRadioButton.Checked)
-            return BatteryDisplayMode.ColoredIcon;
-        if (_iconAndBatteryRadioButton.Checked)
-            return BatteryDisplayMode.IconAndBattery;
-        if (_iconAndPercentageRadioButton.Checked)
-            return BatteryDisplayMode.IconAndPercentage;
-        return BatteryDisplayMode.StaticIcon;
-    }
-
-    private void UpdateColorsVisibility()
-    {
-        bool showColors = GetSelectedDisplayMode() != BatteryDisplayMode.StaticIcon;
-        _colorsGroup.Visible = showColors;
-
-        _mainPanel.RowStyles[3] = new RowStyle(SizeType.Absolute, showColors ? 195 : 0);
-        ClientSize = new Size(WindowWidth, showColors ? WindowHeightWithColors : WindowHeightWithoutColors);
-        PositionWindowAtTop();
+            UpdateAdvancedOptionsVisibility();
     }
 
     private bool ValidateSettings()
@@ -1069,6 +1406,13 @@ public sealed class SettingsForm : Form
         _ = ApplyCurrentSettings();
     }
 
+    private void DeviceComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        _deviceComboBox.Invalidate();
+        if (_deviceComboBox.IsHandleCreated)
+            _deviceComboBox.Update();
+    }
+
     private bool ApplyCurrentSettings()
     {
         if (!ValidateSettings())
@@ -1102,8 +1446,10 @@ public sealed class SettingsForm : Form
 
         _settings.Language = _selectedLanguage;
         _settings.Theme = _selectedTheme;
-        _settings.SelectedDevice = _deviceComboBox.SelectedItem?.ToString() ?? "HyperX Cloud III Wireless";
+        _settings.ThemeConfigured = true;
+        _settings.SelectedDevice = _deviceComboBox.SelectedItem?.ToString() ?? string.Empty;
         _settings.DisplayMode = GetSelectedDisplayMode();
+        _settings.AdvancedDisplayMode = GetSelectedAdvancedDisplayMode();
         _settings.UseGradient = _gradientCheckBox.Checked;
         _settings.GradientPercent = (int)_gradientPercentNumeric.Value;
         _settings.BlinkOnCriticalBattery = _blinkCheckBox.Checked;
@@ -1139,11 +1485,13 @@ public sealed class SettingsForm : Form
         _selectedLanguage = defaults.Language;
         _selectedTheme = defaults.Theme;
         _languageComboBox.SelectedIndex = (int)_selectedLanguage;
-        _lightThemeRadioButton.Checked = true;
+        _lightThemeRadioButton.Checked = false;
         _darkThemeRadioButton.Checked = false;
-        _deviceComboBox.SelectedItem = defaults.SelectedDevice;
+        _systemThemeRadioButton.Checked = true;
+        _deviceComboBox.SelectedIndex = 0;
         _startupCheckBox.Checked = false;
         SetSelectedDisplayMode(defaults.DisplayMode);
+        SetSelectedAdvancedDisplayMode(defaults.AdvancedDisplayMode);
         _gradientCheckBox.Checked = defaults.UseGradient;
         _gradientPercentNumeric.Value = defaults.GradientPercent;
         _blinkCheckBox.Checked = defaults.BlinkOnCriticalBattery;
@@ -1167,32 +1515,59 @@ public sealed class SettingsForm : Form
         }
 
         UpdateLocalizedText();
-        UpdateColorsVisibility();
+        UpdateAdvancedOptionsVisibility();
     }
 
     private void SetSelectedDisplayMode(BatteryDisplayMode mode)
     {
         _staticIconRadioButton.Checked = mode == BatteryDisplayMode.StaticIcon;
-        _coloredIconRadioButton.Checked = mode == BatteryDisplayMode.ColoredIcon;
-        _iconAndBatteryRadioButton.Checked = mode == BatteryDisplayMode.IconAndBattery;
-        _iconAndPercentageRadioButton.Checked = mode == BatteryDisplayMode.IconAndPercentage;
+        _batteryIndicatorRadioButton.Checked = mode == BatteryDisplayMode.BatteryIndicator;
+        _advancedRadioButton.Checked = mode == BatteryDisplayMode.Advanced;
     }
 
-    private static Icon LoadThemeIcon(AppTheme theme)
+    private void SetSelectedAdvancedDisplayMode(AdvancedDisplayMode mode)
     {
-        string fileName = theme == AppTheme.Dark ? "DarkTheme.ico" : "WhiteTheme.ico";
-        string path = Path.Combine(Application.StartupPath, fileName);
+        _gradientAdvancedRadioButton.Checked = mode == AdvancedDisplayMode.BatteryGradient;
+        _advancedBatteryIndicatorRadioButton.Checked = mode == AdvancedDisplayMode.BatteryIndicator;
+        _percentageAdvancedRadioButton.Checked = mode == AdvancedDisplayMode.PercentageText;
+    }
+
+    private AppTheme EffectiveSelectedTheme => ResolveTheme(_selectedTheme);
+
+    private static AppTheme ResolveTheme(AppTheme theme)
+    {
+        if (theme != AppTheme.System)
+            return theme;
 
         try
         {
-            if (File.Exists(path))
-                return new Icon(path);
+            using RegistryKey? key =
+                Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+
+            object? value = key?.GetValue("AppsUseLightTheme");
+
+            if (value is int intValue)
+                return intValue == 0 ? AppTheme.Dark : AppTheme.Light;
         }
         catch
         {
         }
 
-        return Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+        return AppTheme.Light;
+    }
+
+    private static Icon LoadThemeIcon(AppTheme theme)
+    {
+        theme = ResolveTheme(theme);
+        string prefix = theme == AppTheme.Dark ? "dark" : "light";
+        string path = Path.Combine(
+            Application.StartupPath,
+            "Icons",
+            theme == AppTheme.Dark ? "Dark" : "Light",
+            $"{prefix}.ico");
+
+        return TryLoadIcon(path)
             ?? new Icon(SystemIcons.Application, SystemIcons.Application.Size);
     }
 
@@ -1221,4 +1596,38 @@ public sealed class SettingsForm : Form
     }
 
     public bool WasSaved => _saved;
+}
+
+
+internal sealed class DeviceSelectionComboBox : ComboBox
+{
+    private const int WmPaint = 0x000F;
+
+    public DeviceSelectionComboBox()
+    {
+        SetStyle(ControlStyles.ResizeRedraw, true);
+    }
+
+    private bool HasNoSelection => SelectedIndex == 0;
+
+    protected override void OnSelectedIndexChanged(EventArgs e)
+    {
+        base.OnSelectedIndexChanged(e);
+        Invalidate();
+        if (IsHandleCreated)
+            Update();
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+
+        if (m.Msg == WmPaint && HasNoSelection && !IsDisposed)
+        {
+            using Graphics graphics = Graphics.FromHwnd(Handle);
+            using Pen pen = new Pen(Color.Red, 2);
+            Rectangle border = new Rectangle(1, 1, Width - 3, Height - 3);
+            graphics.DrawRectangle(pen, border);
+        }
+    }
 }

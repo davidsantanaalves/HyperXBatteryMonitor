@@ -1,13 +1,13 @@
 using System.Diagnostics;
+using System.Reflection;
 using HyperXBatteryTray.Settings;
 
 namespace HyperXBatteryTray;
 
 public sealed class AboutForm : Form
 {
-    private const string BuyMeACoffeeUrl =
-        "https://buymeacoffee.com/davesantana";
-
+    private const string BuyMeACoffeeUrl = "https://buymeacoffee.com/davesantana";
+    private const string PixEmail = "davesantana@outlook.com.br";
     private const string PixCopyPasteKey =
         "00020126480014br.gov.bcb.pix0126davesantana@outlook.com.br5204000053039865802BR5901N6001C62110507HXTDAVE63040E13";
 
@@ -19,12 +19,13 @@ public sealed class AboutForm : Form
     private readonly Label _createdByLabel;
     private readonly Label _supportLabel;
     private readonly LinkLabel _buyMeACoffeeLink;
-    private readonly Label _pixLabel;
+    private readonly Label _pixEmailLabel;
+    private readonly LinkLabel _pixEmailLink;
     private readonly Label _pixCopyPasteLabel;
-    private readonly LinkLabel _pixKeyLink;
+    private readonly TextBox _pixKeyTextBox;
+    private readonly Button _copyPixButton;
     private readonly PictureBox _pixQrCode;
     private readonly Button _closeButton;
-	private readonly System.Windows.Forms.Timer _pixCopiedTimer;
 
     public AboutForm(AppLanguage language, AppTheme theme)
     {
@@ -48,66 +49,58 @@ public sealed class AboutForm : Form
             Margin = new Padding(0, 0, 0, 2)
         };
 
-        _versionLabel = CreateLabel(L("AboutVersion"));
-
-        _createdByLabel = CreateLabel(
-            L("AboutCreatedBy"),
-            false);
-
-        _supportLabel = CreateLabel(
-            $"☕ {L("AboutSupport")}",
-            true);
+        _versionLabel = CreateLabel(GetApplicationVersionText());
+        _createdByLabel = CreateLabel(L("AboutCreatedBy"));
+        _supportLabel = CreateLabel(L("AboutSupport"), true);
 
         _buyMeACoffeeLink = new LinkLabel
-		{
-			Text = BuyMeACoffeeUrl,
-			AutoSize = true,
-			TabStop = true,
-			Margin = new Padding(0, 2, 0, 12)
-		};
+        {
+            Text = L("AboutBuyMeACoffee"),
+            AutoSize = true,
+            TabStop = true,
+            Margin = new Padding(0, 1, 0, 6)
+        };
+        _buyMeACoffeeLink.LinkClicked += BuyMeACoffeeLink_LinkClicked;
 
-        _buyMeACoffeeLink.LinkClicked +=
-            BuyMeACoffeeLink_LinkClicked;
+        _pixEmailLabel = CreateLabel(L("AboutPixEmail"), true);
+        _pixEmailLink = new LinkLabel
+        {
+            Text = PixEmail,
+            AutoSize = true,
+            TabStop = true,
+            Margin = new Padding(0, 1, 0, 7)
+        };
+        _pixEmailLink.LinkClicked += PixEmailLink_LinkClicked;
 
-        _pixLabel = CreateLabel(
-            $"💴 {L("AboutPixEmail")}",
-            true);
+        _pixCopyPasteLabel = CreateLabel(L("AboutPixCopyPaste"), true);
 
-        _pixCopyPasteLabel = CreateLabel(
-            L("AboutPixCopyPaste"),
-            false);
-
-        _pixKeyLink = new LinkLabel
+        _pixKeyTextBox = new TextBox
         {
             Text = PixCopyPasteKey,
-            AutoSize = false,
-            Width = 448,
-            Height = 48,
-            TabStop = true,
-            Margin = new Padding(0, 2, 0, 0),
+            ReadOnly = true,
+            Multiline = false,
+            ScrollBars = ScrollBars.Horizontal,
+            Width = 355,
+            Height = 24,
+            Margin = new Padding(0, 3, 8, 0),
             Font = new Font("Segoe UI", 8.5F),
-            LinkBehavior = LinkBehavior.AlwaysUnderline
+            BorderStyle = BorderStyle.FixedSingle
         };
 
-        _pixKeyLink.LinkClicked +=
-            PixKeyLink_LinkClicked;
-			
-		_pixCopiedTimer = new System.Windows.Forms.Timer
-		{
-			Interval = 3000
-		};
-
-		_pixCopiedTimer.Tick += (_, _) =>
-		{
-			_pixCopiedTimer.Stop();
-			_pixKeyLink.Text = PixCopyPasteKey;
-		};
+        _copyPixButton = new Button
+        {
+            Text = L("AboutPixCopy"),
+            AutoSize = true,
+            Height = 26,
+            Margin = new Padding(0, 2, 0, 0)
+        };
+        _copyPixButton.Click += CopyPixButton_Click;
 
         _pixQrCode = new PictureBox
         {
-            Size = new Size(180, 180),
+            Size = new Size(150, 150),
             SizeMode = PictureBoxSizeMode.Zoom,
-            Margin = new Padding(0),
+            Margin = new Padding(0, 10, 0, 0),
             Image = LoadPixQrCode()
         };
 
@@ -125,12 +118,19 @@ public sealed class AboutForm : Form
         ApplyTheme();
     }
 
-    private string L(string key) =>
-        Localization.Get(key, _language);
+    private string L(string key) => Localization.Get(key, _language);
 
-    private static Label CreateLabel(
-        string text,
-        bool bold = false)
+    private static string GetApplicationVersionText()
+    {
+        Version? version = Assembly.GetEntryAssembly()?.GetName().Version;
+
+        if (version == null)
+            return "Version: vN/A";
+
+        return $"Version: v{version.Major}.{version.Minor}.{version.Build}";
+    }
+
+    private static Label CreateLabel(string text, bool bold = false)
     {
         return new Label
         {
@@ -139,9 +139,7 @@ public sealed class AboutForm : Form
             Font = new Font(
                 "Segoe UI",
                 9F,
-                bold
-                    ? FontStyle.Bold
-                    : FontStyle.Regular),
+                bold ? FontStyle.Bold : FontStyle.Regular),
             Margin = new Padding(0)
         };
     }
@@ -152,141 +150,72 @@ public sealed class AboutForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 9,
+            RowCount = 12,
             Padding = new Padding(26, 18, 26, 14),
             AutoSize = false
         };
 
-        root.RowStyles.Add(
-            new RowStyle(SizeType.AutoSize)); // title
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 188));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 10));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
 
-        root.RowStyles.Add(
-            new RowStyle(SizeType.AutoSize)); // version
+        root.Controls.Add(_appNameLabel, 0, 0);
+        root.Controls.Add(_versionLabel, 0, 1);
+        root.Controls.Add(_createdByLabel, 0, 2);
+        root.Controls.Add(_supportLabel, 0, 3);
+        root.Controls.Add(_buyMeACoffeeLink, 0, 4);
+        root.Controls.Add(_pixEmailLabel, 0, 5);
+        root.Controls.Add(_pixEmailLink, 0, 6);
+        root.Controls.Add(_pixCopyPasteLabel, 0, 7);
 
-        root.RowStyles.Add(
-            new RowStyle(SizeType.Absolute, 38)); // author
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.AutoSize)); // support
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.Absolute, 48)); // coffee
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.Absolute, 190)); // PIX + QR
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.AutoSize)); // instruction
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.Absolute, 55)); // key
-
-        root.RowStyles.Add(
-            new RowStyle(SizeType.Percent, 100)); // bottom
-
-        root.Controls.Add(
-            _appNameLabel,
-            0,
-            0);
-
-        root.Controls.Add(
-            _versionLabel,
-            0,
-            1);
-
-        root.Controls.Add(
-            _createdByLabel,
-            0,
-            2);
-
-        root.Controls.Add(
-            _supportLabel,
-            0,
-            3);
-
-        root.Controls.Add(
-            _buyMeACoffeeLink,
-            0,
-            4);
-
-        // PIX + QR Code
-        TableLayoutPanel pixPanel = new TableLayoutPanel
+        FlowLayoutPanel copyPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
+        copyPanel.Controls.Add(_pixKeyTextBox);
+        copyPanel.Controls.Add(_copyPixButton);
+        root.Controls.Add(copyPanel, 0, 8);
 
-        pixPanel.ColumnStyles.Add(
-            new ColumnStyle(SizeType.Absolute, 50));
+        FlowLayoutPanel qrPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0, 4, 0, 4)
+        };
+        qrPanel.Controls.Add(_pixQrCode);
+        root.Controls.Add(qrPanel, 0, 9);
 
-        pixPanel.ColumnStyles.Add(
-            new ColumnStyle(SizeType.Absolute, 190));
+        root.Controls.Add(new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) }, 0, 10);
 
-        _pixLabel.Anchor =
-            AnchorStyles.Top |
-            AnchorStyles.Left;
-
-        _pixLabel.Margin =
-            new Padding(0, 12, 0, 0);
-
-        pixPanel.Controls.Add(
-            _pixLabel,
-            0,
-            0);
-
-        _pixQrCode.Anchor =
-            AnchorStyles.Top |
-            AnchorStyles.Left;
-
-        pixPanel.Controls.Add(
-            _pixQrCode,
-            1,
-            0);
-
-        root.Controls.Add(
-            pixPanel,
-            0,
-            5);
-
-        root.Controls.Add(
-            _pixCopyPasteLabel,
-            0,
-            6);
-
-        root.Controls.Add(
-            _pixKeyLink,
-            0,
-            7);
-
-        Panel bottomPanel = new Panel
+        Panel buttonPanel = new Panel
         {
             Dock = DockStyle.Fill,
             Margin = new Padding(0)
         };
-
-        _closeButton.Anchor =
-            AnchorStyles.Bottom |
-            AnchorStyles.Right;
-
-        bottomPanel.Controls.Add(
-            _closeButton);
-
-        bottomPanel.Resize += (_, _) =>
+        _closeButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+        buttonPanel.Controls.Add(_closeButton);
+        buttonPanel.Resize += (_, _) =>
         {
             _closeButton.Location = new Point(
-                bottomPanel.ClientSize.Width -
-                    _closeButton.Width,
-                bottomPanel.ClientSize.Height -
-                    _closeButton.Height);
+                buttonPanel.ClientSize.Width - _closeButton.Width,
+                buttonPanel.ClientSize.Height - _closeButton.Height);
         };
-
-        root.Controls.Add(
-            bottomPanel,
-            0,
-            8);
+        root.Controls.Add(buttonPanel, 0, 11);
 
         Controls.Add(root);
     }
@@ -298,11 +227,9 @@ public sealed class AboutForm : Form
         Color background = dark
             ? Color.FromArgb(45, 45, 48)
             : SystemColors.Control;
-
         Color foreground = dark
             ? Color.WhiteSmoke
             : SystemColors.ControlText;
-
         Color linkColor = dark
             ? Color.FromArgb(110, 180, 255)
             : Color.FromArgb(0, 102, 204);
@@ -310,23 +237,29 @@ public sealed class AboutForm : Form
         BackColor = background;
         ForeColor = foreground;
 
-        ApplyThemeToControls(
-            Controls,
-            background,
-            foreground);
+        ApplyThemeToControls(Controls, background, foreground);
 
         _buyMeACoffeeLink.LinkColor = linkColor;
         _buyMeACoffeeLink.ActiveLinkColor = linkColor;
         _buyMeACoffeeLink.VisitedLinkColor = linkColor;
 
-        _pixKeyLink.LinkColor = linkColor;
-        _pixKeyLink.ActiveLinkColor = linkColor;
-        _pixKeyLink.VisitedLinkColor = linkColor;
+        _pixEmailLink.LinkColor = linkColor;
+        _pixEmailLink.ActiveLinkColor = linkColor;
+        _pixEmailLink.VisitedLinkColor = linkColor;
+
+        _pixKeyTextBox.BackColor = dark
+            ? Color.FromArgb(30, 30, 32)
+            : SystemColors.Window;
+        _pixKeyTextBox.ForeColor = foreground;
+
+        _copyPixButton.BackColor = dark
+            ? Color.FromArgb(60, 60, 64)
+            : SystemColors.Control;
+        _copyPixButton.ForeColor = foreground;
 
         _closeButton.BackColor = dark
             ? Color.FromArgb(45, 45, 48)
             : SystemColors.Control;
-
         _closeButton.ForeColor = foreground;
     }
 
@@ -337,23 +270,14 @@ public sealed class AboutForm : Form
     {
         foreach (Control control in controls)
         {
-            if (control is PictureBox ||
-                control is LinkLabel ||
-                control is Button)
-            {
+            if (control is PictureBox || control is TextBox || control is Button)
                 continue;
-            }
 
             control.BackColor = background;
             control.ForeColor = foreground;
 
             if (control.HasChildren)
-            {
-                ApplyThemeToControls(
-                    control.Controls,
-                    background,
-                    foreground);
-            }
+                ApplyThemeToControls(control.Controls, background, foreground);
         }
     }
 
@@ -369,12 +293,8 @@ public sealed class AboutForm : Form
 
         try
         {
-            using FileStream stream =
-                File.OpenRead(path);
-
-            using Image source =
-                Image.FromStream(stream);
-
+            using FileStream stream = File.OpenRead(path);
+            using Image source = Image.FromStream(stream);
             return new Bitmap(source);
         }
         catch
@@ -400,33 +320,40 @@ public sealed class AboutForm : Form
         }
     }
 
-	private void PixKeyLink_LinkClicked(
-		object? sender,
-		LinkLabelLinkClickedEventArgs e)
-	{
-		try
-		{
-			Clipboard.SetText(PixCopyPasteKey);
+    private static void PixEmailLink_LinkClicked(
+        object? sender,
+        LinkLabelLinkClickedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(PixEmail);
+        }
+        catch
+        {
+        }
+    }
 
-			_pixKeyLink.Text = L("AboutPixCopied");
+    private void CopyPixButton_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(PixCopyPasteKey);
+            MessageBox.Show(
+                L("AboutPixCopied"),
+                L("AboutTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+        catch
+        {
+        }
+    }
 
-			_pixCopiedTimer.Stop();
-			_pixCopiedTimer.Start();
-		}
-		catch
-		{
-		}
-	}
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _pixQrCode.Image?.Dispose();
 
-	protected override void Dispose(bool disposing)
-	{
-		if (disposing)
-		{
-			_pixCopiedTimer.Stop();
-			_pixCopiedTimer.Dispose();
-			_pixQrCode.Image?.Dispose();
-		}
-
-		base.Dispose(disposing);
-	}
+        base.Dispose(disposing);
+    }
 }

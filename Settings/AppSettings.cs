@@ -6,10 +6,15 @@ namespace HyperXBatteryTray.Settings;
 public enum BatteryDisplayMode
 {
     StaticIcon,
-    ColoredIcon,
-    IconAndBattery,
-    IconAndPercentage,
-    PercentageOnly
+    BatteryIndicator,
+    Advanced
+}
+
+public enum AdvancedDisplayMode
+{
+    BatteryGradient,
+    BatteryIndicator,
+    PercentageText
 }
 
 public sealed class BatteryColorSettings
@@ -28,30 +33,32 @@ public sealed class BatteryColorSettings
 
 public sealed class AppSettings
 {
-    public string SelectedDevice { get; set; } = "HyperX Cloud III Wireless";
+    public string SelectedDevice { get; set; } = string.Empty;
     public BatteryDisplayMode DisplayMode { get; set; } = BatteryDisplayMode.StaticIcon;
+    public AdvancedDisplayMode AdvancedDisplayMode { get; set; } = AdvancedDisplayMode.BatteryGradient;
     public bool UseGradient { get; set; } = true;
     public int GradientPercent { get; set; } = 10;
     public bool BlinkOnCriticalBattery { get; set; } = true;
     public int CriticalBatteryPercent { get; set; } = 5;
     public List<BatteryColorSettings> BatteryColors { get; set; } = CreateDefaultColors();
     public AppLanguage Language { get; set; } = AppLanguage.English;
-    public AppTheme Theme { get; set; } = AppTheme.Light;
+    public AppTheme Theme { get; set; } = AppTheme.System;
     public bool ThemeConfigured { get; set; }
 
     public static AppSettings CreateDefault()
     {
         return new AppSettings
         {
-            SelectedDevice = "HyperX Cloud III Wireless",
-            DisplayMode = BatteryDisplayMode.StaticIcon,
+            SelectedDevice = string.Empty,
+            DisplayMode = BatteryDisplayMode.BatteryIndicator,
+            AdvancedDisplayMode = AdvancedDisplayMode.BatteryGradient,
             UseGradient = true,
             GradientPercent = 10,
             BlinkOnCriticalBattery = true,
             CriticalBatteryPercent = 5,
             BatteryColors = CreateDefaultColors(),
             Language = AppLanguage.English,
-            Theme = AppTheme.Light,
+            Theme = AppTheme.System,
             ThemeConfigured = false
         };
     }
