@@ -9,7 +9,7 @@ using HyperXBatteryTray.Settings;
 
 namespace HyperXBatteryTray;
 
-public sealed class HyperXTrayApplicationContext : ApplicationContext
+public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
@@ -32,7 +32,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
 	private bool _isCharging;
     private System.Windows.Forms.Timer? _blinkTimer;
 
-    public HyperXTrayApplicationContext()
+    public HyperXBatteryMonitorApplicationContext()
     {
         _settingsManager = new SettingsManager();
         _settings = _settingsManager.Load();
@@ -263,7 +263,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
             MessageBox.Show(
                 _settingsForm,
                 string.Format(L("SaveError"), ex.Message),
-                "HyperX Battery Tray",
+                "HyperX Battery Monitor",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

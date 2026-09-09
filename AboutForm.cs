@@ -43,7 +43,7 @@ public sealed class AboutForm : Form
 
         _appNameLabel = new Label
         {
-            Text = "HyperX Battery Tray",
+            Text = "HyperX Battery Monitor",
             AutoSize = true,
             Font = new Font("Segoe UI", 16F, FontStyle.Bold),
             Margin = new Padding(0, 0, 0, 2)

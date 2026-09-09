@@ -6,6 +6,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>1.1.1</Version>
+    <AssemblyName>HyperXBatteryMonitor</AssemblyName>
+    <Product>HyperX Battery Monitor</Product>
+    <Title>HyperX Battery Monitor</Title>
     <ApplicationIcon>Icons\Light\light.ico</ApplicationIcon>
   </PropertyGroup>
 

@@ -35,7 +35,7 @@ public static class Localization
 
     private static readonly Dictionary<string, string> English = new()
     {
-        ["WindowTitle"] = "Settings — HyperX Battery Tray",
+        ["WindowTitle"] = "Settings — HyperX Battery Monitor",
         ["Device"] = "Device",
         ["DeviceLabel"] = "Device:",
         ["UnknownHeadphones"] = "Unknown headphones",
@@ -93,7 +93,7 @@ public static class Localization
 
     private static readonly Dictionary<string, string> Portuguese = new()
     {
-        ["WindowTitle"] = "Configurações — HyperX Battery Tray",
+        ["WindowTitle"] = "Configurações — HyperX Battery Monitor",
         ["Device"] = "Dispositivo",
         ["DeviceLabel"] = "Dispositivo:",
         ["UnknownHeadphones"] = "Fone desconhecido",
@@ -151,7 +151,7 @@ public static class Localization
 
     private static readonly Dictionary<string, string> Spanish = new()
     {
-        ["WindowTitle"] = "Configuración — HyperX Battery Tray",
+        ["WindowTitle"] = "Configuración — HyperX Battery Monitor",
         ["Device"] = "Dispositivo",
         ["DeviceLabel"] = "Dispositivo:",
         ["UnknownHeadphones"] = "Auriculares desconocidos",

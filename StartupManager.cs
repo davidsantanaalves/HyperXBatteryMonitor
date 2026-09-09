@@ -8,6 +8,9 @@ public sealed class StartupManager
         @"Software\Microsoft\Windows\CurrentVersion\Run";
 
     private const string AppName =
+        "HyperXBatteryMonitor";
+
+    private const string LegacyAppName =
         "HyperXBatteryTray";
 
     public bool IsEnabled()
@@ -20,7 +23,12 @@ public sealed class StartupManager
 
         object? value = key.GetValue(AppName);
 
-        if (value is not string command)
+        if (value is not string)
+            value = key.GetValue(LegacyAppName);
+
+        string? command = value as string;
+
+        if (command == null)
             return false;
 
         string executablePath = Application.ExecutablePath;
@@ -56,6 +64,9 @@ public sealed class StartupManager
             command,
             RegistryValueKind.String);
 
+        // Remove the legacy startup entry after successfully configuring the new one.
+        key.DeleteValue(LegacyAppName, throwOnMissingValue: false);
+
         object? savedValue = key.GetValue(AppName);
 
         if (savedValue is not string savedCommand ||
@@ -77,6 +88,9 @@ public sealed class StartupManager
 
         key?.DeleteValue(
             AppName,
+            throwOnMissingValue: false);
+        key?.DeleteValue(
+            LegacyAppName,
             throwOnMissingValue: false);
     }
 }
