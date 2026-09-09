@@ -41,11 +41,16 @@ Additional HyperX devices may be supported in the future.
 
 Configuration Screen:
 
-<img width="622" height="767" alt="image" src="https://github.com/user-attachments/assets/bb9c275b-6aab-418d-9c9c-d479a65a0ac1" />
+<img width="622" height="867" alt="image" src="https://github.com/user-attachments/assets/79cda336-0429-4c67-97a3-ec8595eb2e7d" />
 
 Systray Menu:
 
-<img width="182" height="142" alt="image" src="https://github.com/user-attachments/assets/9e6a3ce0-427d-45c8-9db2-5b0bf591b045" />
+<img width="182" height="142" alt="image" src="https://github.com/user-attachments/assets/995c1a52-474e-4f59-a9d1-84fae0c63cab" />
+
+Systray Icon:
+
+<img width="172" height="130" alt="image" src="https://github.com/user-attachments/assets/1459c8e0-59c4-45bc-9bcc-d4246531b2a9" />
+
 
 ## Installation
 
