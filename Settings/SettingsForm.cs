@@ -1356,8 +1356,6 @@ public sealed class SettingsForm : Form
         ClientSize = new Size(
             WindowWidth,
             showAdvanced ? WindowHeightWithColors : WindowHeightWithoutColors);
-
-        PositionWindowAtTop();
     }
 
     private void AdvancedDisplayModeRadioButton_CheckedChanged(object? sender, EventArgs e)

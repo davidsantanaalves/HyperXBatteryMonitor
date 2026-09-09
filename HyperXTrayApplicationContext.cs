@@ -14,8 +14,8 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
     private readonly HyperXDeviceManager _deviceManager;
-    private readonly BatteryMonitor? _batteryMonitor;
-    private readonly IHyperXDevice? _device;
+    private BatteryMonitor? _batteryMonitor;
+    private IHyperXDevice? _device;
     private readonly SettingsManager _settingsManager;
     private readonly AppSettings _settings;
 
@@ -45,7 +45,11 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         }
 
         _deviceManager = new HyperXDeviceManager();
-        _device = _deviceManager.GetFirstAvailableDevice();
+
+        // Do not enumerate or open HID devices until the user has explicitly
+        // selected a supported device in Settings.
+        if (!string.IsNullOrWhiteSpace(_settings.SelectedDevice))
+            InitializeSelectedDevice();
 
         _deviceMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
         _batteryMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
@@ -86,22 +90,47 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         UpdateTrayIcon();
         RestartBlinkTimer();
 
-        if (_device != null)
-        {
-            _batteryMonitor = new BatteryMonitor(_device)
-            {
-                IntervalMilliseconds = 5000
-            };
-            _batteryMonitor.BatteryChanged += BatteryMonitor_BatteryChanged;
-            _batteryMonitor.ConnectionChanged += BatteryMonitor_ConnectionChanged;
-			_batteryMonitor.ChargingChanged += BatteryMonitor_ChargingChanged;
-            UpdateTray();
+        UpdateTray();
+
+        if (_batteryMonitor != null)
             _batteryMonitor.Start();
-        }
-        else
+    }
+
+    private void InitializeSelectedDevice()
+    {
+        DisposeDeviceMonitor();
+
+        if (string.IsNullOrWhiteSpace(_settings.SelectedDevice))
+            return;
+
+        _device = _deviceManager.GetFirstAvailableDevice();
+
+        if (_device == null)
+            return;
+
+        _batteryMonitor = new BatteryMonitor(_device)
         {
-            UpdateTray();
+            IntervalMilliseconds = 5000
+        };
+
+        _batteryMonitor.BatteryChanged += BatteryMonitor_BatteryChanged;
+        _batteryMonitor.ConnectionChanged += BatteryMonitor_ConnectionChanged;
+        _batteryMonitor.ChargingChanged += BatteryMonitor_ChargingChanged;
+    }
+
+    private void DisposeDeviceMonitor()
+    {
+        if (_batteryMonitor != null)
+        {
+            _batteryMonitor.BatteryChanged -= BatteryMonitor_BatteryChanged;
+            _batteryMonitor.ConnectionChanged -= BatteryMonitor_ConnectionChanged;
+            _batteryMonitor.ChargingChanged -= BatteryMonitor_ChargingChanged;
+            _batteryMonitor.Dispose();
+            _batteryMonitor = null;
         }
+
+        _device = null;
+        _isCharging = false;
     }
 
     private void NotifyIcon_DoubleClick(object? sender, EventArgs e) => ShowSettings(sender, e);
@@ -219,11 +248,15 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         try
         {
             _settingsManager.Save(_settings);
+            InitializeSelectedDevice();
             ApplyLocalization();
             ApplyTheme();
             UpdateTrayIcon();
             RestartBlinkTimer();
             UpdateTray();
+
+            if (_batteryMonitor != null)
+                _batteryMonitor.Start();
         }
         catch (Exception ex)
         {
@@ -1229,18 +1262,7 @@ public sealed class HyperXTrayApplicationContext : ApplicationContext
         _currentApplicationIcon?.Dispose();
         _currentApplicationIcon = null;
 
-        if (_batteryMonitor != null)
-        {
-            _batteryMonitor.BatteryChanged -= BatteryMonitor_BatteryChanged;
-            _batteryMonitor.ConnectionChanged -= BatteryMonitor_ConnectionChanged;
-			_batteryMonitor.ChargingChanged -= BatteryMonitor_ChargingChanged;
-            _batteryMonitor.Dispose();
-        }
-        else
-        {
-            _device?.Dispose();
-        }
-
+        DisposeDeviceMonitor();
         _deviceManager.Dispose();
         base.ExitThreadCore();
     }
