@@ -1,4 +1,4 @@
-# HyperX Battery Tray
+# HyperX Battery Monitor
 
 A lightweight Windows system tray application for monitoring the battery status of the **HyperX Cloud III Wireless** headset.
 
