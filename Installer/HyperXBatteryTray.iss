@@ -1,5 +1,5 @@
-﻿#define MyAppName "HyperX Battery Tray"
-#define MyAppVersion "1.1.0"
+#define MyAppName "HyperX Battery Tray"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "David Santana Alves"
 #define MyAppExeName "HyperXBatteryTray.exe"
 
