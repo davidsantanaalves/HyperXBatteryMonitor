@@ -560,7 +560,7 @@ public sealed class SettingsForm : Form
         bool selected = _deviceSelector.SelectedIndex > 0;
         bool connected = selected && _device?.IsConnected == true && _device.Battery >= 0 && _device.Battery <= 100;
         _deviceStatusLabel.Text = connected ? StatusText("Connected", "Connected", "Conectado", "Conectado") : selected ? StatusText("Disconnected", "Disconnected", "Desconectado", "Desconectado") : StatusText("UnknownHeadphones", "Unknown headphones", "Fone desconhecido", "Auriculares desconocidos");
-        _deviceStatusDescriptionLabel.Text = connected ? StatusText("ConnectedDescription", "Your device is ready to use.", "Seu dispositivo está pronto para uso.", "Tu dispositivo está listo para usar.") : selected ? StatusText("DisconnectedDescription", "Your device is not currently connected.", "Seu dispositivo não está conectado no momento.", "Tu dispositivo no está conectado actualmente.") : StatusText("UnknownDeviceDescription", "Select a device to start monitoring.", "Selecione um dispositivo para iniciar o monitoramento.", "Selecciona un dispositivo para iniciar el monitoreo.");
+        _deviceStatusDescriptionLabel.Text = connected ? StatusText("ConnectedDescription", "Your device is ready to use.", "Seu dispositivo está pronto para uso.", "Tu dispositivo está listo para usar.") : selected ? StatusText("DisconnectedDescription", "Your device is not currently connected.", "Seu dispositivo não está conectado no momento.", "Tu dispositivo no está conectado actualmente.") : L("UnknownDeviceDescription");
         _deviceStatusLabel.Visible = true;
         _deviceStatusDescriptionLabel.Visible = true;
         _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : "N/A";
@@ -2592,6 +2592,7 @@ public sealed class SettingsForm : Form
                 new("HyperX Cloud Alpha", Path.Combine(devicesPath, "cloudalpha.png")),
                 new("HyperX Cloud Stinger 2", Path.Combine(devicesPath, "cloudstinger2.png"))
             };
+            _options.Sort((left, right) => StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name));
 
             _selectedImage = new PictureBox
             {
