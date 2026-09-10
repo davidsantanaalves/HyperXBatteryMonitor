@@ -228,7 +228,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             return;
         }
 
-        _settingsForm = new SettingsForm(_settings);
+        _settingsForm = new SettingsForm(_settings, _device);
         _settingsForm.SettingsApplied += SettingsForm_SettingsApplied;
         _settingsForm.FormClosed += SettingsForm_FormClosed;
         _settingsForm.Show();
