@@ -85,8 +85,22 @@ public sealed class SettingsManager
         if (settings.SelectedDevice == null)
             settings.SelectedDevice = string.Empty;
 
+        if (string.Equals(settings.SelectedDevice?.Trim(), "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase))
+        {
+            settings.SelectedDevice = "HyperX Cloud III";
+        }
+
+        string[] supportedDeviceNames =
+        {
+            "HyperX Cloud III",
+            "HyperX Cloud III S",
+            "HyperX Cloud 2 Core",
+            "HyperX Cloud Alpha",
+            "HyperX Cloud Stinger 2"
+        };
+
         if (!string.IsNullOrWhiteSpace(settings.SelectedDevice) &&
-            settings.SelectedDevice != "HyperX Cloud III Wireless")
+            !supportedDeviceNames.Contains(settings.SelectedDevice.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             settings.SelectedDevice = string.Empty;
         }

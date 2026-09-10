@@ -18,6 +18,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <None Update="Icons\Vector\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Icons\Vector\*.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

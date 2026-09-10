@@ -85,6 +85,11 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _contextMenu.Opening += ContextMenu_Opening;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
+        // Warm both light/dark PNG icon variants off the UI thread.
+        // This keeps Settings responsive without doing icon rasterization during
+        // the first frame of the Settings window.
+        SettingsForm.WarmUpIconCacheAsync();
+
         ApplyLocalization();
         ApplyTheme();
         UpdateTrayIcon();
@@ -228,7 +233,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             return;
         }
 
-        _settingsForm = new SettingsForm(_settings, _device);
+        _settingsForm = new SettingsForm(_settings, _device, _isCharging);
         _settingsForm.SettingsApplied += SettingsForm_SettingsApplied;
         _settingsForm.FormClosed += SettingsForm_FormClosed;
         _settingsForm.Show();
@@ -249,6 +254,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         {
             _settingsManager.Save(_settings);
             InitializeSelectedDevice();
+            _settingsForm?.SetDevice(_device);
             ApplyLocalization();
             ApplyTheme();
             UpdateTrayIcon();
@@ -280,6 +286,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         if (!connected)
             _isCharging = false;
 
+        _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
     }
@@ -290,6 +297,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 	{
 		_isCharging = charging;
 
+        _settingsForm?.SetCharging(_isCharging);
 		UpdateTrayIcon();
 		UpdateTray();
 	}

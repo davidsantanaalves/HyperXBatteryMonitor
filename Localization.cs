@@ -20,8 +20,12 @@ public static class Localization
     {
         return language switch
         {
-            AppLanguage.PortugueseBrazil => Portuguese.TryGetValue(key, out string? pt) ? pt : English[key],
-            AppLanguage.Spanish => Spanish.TryGetValue(key, out string? es) ? es : English[key],
+            AppLanguage.PortugueseBrazil => Portuguese.TryGetValue(key, out string? pt)
+                ? pt
+                : English.TryGetValue(key, out string? enPt) ? enPt : key,
+            AppLanguage.Spanish => Spanish.TryGetValue(key, out string? es)
+                ? es
+                : English.TryGetValue(key, out string? enEs) ? enEs : key,
             _ => English.TryGetValue(key, out string? en) ? en : key
         };
     }
@@ -35,36 +39,16 @@ public static class Localization
 
     private static readonly Dictionary<string, string> English = new()
     {
-        ["WindowTitle"] = "Settings — HyperX Battery Monitor",
+        ["WindowTitle"] = "Settings — HyperX Battery Tray",
         ["Device"] = "Device",
-        ["DeviceLabelShort"] = "Device",
-        ["DeviceDescription"] = "Select your HyperX device and view its current status.",
-        ["DeviceInformation"] = "Device information",
-        ["DeviceInformationText"] = "Additional device details could be shown here in the future, such as firmware version, model, etc.",
-        ["Connected"] = "Connected",
-        ["ConnectedDescription"] = "Your device is ready to use.",
-        ["Disconnected"] = "Disconnected",
-        ["DisconnectedDescription"] = "Your device is not currently connected.",
-        ["UnknownDeviceDescription"] = "Select a device to begin monitoring.",
-        ["LanguageShort"] = "Language",
-        ["ThemeShort"] = "Theme",
-        ["StartupShort"] = "Start with Windows",
-        ["StartupDescription"] = "Launch HyperX Battery Monitor when Windows starts",
-        ["BatteryMonitor"] = "Battery Monitor",
-        ["Notifications"] = "Notifications",
-        ["General"] = "General",
-        ["ComingSoonBatteryMonitor"] = "Battery Monitor settings will be added in the next section.",
-        ["ComingSoonNotifications"] = "Notification settings will be added in the next section.",
-        ["ComingSoonGeneral"] = "General settings will be added in the next section.",
-        ["ComingSoonAbout"] = "About settings will be added in the next section.",
         ["DeviceLabel"] = "Device:",
-        ["UnknownHeadphones"] = "Unknown headphones",
         ["Interface"] = "Interface",
+        ["InterfaceDescription"] = "Customize the appearance and behavior of the application.",
         ["Language"] = "Language:",
         ["Theme"] = "Theme:",
         ["ThemeLight"] = "Light",
         ["ThemeDark"] = "Dark",
-        ["ThemeSystem"] = "System default",
+        ["ThemeSystem"] = "System",
         ["BatteryDisplay"] = "Battery display in system tray",
         ["StaticIcon"] = "Static",
         ["BatteryIndicatorMode"] = "Battery indicator",
@@ -90,7 +74,6 @@ public static class Localization
         ["SaveError"] = "Could not save settings.\n\n{0}",
         ["StartupError"] = "Could not change Windows startup settings.\n\n{0}",
         ["AboutTitle"] = "About",
-        ["AboutVersion"] = "Version: v1.0 Beta",
         ["AboutCreatedBy"] = "Created by: David Santana (Dave Santana)",
         ["AboutSupport"] = "Buy me a coffee?",
         ["AboutBuyMeACoffee"] = "BuyMeACoffee",
@@ -101,48 +84,69 @@ public static class Localization
         ["AboutClose"] = "Close",
         ["TrayBattery"] = "Battery: {0}%",
         ["TrayBatteryNA"] = "Battery: N/A",
-        ["TrayCharging"] = "(Charging)",
+		["TrayCharging"] = "(Charging)",
+        ["ChargingStatus"] = "Charging...",
         ["TrayConnected"] = "Status: Connected",
         ["TrayDisconnected"] = "Status: Disconnected",
         ["TrayTooltip"] = "HyperX Cloud III Wireless — {0}",
         ["Startup"] = "Start with Windows",
         ["Settings"] = "Settings...",
         ["About"] = "About",
-        ["Exit"] = "Exit"
+        ["Exit"] = "Exit",
+        ["DeviceInformation"] = "Device information",
+        ["DeviceInformationText"] = "Select a device to display the information.",
+        ["DeviceLabelShort"] = "Device",
+        ["DeviceDescription"] = "Select your HyperX device and view its current status.",
+        ["LanguageShort"] = "Language",
+        ["LanguageDescription"] = "Select the application language.",
+        ["ThemeDescription"] = "Choose the application theme.",
+        ["StartupDescription"] = "Launch HyperX Battery Tray automatically when Windows starts.",
+        ["StartupShort"] = "Start with Windows",
+        ["ThemeShort"] = "Theme",
+
+        // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_Connectivity"] = "Connectivity: 2.4 GHz wireless via USB dongle",
+        ["Cloud3Wireless_Range"] = "Wireless Range: Up to 20 meters (65.6 feet)",
+        ["Cloud3Wireless_Battery"] = "Battery Life: Up to 120 hours",
+        ["Cloud3Wireless_ChargeTime"] = "Charge Time: Approximately 4.5 hours to full charge",
+
+        // Devices Information - HyperX Cloud III S
+        ["Cloud3S_Connectivity"] = "Connectivity: 2.4 GHz RF (via USB dongle) and Bluetooth 5.3",
+        ["Cloud3S_Range"] = "Wireless Range: Up to 20 meters (65 feet)",
+        ["Cloud3S_Battery"] = "Battery Life: Up to 120 hours on 2.4 GHz; up to 200 hours in Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Recharge Time: Approximately 5 hours",
+
+        // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_Connectivity"] = "Connection Type: 2.4GHz wireless via USB adapter",
+        ["Cloud2Core_Range"] = "Wireless Range: Up to 20 meters",
+        ["Cloud2Core_Battery"] = "Battery Life: Up to 80 hours",
+        ["Cloud2Core_ChargeTime"] = "Recharge Time: 4.5 hours",
+
+        // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_Connectivity"] = "Connectivity: 2.4 GHz RF via USB adapter",
+        ["CloudAlpha_Range"] = "Wireless Range: Up to 20 meters",
+        ["CloudAlpha_Battery"] = "Battery Life: Up to 300 hours",
+        ["CloudAlpha_ChargeTime"] = "Charge Time: Approx. 4.5 hours",
+
+        // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_Connectivity"] = "Connectivity: 2.4 GHz wireless via USB wireless adapter",
+        ["CloudStinger2_Range"] = "Wireless Range: Up to 20 meters",
+        ["CloudStinger2_Battery"] = "Battery Life: Up to 20 hours",
+        ["CloudStinger2_ChargeTime"] = "Charge Time: Approx. 3.5 hours"
     };
 
     private static readonly Dictionary<string, string> Portuguese = new()
     {
-        ["WindowTitle"] = "Configurações — HyperX Battery Monitor",
+        ["WindowTitle"] = "Configurações — HyperX Battery Tray",
         ["Device"] = "Dispositivo",
-        ["DeviceLabelShort"] = "Dispositivo",
-        ["DeviceDescription"] = "Selecione seu dispositivo HyperX e veja o status atual.",
-        ["DeviceInformation"] = "Informações do dispositivo",
-        ["DeviceInformationText"] = "Detalhes adicionais do dispositivo poderão ser exibidos aqui no futuro, como versão do firmware, modelo etc.",
-        ["Connected"] = "Conectado",
-        ["ConnectedDescription"] = "Seu dispositivo está pronto para uso.",
-        ["Disconnected"] = "Desconectado",
-        ["DisconnectedDescription"] = "Seu dispositivo não está conectado no momento.",
-        ["UnknownDeviceDescription"] = "Selecione um dispositivo para iniciar o monitoramento.",
-        ["LanguageShort"] = "Idioma",
-        ["ThemeShort"] = "Tema",
-        ["StartupShort"] = "Iniciar com o Windows",
-        ["StartupDescription"] = "Iniciar o HyperX Battery Monitor quando o Windows iniciar",
-        ["BatteryMonitor"] = "Monitor de bateria",
-        ["Notifications"] = "Notificações",
-        ["General"] = "Geral",
-        ["ComingSoonBatteryMonitor"] = "As configurações do monitor de bateria serão adicionadas na próxima etapa.",
-        ["ComingSoonNotifications"] = "As configurações de notificações serão adicionadas na próxima etapa.",
-        ["ComingSoonGeneral"] = "As configurações gerais serão adicionadas na próxima etapa.",
-        ["ComingSoonAbout"] = "As configurações de Sobre serão adicionadas na próxima etapa.",
         ["DeviceLabel"] = "Dispositivo:",
-        ["UnknownHeadphones"] = "Fone desconhecido",
         ["Interface"] = "Interface",
+        ["InterfaceDescription"] = "Personalize a aparência e o comportamento do aplicativo.",
         ["Language"] = "Idioma:",
         ["Theme"] = "Tema:",
         ["ThemeLight"] = "Claro",
         ["ThemeDark"] = "Escuro",
-        ["ThemeSystem"] = "Padrão do sistema",
+        ["ThemeSystem"] = "Sistema",
         ["BatteryDisplay"] = "Exibição da bateria no Systray",
         ["StaticIcon"] = "Estático",
         ["BatteryIndicatorMode"] = "Indicador de bateria",
@@ -168,7 +172,6 @@ public static class Localization
         ["SaveError"] = "Não foi possível salvar as configurações.\n\n{0}",
         ["StartupError"] = "Não foi possível alterar a inicialização com o Windows.\n\n{0}",
         ["AboutTitle"] = "Sobre",
-        ["AboutVersion"] = "Versão: v1.0 Beta",
         ["AboutCreatedBy"] = "Criado por: David Santana (Dave Santana)",
         ["AboutSupport"] = "Me paga um café?",
         ["AboutBuyMeACoffee"] = "BuyMeACoffee",
@@ -179,48 +182,69 @@ public static class Localization
         ["AboutClose"] = "Fechar",
         ["TrayBattery"] = "Bateria: {0}%",
         ["TrayBatteryNA"] = "Bateria: N/A",
-        ["TrayCharging"] = "(Carregando)",
+		["TrayCharging"] = "(Carregando)",
+		["ChargingStatus"] = "Carregando...",
         ["TrayConnected"] = "Status: Conectado",
         ["TrayDisconnected"] = "Status: Desconectado",
         ["TrayTooltip"] = "HyperX Cloud III Wireless — {0}",
         ["Startup"] = "Iniciar com o Windows",
         ["Settings"] = "Configurações...",
         ["About"] = "Sobre",
-        ["Exit"] = "Sair"
+        ["Exit"] = "Sair",
+        ["DeviceInformation"] = "Informações do dispositivo",
+        ["DeviceInformationText"] = "Selecione um dispositivo para exibir as informações.",
+        ["DeviceLabelShort"] = "Dispositivo",
+        ["DeviceDescription"] = "Selecione seu dispositivo HyperX e veja o status atual.",
+        ["LanguageShort"] = "Idioma",
+        ["LanguageDescription"] = "Selecione o idioma do aplicativo.",
+        ["ThemeDescription"] = "Escolha o tema do aplicativo.",
+        ["StartupDescription"] = "Inicie o HyperX Battery Tray automaticamente ao iniciar o Windows.",
+        ["StartupShort"] = "Iniciar com o Windows",
+        ["ThemeShort"] = "Tema",
+
+        // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_Connectivity"] = "Conectividade: Sem fio de 2.4 GHz via adaptador USB",
+        ["Cloud3Wireless_Range"] = "Alcance Sem Fio: Até 20 metros",
+        ["Cloud3Wireless_Battery"] = "Duração da Bateria: Até 120 horas",
+        ["Cloud3Wireless_ChargeTime"] = "Tempo de Carga: Aproximadamente 4.5 horas para carga completa",
+
+        // Devices Information - HyperX Cloud III S
+        ["Cloud3S_Connectivity"] = "Conectividade: RF de 2.4 GHz (via adaptador USB) e Bluetooth 5.3",
+        ["Cloud3S_Range"] = "Alcance Sem Fio: Até 20 metros",
+        ["Cloud3S_Battery"] = "Duração da Bateria: Até 120 horas em 2.4 GHz; até 200 horas em Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Tempo de Recarga: Aproximadamente 5 horas",
+
+        // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_Connectivity"] = "Tipo de Conexão: Sem fio de 2.4 GHz via adaptador USB",
+        ["Cloud2Core_Range"] = "Alcance Sem Fio: Até 20 metros",
+        ["Cloud2Core_Battery"] = "Duração da Bateria: Até 80 horas",
+        ["Cloud2Core_ChargeTime"] = "Tempo de Recarga: 4.5 horas",
+
+        // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_Connectivity"] = "Conectividade: RF de 2.4 GHz via adaptador USB",
+        ["CloudAlpha_Range"] = "Alcance Sem Fio: Até 20 metros",
+        ["CloudAlpha_Battery"] = "Duração da Bateria: Até 300 horas",
+        ["CloudAlpha_ChargeTime"] = "Tempo de Carga: Aprox. 4.5 horas",
+
+        // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_Connectivity"] = "Conectividade: Sem fio de 2.4 GHz via adaptador sem fio USB",
+        ["CloudStinger2_Range"] = "Alcance Sem Fio: Até 20 metros",
+        ["CloudStinger2_Battery"] = "Duração da Bateria: Até 20 horas",
+        ["CloudStinger2_ChargeTime"] = "Tempo de Carga: Aprox. 3.5 horas"
     };
 
     private static readonly Dictionary<string, string> Spanish = new()
     {
-        ["WindowTitle"] = "Configuración — HyperX Battery Monitor",
+        ["WindowTitle"] = "Configuración — HyperX Battery Tray",
         ["Device"] = "Dispositivo",
-        ["DeviceLabelShort"] = "Dispositivo",
-        ["DeviceDescription"] = "Selecciona tu dispositivo HyperX y consulta su estado actual.",
-        ["DeviceInformation"] = "Información del dispositivo",
-        ["DeviceInformationText"] = "Aquí se podrían mostrar más detalles del dispositivo en el futuro, como la versión del firmware, el modelo, etc.",
-        ["Connected"] = "Conectado",
-        ["ConnectedDescription"] = "Tu dispositivo está listo para usar.",
-        ["Disconnected"] = "Desconectado",
-        ["DisconnectedDescription"] = "Tu dispositivo no está conectado actualmente.",
-        ["UnknownDeviceDescription"] = "Selecciona un dispositivo para iniciar el monitoreo.",
-        ["LanguageShort"] = "Idioma",
-        ["ThemeShort"] = "Tema",
-        ["StartupShort"] = "Iniciar con Windows",
-        ["StartupDescription"] = "Iniciar HyperX Battery Monitor cuando Windows se inicie",
-        ["BatteryMonitor"] = "Monitor de batería",
-        ["Notifications"] = "Notificaciones",
-        ["General"] = "General",
-        ["ComingSoonBatteryMonitor"] = "La configuración del monitor de batería se añadirá en la siguiente etapa.",
-        ["ComingSoonNotifications"] = "La configuración de notificaciones se añadirá en la siguiente etapa.",
-        ["ComingSoonGeneral"] = "La configuración general se añadirá en la siguiente etapa.",
-        ["ComingSoonAbout"] = "La configuración de Acerca de se añadirá en la siguiente etapa.",
         ["DeviceLabel"] = "Dispositivo:",
-        ["UnknownHeadphones"] = "Auriculares desconocidos",
         ["Interface"] = "Interfaz",
+        ["InterfaceDescription"] = "Personaliza la apariencia y el comportamiento de la aplicación.",
         ["Language"] = "Idioma:",
         ["Theme"] = "Tema:",
         ["ThemeLight"] = "Claro",
         ["ThemeDark"] = "Oscuro",
-        ["ThemeSystem"] = "Predeterminado del sistema",
+        ["ThemeSystem"] = "Sistema",
         ["BatteryDisplay"] = "Visualización de la batería en la bandeja del sistema",
         ["StaticIcon"] = "Estático",
         ["BatteryIndicatorMode"] = "Indicador de batería",
@@ -246,7 +270,6 @@ public static class Localization
         ["SaveError"] = "No se pudieron guardar los ajustes.\n\n{0}",
         ["StartupError"] = "No se pudo cambiar la configuración de inicio de Windows.\n\n{0}",
         ["AboutTitle"] = "Acerca de",
-        ["AboutVersion"] = "Versión: v1.0 Beta",
         ["AboutCreatedBy"] = "Creado por: David Santana (Dave Santana)",
         ["AboutSupport"] = "¿Me invitas a un café?",
         ["AboutBuyMeACoffee"] = "BuyMeACoffee",
@@ -257,13 +280,54 @@ public static class Localization
         ["AboutClose"] = "Cerrar",
         ["TrayBattery"] = "Batería: {0}%",
         ["TrayBatteryNA"] = "Batería: N/D",
-        ["TrayCharging"] = "(Cargando)",
+		["TrayCharging"] = "(Cargando)",
+        ["ChargingStatus"] = "Cargando...",
         ["TrayConnected"] = "Estado: Conectado",
         ["TrayDisconnected"] = "Estado: Desconectado",
         ["TrayTooltip"] = "HyperX Cloud III Wireless — {0}",
         ["Startup"] = "Iniciar con Windows",
         ["Settings"] = "Configuración...",
         ["About"] = "Acerca de",
-        ["Exit"] = "Salir"
+        ["Exit"] = "Salir",
+        ["DeviceInformation"] = "Información del dispositivo",
+        ["DeviceInformationText"] = "Seleccione un dispositivo para visualizar la información.",
+        ["DeviceLabelShort"] = "Dispositivo",
+        ["DeviceDescription"] = "Seleccione su dispositivo HyperX y vea su estado actual.",
+        ["LanguageShort"] = "Idioma",
+        ["LanguageDescription"] = "Seleccione el idioma de la aplicación.",
+        ["ThemeDescription"] = "Elija el tema de la aplicación.",
+        ["StartupDescription"] = "Inicie HyperX Battery Tray automáticamente al iniciar Windows.",
+        ["StartupShort"] = "Iniciar con Windows",
+        ["ThemeShort"] = "Tema",
+
+        // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_Connectivity"] = "Conectividad: Inalámbrica de 2.4 GHz mediante adaptador USB",
+        ["Cloud3Wireless_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
+        ["Cloud3Wireless_Battery"] = "Duración de la Batería: Hasta 120 horas",
+        ["Cloud3Wireless_ChargeTime"] = "Tiempo de Carga: Aproximadamente 4.5 horas para carga completa",
+
+        // Devices Information - HyperX Cloud III S
+        ["Cloud3S_Connectivity"] = "Conectividad: RF de 2.4 GHz (vía adaptador USB) y Bluetooth 5.3",
+        ["Cloud3S_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
+        ["Cloud3S_Battery"] = "Duración de la Batería: Hasta 120 horas en 2.4 GHz; hasta 200 horas en Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Tiempo de Recarga: Aproximadamente 5 horas",
+
+        // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_Connectivity"] = "Tipo de Conexión: Inalámbrica de 2.4 GHz mediante adaptador USB",
+        ["Cloud2Core_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
+        ["Cloud2Core_Battery"] = "Duración de la Batería: Hasta 80 horas",
+        ["Cloud2Core_ChargeTime"] = "Tiempo de Recarga: 4.5 horas",
+
+        // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_Connectivity"] = "Conectividad: RF de 2.4 GHz mediante adaptador USB",
+        ["CloudAlpha_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
+        ["CloudAlpha_Battery"] = "Duración de la Batería: Hasta 300 horas",
+        ["CloudAlpha_ChargeTime"] = "Tiempo de Carga: Aprox. 4.5 horas",
+
+        // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_Connectivity"] = "Conectividad: Inalámbrica de 2.4 GHz mediante adaptador USB",
+        ["CloudStinger2_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
+        ["CloudStinger2_Battery"] = "Duración de la Batería: Hasta 20 horas",
+        ["CloudStinger2_ChargeTime"] = "Tiempo de Carga: Aprox. 3.5 horas"
     };
 }

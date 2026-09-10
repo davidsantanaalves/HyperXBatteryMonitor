@@ -1,7 +1,10 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Drawing.Text;
 using System.Xml.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using HyperXBatteryTray.Devices;
 
@@ -12,14 +15,16 @@ public sealed class SettingsForm : Form
     private readonly AppSettings _settings;
     private readonly StartupManager _startupManager;
     private DeviceSelector _deviceSelector = null!;
-    private ComboBox _languageComboBox = null!;
-    private CheckBox _startupCheckBox = null!;
-    private RadioButton _lightThemeRadioButton = null!;
-    private RadioButton _darkThemeRadioButton = null!;
-    private RadioButton _systemThemeRadioButton = null!;
+    private RoundedLanguageSelector _languageComboBox = null!;
+    private ToggleSwitchControl _startupToggle = null!;
+    private ThemeOptionControl _lightThemeOption = null!;
+    private ThemeOptionControl _darkThemeOption = null!;
+    private ThemeOptionControl _systemThemeOption = null!;
     private Label _deviceStatusLabel = null!;
     private Label _deviceStatusDescriptionLabel = null!;
     private Label _batteryValueLabel = null!;
+    private Label _chargingLabel = null!;
+    private Label _deviceInfoTextLabel = null!;
     private StatusDotControl _deviceStatusDot = null!;
     private BatteryIconControl _batteryIcon = null!;
     private readonly Panel _pageHost;
@@ -32,12 +37,13 @@ public sealed class SettingsForm : Form
     private Label _versionLabel = null!;
     private PictureBox _logo = null!;
     private readonly Dictionary<string, SidebarItem> _navButtons = new();
-    private readonly IHyperXDevice? _device;
+    private IHyperXDevice? _device;
     private AppLanguage _selectedLanguage;
     private AppTheme _selectedTheme;
     private string _pendingSelectedDevice;
     private bool _pendingStartupEnabled;
     private bool _updatingLanguage;
+    private bool _isCharging;
     private string _currentPage = "Device";
 
     private static readonly Color Accent = Color.FromArgb(0, 122, 255);
@@ -51,12 +57,40 @@ public sealed class SettingsForm : Form
     private static readonly Color LightSecondary = Color.FromArgb(82, 95, 115);
     private static readonly Color DarkSecondary = Color.FromArgb(196, 201, 207);
 
+    private const int DwmwaUseImmersiveDarkMode = 20;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        ApplyTitleBarTheme(EffectiveTheme == AppTheme.Dark);
+    }
+
+    private void ApplyTitleBarTheme(bool dark)
+    {
+        if (!IsHandleCreated)
+            return;
+
+        try
+        {
+            int useDarkMode = dark ? 1 : 0;
+            _ = DwmSetWindowAttribute(Handle, DwmwaUseImmersiveDarkMode, ref useDarkMode, sizeof(int));
+        }
+        catch
+        {
+            // Keep the application functional on Windows versions without this DWM attribute.
+        }
+    }
+
     public event EventHandler? SettingsApplied;
 
-    public SettingsForm(AppSettings settings, IHyperXDevice? device = null)
+    public SettingsForm(AppSettings settings, IHyperXDevice? device = null, bool isCharging = false)
     {
         _settings = settings;
         _device = device;
+        _isCharging = isCharging;
         _startupManager = new StartupManager();
         _selectedLanguage = settings.Language;
         _selectedTheme = settings.Theme;
@@ -134,24 +168,56 @@ public sealed class SettingsForm : Form
         FormClosed += SettingsForm_FormClosed;
     }
 
+    internal void SetDevice(IHyperXDevice? device)
+    {
+        if (ReferenceEquals(_device, device))
+        {
+            RefreshDeviceStatus();
+            return;
+        }
+
+        if (_device != null)
+            _device.BatteryChanged -= Device_BatteryChanged;
+
+        _device = device;
+
+        if (_device != null)
+            _device.BatteryChanged += Device_BatteryChanged;
+
+        RefreshDeviceStatus();
+    }
+
+    internal void SetCharging(bool charging)
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => SetCharging(charging)));
+            return;
+        }
+
+        _isCharging = charging;
+        RefreshDeviceStatus();
+    }
+
     private void BuildSidebar()
     {
         string[] keys = { "Device", "Interface", "BatteryMonitor", "Notifications", "General", "About" };
         Glyph[] glyphs = { Glyph.Headphones, Glyph.Monitor, Glyph.Battery, Glyph.Bell, Glyph.Gear, Glyph.Info };
-        string?[] svgPaths =
+        string?[] iconPaths =
         {
-            SvgPath("device.svg"),
-            SvgPath("interface.svg"),
-            SvgPath("battery_monitor.svg"),
-            SvgPath("notification.svg"),
-            SvgPath("general.svg"),
-            SvgPath("about.svg")
+            IconPath("device.png"),
+            IconPath("interface.png"),
+            IconPath("battery_monitor.png"),
+            IconPath("notification.png"),
+            IconPath("general.png"),
+            IconPath("about.png")
         };
         int y = 4;
 
         for (int i = 0; i < keys.Length; i++)
         {
-            SidebarItem item = new SidebarItem(glyphs[i], svgPaths[i])
+            SidebarItem item = new SidebarItem(glyphs[i], iconPaths[i])
             {
                 Text = L(keys[i]),
                 Tag = keys[i],
@@ -169,17 +235,17 @@ public sealed class SettingsForm : Form
 
     private void BuildDevicePage()
     {
-        AddPageHeader(SvgPath("device.svg"), Glyph.Headphones, "Device", "DeviceDescription");
+        AddDevicePageHeader();
 
-        RoundedPanel card = CreateCard(new Point(20, 106), new Size(530, 322));
+        RoundedPanel card = CreateDeviceCard(new Point(20, 86), new Size(540, 342));
         _pageHost.Controls.Add(card);
 
-        Label label = CreateLabel(L("DeviceLabelShort"), true, new Point(20, 27), 9.5f);
+        Label label = CreateDeviceLabel(L("DeviceLabelShort"), true, new Point(20, 0), 9.5f);
         card.Controls.Add(label);
 
         _deviceSelector = new DeviceSelector
         {
-            Location = new Point(122, 26),
+            Location = new Point(122, 18),
             Size = new Size(398, 64),
             SelectedIndex = 0,
             DarkMode = EffectiveTheme == AppTheme.Dark
@@ -188,8 +254,9 @@ public sealed class SettingsForm : Form
         _deviceSelector.SelectedDeviceName = _pendingSelectedDevice;
         _deviceSelector.SelectionChanged += DeviceSelector_SelectionChanged;
         card.Controls.Add(_deviceSelector);
+        label.Location = new Point(label.Left, _deviceSelector.Top + (_deviceSelector.Height - label.Height) / 2);
 
-        RoundedPanel statusCard = CreateCard(new Point(20, 118), new Size(490, 82), true);
+        RoundedPanel statusCard = CreateDeviceCard(new Point(20, 108), new Size(500, 82), true);
         statusCard.BackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(46, 50, 54) : Color.FromArgb(248, 249, 251);
         card.Controls.Add(statusCard);
 
@@ -200,8 +267,8 @@ public sealed class SettingsForm : Form
         };
         statusCard.Controls.Add(_deviceStatusDot);
 
-        _deviceStatusLabel = CreateLabel(string.Empty, true, new Point(52, 13), 11f);
-        _deviceStatusDescriptionLabel = CreateLabel(string.Empty, false, new Point(52, 39), 9f);
+        _deviceStatusLabel = CreateDeviceLabel(string.Empty, true, new Point(52, 13), 11f);
+        _deviceStatusDescriptionLabel = CreateDeviceLabel(string.Empty, false, new Point(52, 39), 9f);
         statusCard.Controls.Add(_deviceStatusLabel);
         statusCard.Controls.Add(_deviceStatusDescriptionLabel);
 
@@ -212,93 +279,130 @@ public sealed class SettingsForm : Form
         };
         statusCard.Controls.Add(_batteryIcon);
 
-        _batteryValueLabel = CreateLabel(string.Empty, true, new Point(380, 25), 13f);
+        _batteryValueLabel = CreateDeviceLabel(string.Empty, true, new Point(380, 21), 15f);
         statusCard.Controls.Add(_batteryValueLabel);
 
-        RoundedPanel info = CreateCard(new Point(20, 215), new Size(490, 88), true);
+        _chargingLabel = CreateDeviceLabel(string.Empty, false, new Point(380, 46), 8.5f);
+        _chargingLabel.Visible = false;
+        statusCard.Controls.Add(_chargingLabel);
+
+        RoundedPanel info = CreateDeviceCard(new Point(20, 215), new Size(500, 108), true);
         info.BackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251);
         card.Controls.Add(info);
         info.Controls.Add(new GlyphControl(Glyph.Info, Accent) { Location = new Point(17, 25), Size = new Size(28, 28) });
-        info.Controls.Add(CreateLabel(L("DeviceInformation"), true, new Point(56, 14), 9.5f));
-        Label infoText = CreateLabel(L("DeviceInformationText"), false, new Point(56, 38), 8.8f);
-        infoText.MaximumSize = new Size(405, 0);
-        info.Controls.Add(infoText);
+        info.Controls.Add(CreateDeviceLabel(L("DeviceInformation"), true, new Point(56, 14), 9.5f));
+        _deviceInfoTextLabel = CreateDeviceLabel(L("DeviceInformationText"), false, new Point(56, 38), 8.8f);
+        _deviceInfoTextLabel.MaximumSize = new Size(405, 0);
+        info.Controls.Add(_deviceInfoTextLabel);
     }
 
     private void ShowInterfacePage()
     {
         _pageHost.Controls.Clear();
-        AddPageHeader(SvgPath("interface.svg"), Glyph.Monitor, "Interface", "InterfaceDescription");
+        AddInterfacePageHeader();
 
-        RoundedPanel card = CreateCard(new Point(20, 106), new Size(528, 250));
-        _pageHost.Controls.Add(card);
+        // Interface uses independent cards so future layout changes stay isolated
+        // from the finalized Device page.
+        RoundedPanel languageCard = CreateInterfaceCard(new Point(20, 106), new Size(528, 68), true);
+        _pageHost.Controls.Add(languageCard);
+        languageCard.Controls.Add(new SvgIconControl(IconPath("language.png")) { Location = new Point(18, 18), Size = new Size(24, 24) });
+        languageCard.Controls.Add(CreateInterfaceLabel(L("LanguageShort"), true, new Point(58, 12), 9.5f));
+        languageCard.Controls.Add(CreateInterfaceLabel(L("LanguageDescription"), false, new Point(58, 33), 8.5f));
 
-        card.Controls.Add(new SvgIconControl(SvgPath("language.svg")) { Location = new Point(20, 23), Size = new Size(24, 24) });
-        card.Controls.Add(CreateLabel(L("LanguageShort"), false, new Point(58, 25), 9.5f));
-
-        Panel languageFrame = new Panel { Location = new Point(190, 17), Size = new Size(300, 34), BackColor = Color.Transparent };
-        languageFrame.Paint += InputFrame_Paint;
-        _languageComboBox = new ComboBox
+        _languageComboBox = new RoundedLanguageSelector
         {
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            Location = new Point(1, 1),
-            Size = new Size(298, 32),
-            Font = new Font("Segoe UI", 9.5f),
-            DrawMode = DrawMode.OwnerDrawFixed,
-            ItemHeight = 30,
-            FlatStyle = FlatStyle.Flat,
-            BackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(38, 41, 44) : Color.White,
-            ForeColor = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText
+            Location = new Point(270, 15),
+            Size = new Size(208, 34),
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText,
+            DarkMode = EffectiveTheme == AppTheme.Dark
         };
         _languageComboBox.Items.Add(Localization.LanguageDisplay(AppLanguage.English));
         _languageComboBox.Items.Add(Localization.LanguageDisplay(AppLanguage.PortugueseBrazil));
         _languageComboBox.Items.Add(Localization.LanguageDisplay(AppLanguage.Spanish));
         _languageComboBox.SelectedIndex = (int)_selectedLanguage;
-        _languageComboBox.DrawItem += ComboBox_DrawItem;
         _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
-        languageFrame.Controls.Add(_languageComboBox);
-        card.Controls.Add(languageFrame);
+        languageCard.Controls.Add(_languageComboBox);
 
-        card.Controls.Add(new SvgIconControl(SvgPath("theme.svg")) { Location = new Point(20, 75), Size = new Size(24, 24) });
-        card.Controls.Add(CreateLabel(L("ThemeShort"), false, new Point(58, 77), 9.5f));
-        Panel themePanel = new Panel { Location = new Point(188, 66), Size = new Size(305, 44), BackColor = Color.Transparent };
-        _lightThemeRadioButton = CreateThemeRadio(AppTheme.Light, 0);
-        _darkThemeRadioButton = CreateThemeRadio(AppTheme.Dark, 92);
-        _systemThemeRadioButton = CreateThemeRadio(AppTheme.System, 184);
-        themePanel.Controls.AddRange(new Control[] { _lightThemeRadioButton, _darkThemeRadioButton, _systemThemeRadioButton });
-        card.Controls.Add(themePanel);
+        RoundedPanel themeCard = CreateInterfaceCard(new Point(20, 182), new Size(528, 154), true);
+        _pageHost.Controls.Add(themeCard);
+        themeCard.Controls.Add(new SvgIconControl(IconPath("theme.png")) { Location = new Point(18, 19), Size = new Size(24, 24) });
+        themeCard.Controls.Add(CreateInterfaceLabel(L("ThemeShort"), true, new Point(58, 12), 9.5f));
+        themeCard.Controls.Add(CreateInterfaceLabel(L("ThemeDescription"), false, new Point(58, 33), 8.5f));
 
-        card.Controls.Add(new SvgIconControl(SvgPath("windows.svg")) { Location = new Point(20, 133), Size = new Size(24, 24) });
-        card.Controls.Add(CreateLabel(L("StartupShort"), false, new Point(58, 135), 9.5f));
-        _startupCheckBox = new CheckBox
+        Panel themePanel = new Panel
         {
-            Text = L("StartupDescription"),
-            AutoSize = true,
-            Location = new Point(190, 132),
-            Checked = _pendingStartupEnabled,
-            Font = new Font("Segoe UI", 9f),
-            Cursor = Cursors.Hand
+            Location = new Point(16, 58),
+            Size = new Size(496, 84),
+            BackColor = Color.Transparent
         };
-        _startupCheckBox.CheckedChanged += (_, _) => _pendingStartupEnabled = _startupCheckBox.Checked;
-        card.Controls.Add(_startupCheckBox);
-        ApplyTheme(_selectedTheme);
+        _lightThemeOption = new ThemeOptionControl(AppTheme.Light, IconPath("light.png"), ThemeText(AppTheme.Light))
+        { Location = new Point(0, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.Light, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _darkThemeOption = new ThemeOptionControl(AppTheme.Dark, IconPath("dark.png"), ThemeText(AppTheme.Dark))
+        { Location = new Point(166, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.Dark, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _systemThemeOption = new ThemeOptionControl(AppTheme.System, IconPath("interface.png"), ThemeText(AppTheme.System))
+        { Location = new Point(332, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.System, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _lightThemeOption.Click += ThemeOption_Click;
+        _darkThemeOption.Click += ThemeOption_Click;
+        _systemThemeOption.Click += ThemeOption_Click;
+        themePanel.Controls.AddRange(new Control[] { _lightThemeOption, _darkThemeOption, _systemThemeOption });
+        themeCard.Controls.Add(themePanel);
+
+        RoundedPanel startupCard = CreateInterfaceCard(new Point(20, 344), new Size(528, 68), true);
+        _pageHost.Controls.Add(startupCard);
+        startupCard.Controls.Add(new SvgIconControl(IconPath("windows.png")) { Location = new Point(18, 19), Size = new Size(24, 24) });
+        startupCard.Controls.Add(CreateInterfaceLabel(L("StartupShort"), true, new Point(58, 12), 9.5f));
+        startupCard.Controls.Add(CreateInterfaceLabel(L("StartupDescription"), false, new Point(58, 34), 8.5f));
+        _startupToggle = new ToggleSwitchControl
+        {
+            Location = new Point(444, 22),
+            Size = new Size(42, 24),
+            Checked = _pendingStartupEnabled,
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        };
+        _startupToggle.CheckedChanged += (_, _) => _pendingStartupEnabled = _startupToggle.Checked;
+        startupCard.Controls.Add(_startupToggle);
     }
 
-    private static string? SvgPath(string fileName)
+    internal static void WarmUpIconCacheAsync() => PngIconRenderer.WarmUpBothThemesAsync();
+
+    private static string? IconPath(string fileName)
     {
         string path = Path.Combine(AppContext.BaseDirectory, "Icons", "Vector", fileName);
         return File.Exists(path) ? path : null;
     }
 
-    private void AddPageHeader(string? svgPath, Glyph fallbackGlyph, string titleKey, string descriptionKey)
+    // Page-specific layout helpers keep finalized pages isolated from future layout changes.
+    // Device layout must remain stable even when the Interface page is redesigned.
+    private void AddDevicePageHeader() =>
+        AddPageHeader(IconPath("device.png"), Glyph.Headphones, "Device", "DeviceDescription", 42);
+
+    private RoundedPanel CreateDeviceCard(Point location, Size size, bool inner = false) =>
+        CreateCard(location, size, inner);
+
+    private Label CreateDeviceLabel(string text, bool semibold, Point location, float size) =>
+        CreateLabel(text, semibold, location, size);
+
+    // Interface has its own layout entry points so future Interface-only adjustments
+    // do not require changing shared helpers used by finalized pages.
+    private void AddInterfacePageHeader() =>
+        AddPageHeader(IconPath("interface.png"), Glyph.Monitor, "Interface", "InterfaceDescription", 40);
+
+    private RoundedPanel CreateInterfaceCard(Point location, Size size, bool inner = false) =>
+        CreateCard(location, size, inner);
+
+    private Label CreateInterfaceLabel(string text, bool semibold, Point location, float size) =>
+        CreateLabel(text, semibold, location, size);
+
+    private void AddPageHeader(string? iconPath, Glyph fallbackGlyph, string titleKey, string descriptionKey, int descriptionY = 37)
     {
-        if (!string.IsNullOrWhiteSpace(svgPath))
-            _pageHost.Controls.Add(new SvgIconControl(svgPath) { Location = new Point(20, 3), Size = new Size(38, 38) });
+        if (!string.IsNullOrWhiteSpace(iconPath))
+            _pageHost.Controls.Add(new SvgIconControl(iconPath) { Location = new Point(20, 3), Size = new Size(38, 38) });
         else
             _pageHost.Controls.Add(new GlyphControl(fallbackGlyph) { Location = new Point(20, 3), Size = new Size(38, 38) });
 
         _pageHost.Controls.Add(new Label { Text = L(titleKey), AutoSize = true, Font = new Font("Segoe UI Semibold", 23f), Location = new Point(70, 0), BackColor = Color.Transparent });
-        _pageHost.Controls.Add(new Label { Text = L(descriptionKey), AutoSize = true, Font = new Font("Segoe UI", 9.5f), Location = new Point(71, 37), BackColor = Color.Transparent });
+        _pageHost.Controls.Add(new Label { Text = L(descriptionKey), AutoSize = true, Font = new Font("Segoe UI", 9.5f), Location = new Point(71, descriptionY), BackColor = Color.Transparent });
     }
 
     private void AddPageHeader(Glyph glyph, string titleKey, string descriptionKey) =>
@@ -331,22 +435,6 @@ public sealed class SettingsForm : Form
             Font = new Font(semibold ? "Segoe UI Semibold" : "Segoe UI", size),
             BackColor = Color.Transparent
         };
-    }
-
-    private RadioButton CreateThemeRadio(AppTheme theme, int x)
-    {
-        RadioButton radio = new RadioButton
-        {
-            Text = ThemeText(theme),
-            AutoSize = true,
-            Location = new Point(x, 10),
-            Checked = _selectedTheme == theme,
-            Font = new Font("Segoe UI", 9f),
-            Cursor = Cursors.Hand,
-            BackColor = Color.Transparent
-        };
-        radio.CheckedChanged += ThemeRadioButton_CheckedChanged;
-        return radio;
     }
 
     private void BuildFooter()
@@ -408,36 +496,50 @@ public sealed class SettingsForm : Form
     private void ShowPage(string key)
     {
         _currentPage = key;
+        _languageComboBox?.ClosePopup();
         foreach ((string name, SidebarItem item) in _navButtons)
             item.Selected = name == key;
 
-        if (key == "Device")
+        _pageHost.SuspendLayout();
+        _pageHost.Visible = false;
+        try
         {
-            RebuildDevicePage();
-            return;
-        }
-        if (key == "Interface")
-        {
-            ShowInterfacePage();
-            return;
-        }
+            if (key == "Device")
+            {
+                RebuildDevicePage();
+                return;
+            }
+            if (key == "Interface")
+            {
+                ShowInterfacePage();
+                return;
+            }
 
-        _pageHost.Controls.Clear();
-        AddPageHeader(SvgPath(key switch
+            _pageHost.Controls.Clear();
+            AddPageHeader(IconPath(key switch
+            {
+                "BatteryMonitor" => "battery_monitor.png",
+                "Notifications" => "notification.png",
+                "General" => "general.png",
+                "About" => "about.png",
+                _ => "about.png"
+            }), Glyph.Info, key, key switch
+            {
+                "BatteryMonitor" => "ComingSoonBatteryMonitor",
+                "Notifications" => "ComingSoonNotifications",
+                "General" => "ComingSoonGeneral",
+                "About" => "ComingSoonAbout",
+                _ => string.Empty
+            });
+        }
+        finally
         {
-            "BatteryMonitor" => "battery_monitor.svg",
-            "Notifications" => "notification.svg",
-            "General" => "general.svg",
-            "About" => "about.svg",
-            _ => "about.svg"
-        }), Glyph.Info, key, key switch
-        {
-            "BatteryMonitor" => "ComingSoonBatteryMonitor",
-            "Notifications" => "ComingSoonNotifications",
-            "General" => "ComingSoonGeneral",
-            "About" => "ComingSoonAbout",
-            _ => string.Empty
-        });
+            // The host is hidden only while the page is rebuilt. Always restore it
+            // so navigation cannot leave the entire content area invisible.
+            _pageHost.Visible = true;
+            _pageHost.ResumeLayout(true);
+            _pageHost.Invalidate(true);
+        }
     }
 
     private void RebuildDevicePage()
@@ -462,20 +564,50 @@ public sealed class SettingsForm : Form
         _deviceStatusLabel.Visible = true;
         _deviceStatusDescriptionLabel.Visible = true;
         _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : "N/A";
+        _chargingLabel.Text = _isCharging ? L("ChargingStatus") : string.Empty;
+        _chargingLabel.Visible = connected && _isCharging;
         Color primaryText = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
         Color secondaryText = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
         _deviceStatusLabel.ForeColor = primaryText;
         _deviceStatusDescriptionLabel.ForeColor = secondaryText;
         _batteryValueLabel.ForeColor = primaryText;
+        _chargingLabel.ForeColor = secondaryText;
         if (_batteryIcon != null)
         {
             _batteryIcon.Connected = connected;
             _batteryIcon.Battery = connected && _device != null ? Math.Clamp(_device.Battery, 0, 100) : 0;
             _batteryIcon.DarkMode = EffectiveTheme == AppTheme.Dark;
+            _batteryIcon.Charging = connected && _isCharging;
             _batteryIcon.Invalidate();
         }
         _deviceStatusDot.Connected = connected;
         _deviceStatusDot.Invalidate();
+        UpdateDeviceInformation();
+    }
+
+    private void UpdateDeviceInformation()
+    {
+        if (_deviceInfoTextLabel == null) return;
+
+        string device = _deviceSelector?.SelectedDeviceName ?? string.Empty;
+        string normalized = string.Equals(device, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
+            ? "HyperX Cloud III"
+            : device;
+
+        string[] keys = normalized switch
+        {
+            "HyperX Cloud III" => new[] { "Cloud3Wireless_Connectivity", "Cloud3Wireless_Range", "Cloud3Wireless_Battery", "Cloud3Wireless_ChargeTime" },
+            "HyperX Cloud III S" => new[] { "Cloud3S_Connectivity", "Cloud3S_Range", "Cloud3S_Battery", "Cloud3S_ChargeTime" },
+            "HyperX Cloud 2 Core" => new[] { "Cloud2Core_Connectivity", "Cloud2Core_Range", "Cloud2Core_Battery", "Cloud2Core_ChargeTime" },
+            "HyperX Cloud Alpha" => new[] { "CloudAlpha_Connectivity", "CloudAlpha_Range", "CloudAlpha_Battery", "CloudAlpha_ChargeTime" },
+            "HyperX Cloud Stinger 2" => new[] { "CloudStinger2_Connectivity", "CloudStinger2_Range", "CloudStinger2_Battery", "CloudStinger2_ChargeTime" },
+            _ => Array.Empty<string>()
+        };
+
+        _deviceInfoTextLabel.Text = keys.Length == 0
+            ? L("DeviceInformationText")
+            : string.Join(Environment.NewLine, keys.Select(L));
+        _deviceInfoTextLabel.ForeColor = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
     }
 
     private void Device_BatteryChanged(object? sender, int battery)
@@ -498,12 +630,13 @@ public sealed class SettingsForm : Form
         ApplyTheme(_selectedTheme);
     }
 
-    private void ThemeRadioButton_CheckedChanged(object? sender, EventArgs e)
+    private void ThemeOption_Click(object? sender, EventArgs e)
     {
-        if (sender is not RadioButton radio || !radio.Checked) return;
-        if (radio == _lightThemeRadioButton) _selectedTheme = AppTheme.Light;
-        else if (radio == _darkThemeRadioButton) _selectedTheme = AppTheme.Dark;
-        else _selectedTheme = AppTheme.System;
+        if (sender is not ThemeOptionControl option) return;
+        _selectedTheme = option.Theme;
+        _lightThemeOption.Selected = _selectedTheme == AppTheme.Light;
+        _darkThemeOption.Selected = _selectedTheme == AppTheme.Dark;
+        _systemThemeOption.Selected = _selectedTheme == AppTheme.System;
         ApplyTheme(_selectedTheme);
     }
 
@@ -518,6 +651,12 @@ public sealed class SettingsForm : Form
             item.Text = L(key);
         if (_deviceSelector != null)
             _deviceSelector.SetPlaceholder(StatusText("LocateDevice", "Locate your device", "Localize seu dispositivo", "Localiza tu dispositivo"));
+        UpdateDeviceInformation();
+
+        if (_lightThemeOption != null) _lightThemeOption.LabelText = ThemeText(AppTheme.Light);
+        if (_darkThemeOption != null) _darkThemeOption.LabelText = ThemeText(AppTheme.Dark);
+        if (_systemThemeOption != null) _systemThemeOption.LabelText = ThemeText(AppTheme.System);
+        if (_startupToggle != null) _startupToggle.Invalidate();
 
         if (_languageComboBox != null && _languageComboBox.Items.Count == 3)
         {
@@ -531,6 +670,12 @@ public sealed class SettingsForm : Form
 
     private void ApplyTheme(AppTheme theme)
     {
+        // Theme changes restyle existing controls only. Keep the page host visible
+        // and suspend layout until all properties have been updated. Hiding it here
+        // can leave the entire content area invisible during navigation/theme events.
+        _pageHost.SuspendLayout();
+        try
+        {
         bool dark = ResolveTheme(theme) == AppTheme.Dark;
         Color background = dark ? DarkBackground : LightBackground;
         Color sidebar = dark ? DarkSidebar : LightSidebar;
@@ -538,6 +683,7 @@ public sealed class SettingsForm : Form
         Color secondary = dark ? DarkSecondary : LightSecondary;
 
         BackColor = background;
+        ApplyTitleBarTheme(dark);
         _sidebar.BackColor = sidebar;
         _pageHost.BackColor = background;
         _pageHost.ForeColor = foreground;
@@ -560,6 +706,11 @@ public sealed class SettingsForm : Form
         Icon = LoadThemeIcon(dark ? AppTheme.Dark : AppTheme.Light);
         ApplyThemeRecursive(this, foreground, dark);
 
+        if (_lightThemeOption != null) _lightThemeOption.DarkMode = dark;
+        if (_darkThemeOption != null) _darkThemeOption.DarkMode = dark;
+        if (_systemThemeOption != null) _systemThemeOption.DarkMode = dark;
+        if (_startupToggle != null) _startupToggle.DarkMode = dark;
+
         foreach (SidebarItem item in _navButtons.Values)
         {
             item.DarkMode = dark;
@@ -581,6 +732,11 @@ public sealed class SettingsForm : Form
             _batteryValueLabel.ForeColor = foreground;
             _batteryValueLabel.BackColor = Color.Transparent;
         }
+        if (_chargingLabel != null)
+        {
+            _chargingLabel.ForeColor = secondary;
+            _chargingLabel.BackColor = Color.Transparent;
+        }
 
         if (_deviceSelector != null)
         {
@@ -594,7 +750,14 @@ public sealed class SettingsForm : Form
         StyleFooterButton(_okButton, dark, true);
         _sidebar.Invalidate();
         _pageHost.Invalidate(true);
+        UpdateDeviceInformation();
         RefreshDeviceStatus();
+        }
+        finally
+        {
+            _pageHost.ResumeLayout(true);
+            _pageHost.Invalidate(true);
+        }
     }
 
     private void ApplyThemeRecursive(Control parent, Color foreground, bool dark)
@@ -615,6 +778,11 @@ public sealed class SettingsForm : Form
                 panel.OutsideBackColor = panel.Tag is string innerTag && innerTag == "inner"
                     ? (dark ? Color.FromArgb(34, 37, 40) : Color.White)
                     : (dark ? Color.FromArgb(32, 35, 38) : LightBackground);
+            }
+            else if (c is RoundedLanguageSelector languageSelector)
+            {
+                languageSelector.DarkMode = dark;
+                languageSelector.ForeColor = foreground;
             }
             else if (c is ComboBox combo)
             {
@@ -660,14 +828,6 @@ public sealed class SettingsForm : Form
         e.DrawFocusRectangle();
     }
 
-    private void InputFrame_Paint(object? sender, PaintEventArgs e)
-    {
-        bool dark = EffectiveTheme == AppTheme.Dark;
-        using Pen pen = new(dark ? Color.FromArgb(105, 112, 120) : Color.FromArgb(194, 201, 211));
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        e.Graphics.DrawRoundedRectangle(pen, new Rectangle(0, 0, Math.Max(1, e.ClipRectangle.Width - 1), Math.Max(1, e.ClipRectangle.Height - 1)), 6);
-    }
-
     private void ResetButton_Click(object? sender, EventArgs e)
     {
         DialogResult result = MessageBox.Show(this, L("RestoreDefaultsQuestion"), L("RestoreDefaults"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -681,9 +841,9 @@ public sealed class SettingsForm : Form
 
         if (_deviceSelector != null) _deviceSelector.SelectedIndex = 0;
         if (_languageComboBox != null) _languageComboBox.SelectedIndex = (int)_selectedLanguage;
-        if (_lightThemeRadioButton != null) _lightThemeRadioButton.Checked = false;
-        if (_darkThemeRadioButton != null) _darkThemeRadioButton.Checked = false;
-        if (_systemThemeRadioButton != null) _systemThemeRadioButton.Checked = true;
+        if (_lightThemeOption != null) _lightThemeOption.Selected = false;
+        if (_darkThemeOption != null) _darkThemeOption.Selected = false;
+        if (_systemThemeOption != null) _systemThemeOption.Selected = true;
 
         ApplyLocalizedText();
         ShowPage(_currentPage);
@@ -836,10 +996,524 @@ public sealed class SettingsForm : Form
 
             Color iconColor = text;
             if (!string.IsNullOrWhiteSpace(_svgPath))
-                SvgIconRenderer.Draw(e.Graphics, _svgPath, new RectangleF(14, 7, 25, 25), iconColor);
+                PngIconRenderer.Draw(e.Graphics, _svgPath, new RectangleF(14, 7, 25, 25), iconColor);
             else
                 DrawGlyph(e.Graphics, _glyph, new Rectangle(15, 8, 23, 23), iconColor, 1.65f);
             TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(48, 0, Width - 54, Height), _selected ? Color.FromArgb(0, 105, 220) : text, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+        }
+    }
+
+    private sealed class RoundedLanguageSelector : UserControl
+    {
+        private bool _darkMode;
+        private LanguagePopupControl? _popup;
+        private LanguagePopupMessageFilter? _popupMessageFilter;
+        private int _selectedIndex = -1;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode
+        {
+            get => _darkMode;
+            set
+            {
+                if (_darkMode == value) return;
+                _darkMode = value;
+                _popup?.ApplyTheme(_darkMode);
+                Invalidate();
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public IList<string> Items { get; } = new List<string>();
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set
+            {
+                int normalized = value >= 0 && value < Items.Count ? value : -1;
+                if (_selectedIndex == normalized) return;
+                _selectedIndex = normalized;
+                Invalidate();
+                SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string? SelectedItem => _selectedIndex >= 0 && _selectedIndex < Items.Count ? Items[_selectedIndex] : null;
+
+        public event EventHandler? SelectedIndexChanged;
+
+        public RoundedLanguageSelector()
+        {
+            SetStyle(ControlStyles.UserPaint |
+                     ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw, true);
+            TabStop = true;
+            BackColor = Color.Transparent;
+            Padding = new Padding(0);
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Color background = _darkMode ? Color.FromArgb(31, 34, 37) : Color.White;
+            Color border = _darkMode ? Color.FromArgb(105, 112, 120) : Color.FromArgb(194, 201, 211);
+            Color foreground = _darkMode ? Color.WhiteSmoke : LightText;
+
+            Rectangle bounds = new(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
+            using GraphicsPath path = RoundedPath(bounds, 6);
+            using SolidBrush backgroundBrush = new(background);
+            using Pen borderPen = new(border, 1f);
+            e.Graphics.FillPath(backgroundBrush, path);
+            e.Graphics.DrawPath(borderPen, path);
+
+            string text = SelectedItem ?? string.Empty;
+            Rectangle textBounds = new(11, 1, Math.Max(1, Width - 43), Math.Max(1, Height - 2));
+            TextRenderer.DrawText(e.Graphics, text, Font, textBounds, foreground,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+            int centerX = Width - 13;
+            int centerY = Height / 2;
+            using SolidBrush arrowBrush = new(foreground);
+            Point[] arrow =
+            {
+                new(centerX - 4, centerY - 2),
+                new(centerX + 4, centerY - 2),
+                new(centerX, centerY + 3)
+            };
+            e.Graphics.FillPolygon(arrowBrush, arrow);
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            base.OnClick(e);
+            Focus();
+            if (_popup != null)
+                ClosePopup();
+            else
+                OpenPopup();
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.KeyCode is Keys.Enter or Keys.Space)
+            {
+                if (_popup != null)
+                    ClosePopup();
+                else
+                    OpenPopup();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.KeyCode == Keys.Down)
+            {
+                SelectedIndex = Math.Min(Items.Count - 1, Math.Max(0, _selectedIndex + 1));
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Up)
+            {
+                SelectedIndex = Math.Max(0, _selectedIndex - 1);
+                e.Handled = true;
+            }
+        }
+
+        protected override void OnLostFocus(EventArgs e)
+        {
+            base.OnLostFocus(e);
+            if (_popup == null) return;
+
+            BeginInvoke(new Action(() =>
+            {
+                if (_popup != null && !_popup.ContainsFocus && !ContainsFocus)
+                    ClosePopup();
+            }));
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (_popup != null)
+                ClosePopup();
+            Invalidate();
+        }
+
+        private void OpenPopup()
+        {
+            Form? form = FindForm();
+            if (form == null || Items.Count == 0) return;
+
+            _popup = new LanguagePopupControl
+            {
+                Items = Items.ToArray(),
+                SelectedIndex = _selectedIndex,
+                Font = Font,
+                DarkMode = _darkMode,
+                Size = new Size(Width, Items.Count * 30)
+            };
+            _popup.ItemClicked += Popup_ItemClicked;
+            _popup.Dismissed += Popup_Dismissed;
+            _popupMessageFilter = new LanguagePopupMessageFilter(this);
+            Application.AddMessageFilter(_popupMessageFilter);
+
+            Point screenLocation = PointToScreen(new Point(0, Height));
+            Point formLocation = form.PointToClient(screenLocation);
+            _popup.Location = formLocation;
+            form.Controls.Add(_popup);
+            _popup.BringToFront();
+            _popup.Focus();
+        }
+
+        private void Popup_ItemClicked(int index)
+        {
+            SelectedIndex = index;
+            ClosePopup();
+        }
+
+        private void Popup_Dismissed(object? sender, EventArgs e)
+        {
+            ClosePopup();
+        }
+
+        public void ClosePopup()
+        {
+            if (_popup == null) return;
+
+            LanguagePopupControl popup = _popup;
+            _popup = null;
+            if (_popupMessageFilter != null)
+            {
+                Application.RemoveMessageFilter(_popupMessageFilter);
+                _popupMessageFilter = null;
+            }
+            popup.ItemClicked -= Popup_ItemClicked;
+            popup.Dismissed -= Popup_Dismissed;
+            if (popup.Parent != null)
+                popup.Parent.Controls.Remove(popup);
+            popup.Dispose();
+            Focus();
+            Invalidate();
+        }
+
+        private sealed class LanguagePopupMessageFilter : IMessageFilter
+        {
+            private readonly RoundedLanguageSelector _owner;
+
+            public LanguagePopupMessageFilter(RoundedLanguageSelector owner)
+            {
+                _owner = owner;
+            }
+
+            public bool PreFilterMessage(ref Message m)
+            {
+                if (m.Msg != 0x0201 || _owner._popup == null)
+                    return false;
+
+                Point screenPoint = Control.MousePosition;
+                bool insideSelector = _owner.RectangleToScreen(_owner.ClientRectangle).Contains(screenPoint);
+                bool insidePopup = _owner._popup.RectangleToScreen(_owner._popup.ClientRectangle).Contains(screenPoint);
+
+                if (!insideSelector && !insidePopup)
+                    _owner.ClosePopup();
+
+                return false;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                ClosePopup();
+            base.Dispose(disposing);
+        }
+
+        private static GraphicsPath RoundedPath(Rectangle rectangle, int radius)
+        {
+            int diameter = radius * 2;
+            GraphicsPath path = new();
+            path.AddArc(rectangle.X, rectangle.Y, diameter, diameter, 180, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Y, diameter, diameter, 270, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rectangle.X, rectangle.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    private sealed class LanguagePopupControl : Control
+    {
+        private string[] _items = Array.Empty<string>();
+        private int _selectedIndex = -1;
+        private int _hoverIndex = -1;
+        private bool _darkMode;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string[] Items
+        {
+            get => _items;
+            set
+            {
+                _items = value ?? Array.Empty<string>();
+                Height = _items.Length * ItemHeight;
+                Invalidate();
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set
+            {
+                _selectedIndex = value >= 0 && value < _items.Length ? value : -1;
+                Invalidate();
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode
+        {
+            get => _darkMode;
+            set
+            {
+                _darkMode = value;
+                Invalidate();
+            }
+        }
+
+        public event Action<int>? ItemClicked;
+        public event EventHandler? Dismissed;
+
+        private const int ItemHeight = 30;
+        private const int BorderWidth = 1;
+
+        public LanguagePopupControl()
+        {
+            SetStyle(ControlStyles.UserPaint |
+                     ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw, true);
+            TabStop = true;
+            Cursor = Cursors.Hand;
+            BackColor = Color.FromArgb(38, 41, 44);
+        }
+
+        public void ApplyTheme(bool dark)
+        {
+            DarkMode = dark;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Color background = _darkMode ? Color.FromArgb(38, 41, 44) : Color.White;
+            Color border = _darkMode ? Color.FromArgb(105, 112, 120) : Color.FromArgb(194, 201, 211);
+            Color hover = _darkMode ? Color.FromArgb(30, 66, 99) : Color.FromArgb(224, 238, 255);
+            Color foreground = _darkMode ? Color.WhiteSmoke : LightText;
+
+            using SolidBrush backgroundBrush = new(background);
+            using Pen borderPen = new(border, 1f);
+            e.Graphics.FillRectangle(backgroundBrush, ClientRectangle);
+            e.Graphics.DrawRectangle(borderPen, 0, 0, Width - 1, Height - 1);
+
+            for (int i = 0; i < _items.Length; i++)
+            {
+                Rectangle itemBounds = new(BorderWidth, BorderWidth + i * ItemHeight,
+                    Math.Max(1, Width - BorderWidth * 2), ItemHeight);
+                bool highlighted = i == _hoverIndex || (i == _selectedIndex && _hoverIndex < 0);
+
+                if (highlighted)
+                {
+                    using SolidBrush hoverBrush = new(hover);
+                    e.Graphics.FillRectangle(hoverBrush, itemBounds);
+                }
+
+                TextRenderer.DrawText(e.Graphics, _items[i], Font,
+                    new Rectangle(itemBounds.X + 10, itemBounds.Y, itemBounds.Width - 20, itemBounds.Height),
+                    foreground,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            int index = IndexFromPoint(e.Location);
+            if (_hoverIndex != index)
+            {
+                _hoverIndex = index;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (_hoverIndex != -1)
+            {
+                _hoverIndex = -1;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (e.Button != MouseButtons.Left) return;
+
+            int index = IndexFromPoint(e.Location);
+            if (index >= 0)
+                ItemClicked?.Invoke(index);
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+
+            if (e.KeyCode == Keys.Down)
+            {
+                int next = Math.Min(_items.Length - 1, Math.Max(0, (_hoverIndex >= 0 ? _hoverIndex : _selectedIndex) + 1));
+                _hoverIndex = next;
+                Invalidate();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Up)
+            {
+                int next = Math.Max(0, (_hoverIndex >= 0 ? _hoverIndex : _selectedIndex) - 1);
+                _hoverIndex = next;
+                Invalidate();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Enter)
+            {
+                int index = _hoverIndex >= 0 ? _hoverIndex : _selectedIndex;
+                if (index >= 0)
+                    ItemClicked?.Invoke(index);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Escape)
+            {
+                Dismissed?.Invoke(this, EventArgs.Empty);
+                e.Handled = true;
+            }
+        }
+
+        private int IndexFromPoint(Point point)
+        {
+            int index = (point.Y - BorderWidth) / ItemHeight;
+            return point.X >= BorderWidth && point.X < Width - BorderWidth &&
+                   index >= 0 && index < _items.Length ? index : -1;
+        }
+    }
+
+    private sealed class ThemeOptionControl : Control
+    {
+        private readonly string? _iconPath;
+        private bool _selected;
+        private bool _dark;
+        private bool _hover;
+
+        public AppTheme Theme { get; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string LabelText { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool Selected { get => _selected; set { _selected = value; Invalidate(); } }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
+
+        public ThemeOptionControl(AppTheme theme, string? iconPath, string labelText)
+        {
+            Theme = theme;
+            _iconPath = iconPath;
+            LabelText = labelText;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+            MouseEnter += (_, _) => { _hover = true; Invalidate(); };
+            MouseLeave += (_, _) => { _hover = false; Invalidate(); };
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            Color border = _selected ? Accent : (_dark ? Color.FromArgb(52, 57, 62) : Color.FromArgb(222, 227, 234));
+            Color background = _selected
+                ? (Theme == AppTheme.System
+                    ? (_dark ? DarkBackground : LightBackground)
+                    : (_dark ? Color.FromArgb(32, 44, 58) : Color.FromArgb(246, 249, 253)))
+                : (_hover ? (_dark ? Color.FromArgb(38, 42, 47) : Color.FromArgb(248, 250, 253)) : (_dark ? Color.FromArgb(31, 34, 37) : Color.White));
+
+            using (Brush fill = new SolidBrush(background))
+                e.Graphics.FillRoundedRectangle(fill, new Rectangle(1, 1, Width - 3, Height - 3), 6);
+            using (Pen pen = new(border, _selected ? 1.5f : 1f))
+                e.Graphics.DrawRoundedRectangle(pen, new Rectangle(1, 1, Width - 3, Height - 3), 6);
+
+            Color text = _dark ? Color.WhiteSmoke : LightText;
+            Color secondary = _dark ? DarkSecondary : LightSecondary;
+            if (!string.IsNullOrWhiteSpace(_iconPath))
+                PngIconRenderer.Draw(e.Graphics, _iconPath, new RectangleF((Width - 28) / 2f, 12, 28, 28), text);
+
+            string label = LabelText;
+            Size textSize = TextRenderer.MeasureText(label, new Font("Segoe UI", 9f));
+            float textX = (Width - textSize.Width + 14) / 2f;
+            float textY = 61;
+            using (Brush radio = new SolidBrush(_selected ? Accent : secondary))
+                e.Graphics.FillEllipse(radio, textX - 12, textY + 2, 10, 10);
+            if (_selected)
+            {
+                using Brush dot = new SolidBrush(Color.White);
+                e.Graphics.FillEllipse(dot, textX - 9, textY + 5, 4, 4);
+            }
+            TextRenderer.DrawText(e.Graphics, label, new Font("Segoe UI", 9f), new Point((int)textX + 4, (int)textY - 1), text, TextFormatFlags.NoPrefix);
+        }
+    }
+
+    private sealed class ToggleSwitchControl : Control
+    {
+        private bool _checked;
+        private bool _dark;
+
+        public event EventHandler? CheckedChanged;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool Checked { get => _checked; set { if (_checked == value) return; _checked = value; Invalidate(); CheckedChanged?.Invoke(this, EventArgs.Empty); } }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
+
+        public ToggleSwitchControl()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            base.OnClick(e);
+            Checked = !Checked;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle track = new(0, 2, Width - 1, Height - 5);
+            Color trackColor = _checked ? Accent : (_dark ? Color.FromArgb(76, 81, 87) : Color.FromArgb(205, 211, 220));
+            using (Brush b = new SolidBrush(trackColor))
+                e.Graphics.FillRoundedRectangle(b, track, track.Height / 2);
+
+            int knobSize = Math.Max(10, track.Height - 4);
+            int knobX = _checked ? track.Right - knobSize - 2 : track.Left + 2;
+            using Brush knob = new SolidBrush(Color.White);
+            e.Graphics.FillEllipse(knob, knobX, track.Top + 2, knobSize, knobSize);
         }
     }
 
@@ -864,7 +1538,214 @@ public sealed class SettingsForm : Form
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            SvgIconRenderer.Draw(e.Graphics, _path, new RectangleF(1, 1, Math.Max(2, Width - 2), Math.Max(2, Height - 2)), ForeColor.IsEmpty ? (_dark ? Color.WhiteSmoke : LightText) : ForeColor);
+            PngIconRenderer.Draw(e.Graphics, _path, new RectangleF(1, 1, Math.Max(2, Width - 2), Math.Max(2, Height - 2)), ForeColor.IsEmpty ? (_dark ? Color.WhiteSmoke : LightText) : ForeColor);
+        }
+    }
+
+    private static class PngIconRenderer
+    {
+        private sealed class CacheEntry
+        {
+            public required Bitmap Bitmap { get; init; }
+        }
+
+        private static readonly Dictionary<string, CacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object CacheLock = new();
+
+        private static readonly string[] CommonIconNames =
+        {
+            "device.png", "interface.png", "battery_monitor.png", "notification.png",
+            "general.png", "about.png", "language.png", "theme.png", "windows.png", "reset.png"
+        };
+
+        private static Task? _warmUpTask;
+
+        public static void WarmUpBothThemesAsync()
+        {
+            lock (CacheLock)
+            {
+                if (_warmUpTask is { IsCompleted: false })
+                    return;
+
+                _warmUpTask = Task.Run(() =>
+                {
+                    PreloadCommonIcons(Color.WhiteSmoke);
+                    PreloadCommonIcons(LightText);
+                });
+            }
+        }
+
+        public static void PreloadCommonIcons(Color color)
+        {
+            Size[] sizes = { new(25, 25), new(38, 38), new(24, 24), new(20, 20) };
+
+            foreach (string name in CommonIconNames)
+            {
+                string? path = IconPath(name);
+                if (string.IsNullOrWhiteSpace(path)) continue;
+
+                foreach (Size size in sizes)
+                    EnsureCached(path, size.Width, size.Height, color);
+            }
+        }
+
+        public static void Draw(Graphics graphics, string? filePath, RectangleF bounds, Color color)
+        {
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath) || bounds.Width <= 0 || bounds.Height <= 0)
+                return;
+
+            int width = Math.Max(1, (int)Math.Round(bounds.Width * graphics.DpiX / 96f));
+            int height = Math.Max(1, (int)Math.Round(bounds.Height * graphics.DpiY / 96f));
+            Bitmap bitmap = EnsureCached(filePath, width, height, color);
+
+            GraphicsState state = graphics.Save();
+            try
+            {
+                graphics.CompositingMode = CompositingMode.SourceOver;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                graphics.DrawImage(bitmap, bounds);
+            }
+            finally
+            {
+                graphics.Restore(state);
+            }
+        }
+
+        private static Bitmap EnsureCached(string filePath, int width, int height, Color color)
+        {
+            string key = $"{filePath}|{width}x{height}|{color.ToArgb()}";
+            lock (CacheLock)
+            {
+                if (Cache.TryGetValue(key, out CacheEntry? entry))
+                    return entry.Bitmap;
+            }
+
+            // Rasterization can be relatively expensive. Never hold CacheLock while
+            // doing it, otherwise the UI thread can stall behind background warm-up.
+            Bitmap bitmap = CreateTintedBitmap(filePath, width, height, color);
+
+            lock (CacheLock)
+            {
+                if (Cache.TryGetValue(key, out CacheEntry? existing))
+                {
+                    bitmap.Dispose();
+                    return existing.Bitmap;
+                }
+
+                Cache[key] = new CacheEntry { Bitmap = bitmap };
+                return bitmap;
+            }
+        }
+
+        private static Bitmap CreateTintedBitmap(string filePath, int width, int height, Color color)
+        {
+            using Bitmap source = new(filePath);
+            Rectangle alphaBounds = GetAlphaBounds(source);
+            if (alphaBounds.Width <= 0 || alphaBounds.Height <= 0)
+                return new Bitmap(width, height, PixelFormat.Format32bppArgb);
+
+            using Bitmap cropped = source.Clone(alphaBounds, PixelFormat.Format32bppArgb);
+            Bitmap result = new(width, height, PixelFormat.Format32bppArgb);
+
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.CompositingMode = CompositingMode.SourceCopy;
+                g.Clear(Color.Transparent);
+                g.CompositingMode = CompositingMode.SourceOver;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+
+                Rectangle destination = GetFitRectangle(cropped.Size, result.Size);
+                g.DrawImage(cropped, destination, 0, 0, cropped.Width, cropped.Height, GraphicsUnit.Pixel);
+            }
+
+            // The supplied PNGs already contain the correct anti-aliased alpha mask.
+            // Replace only RGB and preserve every alpha value, including transparent
+            // pixels and partially transparent edge pixels. This avoids ColorMatrix
+            // differences between GDI+ rendering paths while keeping the source mask.
+            BitmapData data = result.LockBits(
+                new Rectangle(0, 0, result.Width, result.Height),
+                ImageLockMode.ReadWrite,
+                PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = Math.Abs(data.Stride);
+                byte[] pixels = new byte[stride * result.Height];
+                System.Runtime.InteropServices.Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+
+                for (int y = 0; y < result.Height; y++)
+                {
+                    int rowOffset = y * stride;
+                    for (int x = 0; x < result.Width; x++)
+                    {
+                        int offset = rowOffset + x * 4;
+                        if (pixels[offset + 3] == 0) continue;
+                        pixels[offset] = color.B;
+                        pixels[offset + 1] = color.G;
+                        pixels[offset + 2] = color.R;
+                    }
+                }
+
+                System.Runtime.InteropServices.Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+            }
+            finally
+            {
+                result.UnlockBits(data);
+            }
+
+            return result;
+        }
+
+        private static Rectangle GetAlphaBounds(Bitmap bitmap)
+        {
+            int left = bitmap.Width;
+            int top = bitmap.Height;
+            int right = -1;
+            int bottom = -1;
+
+            BitmapData data = bitmap.LockBits(
+                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = Math.Abs(data.Stride);
+                byte[] pixels = new byte[stride * bitmap.Height];
+                System.Runtime.InteropServices.Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+
+                for (int y = 0; y < bitmap.Height; y++)
+                {
+                    int rowOffset = y * stride;
+                    for (int x = 0; x < bitmap.Width; x++)
+                    {
+                        if (pixels[rowOffset + x * 4 + 3] == 0) continue;
+                        if (x < left) left = x;
+                        if (y < top) top = y;
+                        if (x > right) right = x;
+                        if (y > bottom) bottom = y;
+                    }
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(data);
+            }
+
+            return right < left || bottom < top
+                ? Rectangle.Empty
+                : Rectangle.FromLTRB(left, top, right + 1, bottom + 1);
+        }
+
+        private static Rectangle GetFitRectangle(Size source, Size target)
+        {
+            float scale = Math.Min((float)target.Width / source.Width, (float)target.Height / source.Height);
+            int width = Math.Max(1, (int)Math.Round(source.Width * scale));
+            int height = Math.Max(1, (int)Math.Round(source.Height * scale));
+            return new Rectangle((target.Width - width) / 2, (target.Height - height) / 2, width, height);
         }
     }
 
@@ -876,57 +1757,6 @@ public sealed class SettingsForm : Form
 
         public static void Draw(Graphics graphics, string? filePath, RectangleF bounds, Color color)
         {
-            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-                return;
-
-            // Render the vector artwork at 4x resolution and downsample it.
-            // This significantly reduces stair-stepping on the small curved and
-            // diagonal details used by the supplied SVG icons.
-            int pixelWidth = Math.Max(1, (int)Math.Ceiling(bounds.Width * 4f));
-            int pixelHeight = Math.Max(1, (int)Math.Ceiling(bounds.Height * 4f));
-
-            using Bitmap bitmap = new(
-                pixelWidth,
-                pixelHeight,
-                System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
-
-            using (Graphics highRes = Graphics.FromImage(bitmap))
-            {
-                highRes.SmoothingMode = SmoothingMode.AntiAlias;
-                highRes.CompositingQuality = CompositingQuality.HighQuality;
-                highRes.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                highRes.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                highRes.Clear(Color.Transparent);
-
-                DrawCore(
-                    highRes,
-                    filePath,
-                    new RectangleF(0, 0, bounds.Width * 4f, bounds.Height * 4f),
-                    color);
-            }
-
-            GraphicsState state = graphics.Save();
-            try
-            {
-                graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-
-                graphics.DrawImage(
-                    bitmap,
-                    bounds,
-                    new RectangleF(0, 0, bitmap.Width, bitmap.Height),
-                    GraphicsUnit.Pixel);
-            }
-            finally
-            {
-                graphics.Restore(state);
-            }
-        }
-
-        private static void DrawCore(Graphics graphics, string? filePath, RectangleF bounds, Color color)
-        {
             if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
             try
             {
@@ -935,65 +1765,79 @@ public sealed class SettingsForm : Form
                 if (root == null) return;
 
                 XNamespace ns = root.Name.Namespace;
-                List<GraphicsPath> sourcePaths = new();
+                List<(GraphicsPath Path, bool HasFill, bool HasStroke, float StrokeWidth)> paths = new();
+                RectangleF sourceBounds = RectangleF.Empty;
 
-                // These icons were traced from raster artwork with a full-canvas
-                // background as the first figure. The first real path is the outer
-                // silhouette; following path elements are the internal negative
-                // spaces/details. Drawing every path independently fills those
-                // negative spaces and destroys the artwork's internal design.
+                // Normalize the artwork using the actual transformed path bounds rather
+                // than the SVG viewport. The supplied Potrace files have no viewBox and
+                // their artwork does not necessarily occupy the complete canvas.
                 foreach (XElement element in document.Descendants(ns + "path"))
                 {
                     string? rawData = element.Attribute("d")?.Value;
                     if (string.IsNullOrWhiteSpace(rawData)) continue;
 
-                    // Parse the complete path first so relative commands retain the
-                    // correct current point, then discard only the leading canvas.
+                    // Parse the full, untouched path data first so that relative
+                    // commands following the Potrace canvas sub-path keep the correct
+                    // current point (see ParseFigures for details), then drop the
+                    // canvas figure afterwards instead of slicing the raw text.
                     List<GraphicsPath> figures = ParseFigures(rawData);
                     if (figures.Count == 0) continue;
-
                     if (HasLeadingCanvasFigure(rawData))
                     {
                         figures[0].Dispose();
                         figures.RemoveAt(0);
                     }
-
                     if (figures.Count == 0) continue;
 
-                    GraphicsPath path = new(FillMode.Winding);
+                    string fillRule = GetInheritedStyle(element, "fill-rule") ?? "evenodd";
+                    FillMode fillMode = string.Equals(fillRule, "nonzero", StringComparison.OrdinalIgnoreCase)
+                        ? FillMode.Winding
+                        : FillMode.Alternate;
+
+                    GraphicsPath path = new(fillMode);
                     foreach (GraphicsPath figure in figures)
                     {
                         path.AddPath(figure, false);
                         figure.Dispose();
                     }
-
-                    if (path.PointCount == 0)
-                    {
-                        path.Dispose();
-                        continue;
-                    }
+                    if (path.PointCount == 0) { path.Dispose(); continue; }
 
                     using Matrix sourceTransform = GetCumulativeTransform(element, root);
                     if (!sourceTransform.IsIdentity)
                         path.Transform(sourceTransform);
 
-                    sourcePaths.Add(path);
+                    RectangleF pathBounds = path.GetBounds();
+                    if (pathBounds.Width <= 0 || pathBounds.Height <= 0)
+                    {
+                        path.Dispose();
+                        continue;
+                    }
+
+                    sourceBounds = sourceBounds.IsEmpty
+                        ? pathBounds
+                        : RectangleF.Union(sourceBounds, pathBounds);
+
+                    string fill = GetInheritedStyle(element, "fill") ?? "black";
+                    string stroke = GetInheritedStyle(element, "stroke") ?? "none";
+                    string strokeWidthText = GetInheritedStyle(element, "stroke-width") ?? "1";
+
+                    bool hasFill = !string.Equals(fill, "none", StringComparison.OrdinalIgnoreCase) &&
+                                   !string.Equals(fill, "transparent", StringComparison.OrdinalIgnoreCase);
+                    bool hasStroke = !string.Equals(stroke, "none", StringComparison.OrdinalIgnoreCase) &&
+                                     !string.Equals(stroke, "transparent", StringComparison.OrdinalIgnoreCase);
+
+                    float strokeWidth = 1.8f;
+                    if (float.TryParse(strokeWidthText, System.Globalization.NumberStyles.Float, Invariant, out float parsed) && parsed > 0)
+                        strokeWidth = parsed;
+
+                    paths.Add((path, hasFill, hasStroke, strokeWidth));
                 }
 
-                if (sourcePaths.Count == 0)
+                if (paths.Count == 0 || sourceBounds.Width <= 0 || sourceBounds.Height <= 0)
+                {
+                    foreach (var item in paths) item.Path.Dispose();
                     return;
-
-                // The first path is the visible silhouette. Subsequent paths are
-                // traced internal cutouts and must be excluded from the silhouette.
-                using GraphicsPath silhouette = (GraphicsPath)sourcePaths[0].Clone();
-                using Region artwork = new(silhouette);
-
-                for (int i = 1; i < sourcePaths.Count; i++)
-                    artwork.Exclude(sourcePaths[i]);
-
-                RectangleF sourceBounds = silhouette.GetBounds();
-                if (sourceBounds.Width <= 0 || sourceBounds.Height <= 0)
-                    return;
+                }
 
                 float scale = Math.Min(
                     bounds.Width / sourceBounds.Width,
@@ -1002,43 +1846,27 @@ public sealed class SettingsForm : Form
                 float oy = bounds.Y + (bounds.Height - sourceBounds.Height * scale) / 2f - sourceBounds.Y * scale;
 
                 using Matrix matrix = new(scale, 0, 0, scale, ox, oy);
-                using Region transformedArtwork = artwork.Clone();
-                transformedArtwork.Transform(matrix);
-
                 using Brush brush = new SolidBrush(color);
-                graphics.FillRegion(brush, transformedArtwork);
 
-                // Preserve explicit strokes, if any, from the SVG.
-                for (int i = 0; i < sourcePaths.Count; i++)
+                foreach (var item in paths)
                 {
-                    XElement? element = document.Descendants(ns + "path").ElementAtOrDefault(i);
-                    if (element == null) continue;
-
-                    string stroke = GetInheritedStyle(element, "stroke") ?? "none";
-                    string strokeWidthText = GetInheritedStyle(element, "stroke-width") ?? "1";
-
-                    bool hasStroke = !string.Equals(stroke, "none", StringComparison.OrdinalIgnoreCase) &&
-                                     !string.Equals(stroke, "transparent", StringComparison.OrdinalIgnoreCase);
-
-                    if (!hasStroke) continue;
-
-                    float strokeWidth = 1.8f;
-                    if (float.TryParse(strokeWidthText, System.Globalization.NumberStyles.Float, Invariant, out float parsed) && parsed > 0)
-                        strokeWidth = parsed;
-
-                    using GraphicsPath path = (GraphicsPath)sourcePaths[i].Clone();
+                    using GraphicsPath path = item.Path;
                     path.Transform(matrix);
-                    using Pen pen = new(color, Math.Max(1f, strokeWidth * scale))
-                    {
-                        StartCap = LineCap.Round,
-                        EndCap = LineCap.Round,
-                        LineJoin = LineJoin.Round
-                    };
-                    graphics.DrawPath(pen, path);
-                }
 
-                foreach (GraphicsPath path in sourcePaths)
-                    path.Dispose();
+                    if (item.HasFill)
+                        graphics.FillPath(brush, path);
+
+                    if (item.HasStroke)
+                    {
+                        using Pen pen = new(color, Math.Max(1f, item.StrokeWidth * scale))
+                        {
+                            StartCap = LineCap.Round,
+                            EndCap = LineCap.Round,
+                            LineJoin = LineJoin.Round
+                        };
+                        graphics.DrawPath(pen, path);
+                    }
+                }
             }
             catch
             {
@@ -1385,13 +2213,11 @@ public sealed class SettingsForm : Form
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using Brush brush = new SolidBrush(Connected ? Color.FromArgb(52, 211, 85) : Color.FromArgb(160, 168, 180));
+            Color statusColor = Connected ? Color.FromArgb(52, 211, 85) : Color.FromArgb(239, 68, 68);
+            using Brush brush = new SolidBrush(statusColor);
             e.Graphics.FillEllipse(brush, 3, 3, 18, 18);
-            if (Connected)
-            {
-                using Pen glow = new(Color.FromArgb(90, 52, 211, 85), 2f);
-                e.Graphics.DrawEllipse(glow, 1, 1, 22, 22);
-            }
+            using Pen glow = new(Color.FromArgb(90, statusColor.R, statusColor.G, statusColor.B), 2f);
+            e.Graphics.DrawEllipse(glow, 1, 1, 22, 22);
         }
     }
 
@@ -1400,12 +2226,15 @@ public sealed class SettingsForm : Form
         private readonly List<GraphicsPath> _svgPaths = new();
         private int _battery;
         private bool _connected;
+        private bool _charging;
         private bool _dark;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int Battery { get => _battery; set { _battery = Math.Clamp(value, 0, 100); Invalidate(); } }
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Connected { get => _connected; set { _connected = value; Invalidate(); } }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool Charging { get => _charging; set { _charging = value; Invalidate(); } }
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
 
@@ -1598,6 +2427,11 @@ public sealed class SettingsForm : Form
                     }
                 }
 
+                if (_connected && _charging)
+                {
+                    DrawChargingBolt(e.Graphics, innerBounds);
+                }
+
                 // Redraw the shell so the fill never covers its outline.
                 using Pen outlinePen = new(outline, Math.Max(1.2f, 1.8f * scale))
                 { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
@@ -1610,7 +2444,34 @@ public sealed class SettingsForm : Form
             e.Graphics.DrawRoundedRectangle(fallbackPen, fallback, 3);
         }
 
-        private static Color GetBatteryLevelColor(int battery, Color green, Color yellow, Color orange, Color red)
+            private static void DrawChargingBolt(Graphics graphics, RectangleF bounds)
+        {
+            float width = Math.Min(bounds.Width * 0.42f, 15f);
+            float height = Math.Min(bounds.Height * 0.72f, 24f);
+            if (width <= 2f || height <= 2f) return;
+
+            float left = bounds.Left + (bounds.Width - width) / 2f;
+            float top = bounds.Top + (bounds.Height - height) / 2f;
+            PointF[] points =
+            {
+                new(left + width * 0.58f, top),
+                new(left + width * 0.08f, top + height * 0.56f),
+                new(left + width * 0.48f, top + height * 0.56f),
+                new(left + width * 0.30f, top + height),
+                new(left + width * 0.92f, top + height * 0.34f),
+                new(left + width * 0.52f, top + height * 0.34f)
+            };
+
+            using Brush fill = new SolidBrush(Color.WhiteSmoke);
+            using Pen outline = new(Color.FromArgb(90, 0, 0, 0), Math.Max(1f, width * 0.08f))
+            {
+                LineJoin = LineJoin.Round
+            };
+            graphics.FillPolygon(fill, points);
+            graphics.DrawPolygon(outline, points);
+        }
+
+    private static Color GetBatteryLevelColor(int battery, Color green, Color yellow, Color orange, Color red)
         {
             battery = Math.Clamp(battery, 0, 100);
             if (battery >= 50)
@@ -1693,9 +2554,12 @@ public sealed class SettingsForm : Form
                 int index = 0;
                 if (!string.IsNullOrWhiteSpace(value))
                 {
+                    string normalizedValue = string.Equals(value.Trim(), "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
+                        ? "HyperX Cloud III"
+                        : value.Trim();
                     for (int i = 0; i < _options.Count; i++)
                     {
-                        if (string.Equals(_options[i].Name, value, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(_options[i].Name, normalizedValue, StringComparison.OrdinalIgnoreCase))
                         {
                             index = i + 1;
                             break;
@@ -1719,11 +2583,14 @@ public sealed class SettingsForm : Form
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
 
+            string devicesPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices");
             _options = new List<DeviceOption>
             {
-                // Only devices with an implemented monitoring protocol are offered for selection.
-                // Additional device assets can be added here as their HID support is implemented.
-                new("HyperX Cloud III Wireless", Path.Combine(AppContext.BaseDirectory, "Assets", "Devices", "cloud3.png"))
+                new("HyperX Cloud III", Path.Combine(devicesPath, "cloud3.png")),
+                new("HyperX Cloud III S", Path.Combine(devicesPath, "cloud3.png")),
+                new("HyperX Cloud 2 Core", Path.Combine(devicesPath, "cloud2core.png")),
+                new("HyperX Cloud Alpha", Path.Combine(devicesPath, "cloudalpha.png")),
+                new("HyperX Cloud Stinger 2", Path.Combine(devicesPath, "cloudstinger2.png"))
             };
 
             _selectedImage = new PictureBox
@@ -1752,7 +2619,14 @@ public sealed class SettingsForm : Form
             _searchBox.TextChanged += SearchBox_TextChanged;
             _searchBox.Enter += SearchBox_Enter;
             _searchBox.Leave += SearchBox_Leave;
-            _searchBox.Click += (_, _) => { _searchBox.SelectAll(); ShowPopup(); };
+            _searchBox.MouseDown += (_, e) =>
+            {
+                if (e.Button != MouseButtons.Left) return;
+                bool wasFocused = _searchBox.Focused;
+                ShowPopup();
+                if (!wasFocused)
+                    BeginInvoke((MethodInvoker)(() => _searchBox.SelectAll()));
+            };
             _searchBox.KeyDown += (_, e) =>
             {
                 if (e.KeyCode == Keys.Escape)
@@ -1902,14 +2776,14 @@ public sealed class SettingsForm : Form
             Form? ownerForm = FindForm();
             if (!_popup.Visible)
             {
-                if (ownerForm != null) _popup.Show(ownerForm);
-                else _popup.Show();
+                if (ownerForm != null)
+                    _popup.Show(ownerForm);
+                else
+                    _popup.Show();
             }
             _popup.BringToFront();
             if (!_searchBox.Focused)
                 _searchBox.Focus();
-            if (_searchBox.SelectionLength == 0)
-                _searchBox.SelectionStart = _searchBox.TextLength;
         }
 
         private void SelectOption(int index)
@@ -1925,6 +2799,7 @@ public sealed class SettingsForm : Form
             {
                 _selectionInProgress = false;
             }
+            _searchBox.SelectionLength = 0;
             Focus();
         }
 
@@ -1991,7 +2866,14 @@ public sealed class SettingsForm : Form
                 bool insidePopup = target != null && (_owner._popup == target || _owner._popup.Contains(target));
 
                 if (!insideSelector && !insidePopup)
+                {
                     _owner._popup.Close();
+                    Control? clicked = Control.FromHandle(m.HWnd);
+                    if (clicked != null && clicked != _owner._searchBox && clicked.CanFocus)
+                        clicked.Focus();
+                    else
+                        _owner.FindForm()?.Focus();
+                }
 
                 return false;
             }
@@ -2027,9 +2909,6 @@ public sealed class SettingsForm : Form
                 };
                 Controls.Add(_list);
                 Paint += SearchPopup_Paint;
-                // The popup is WS_EX_NOACTIVATE, so Deactivate is not a reliable
-                // indication that the user clicked outside it. ClickOutsideFilter
-                // handles dismissal for actual outside clicks.
                 SetTheme(dark);
             }
 
@@ -2041,7 +2920,6 @@ public sealed class SettingsForm : Form
                     CreateParams cp = base.CreateParams;
                     cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE
                     cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW
-                    cp.ExStyle |= 0x00000008; // WS_EX_TOPMOST
                     return cp;
                 }
             }
@@ -2297,8 +3175,8 @@ public sealed class SettingsForm : Form
             if (_showResetIcon)
             {
                 Color iconColor = _primary ? Color.White : (_dark ? Color.WhiteSmoke : LightText);
-                string? resetIconPath = SvgPath("reset.svg");
-                SvgIconRenderer.Draw(e.Graphics, resetIconPath, new RectangleF(rect.X + 10, rect.Y + 8, 20, 20), iconColor);
+                string? resetIconPath = IconPath("reset.png");
+                PngIconRenderer.Draw(e.Graphics, resetIconPath, new RectangleF(rect.X + 10, rect.Y + 8, 20, 20), iconColor);
                 textRect.X += 30;
                 textRect.Width -= 30;
             }
