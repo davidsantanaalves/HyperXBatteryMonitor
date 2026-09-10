@@ -18,12 +18,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Update="Icons\Vector\*.png">
+    <None Update="Icons\Dark\*.png;Icons\Light\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Icons\Vector\*.svg">
+    <None Update="Icons\Vector\battery.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

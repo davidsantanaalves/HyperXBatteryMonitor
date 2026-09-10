@@ -14,6 +14,7 @@ public sealed class SettingsForm : Form
 {
     private readonly AppSettings _settings;
     private readonly StartupManager _startupManager;
+    private readonly PngIconCache _iconCache;
     private DeviceSelector _deviceSelector = null!;
     private RoundedLanguageSelector _languageComboBox = null!;
     private ToggleSwitchControl _startupToggle = null!;
@@ -35,6 +36,7 @@ public sealed class SettingsForm : Form
     private Button _cancelButton = null!;
     private Button _applyButton = null!;
     private Label _versionLabel = null!;
+    private Label _applicationNameLabel = null!;
     private PictureBox _logo = null!;
     private readonly Dictionary<string, SidebarItem> _navButtons = new();
     private IHyperXDevice? _device;
@@ -66,6 +68,15 @@ public sealed class SettingsForm : Form
     {
         base.OnHandleCreated(e);
         ApplyTitleBarTheme(EffectiveTheme == AppTheme.Dark);
+        _iconCache.ClearBitmaps();
+        WarmUpIcons();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        _iconCache.ClearBitmaps();
+        WarmUpIcons();
     }
 
     private void ApplyTitleBarTheme(bool dark)
@@ -92,6 +103,7 @@ public sealed class SettingsForm : Form
         _device = device;
         _isCharging = isCharging;
         _startupManager = new StartupManager();
+        _iconCache = new PngIconCache();
         _selectedLanguage = settings.Language;
         _selectedTheme = settings.Theme;
         _pendingSelectedDevice = settings.SelectedDevice;
@@ -133,7 +145,15 @@ public sealed class SettingsForm : Form
         {
             SizeMode = PictureBoxSizeMode.Zoom,
             Size = new Size(128, 47),
-            Location = new Point(20, ClientSize.Height - 94),
+            Location = new Point(20, ClientSize.Height - 120),
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _applicationNameLabel = new Label
+        {
+            AutoSize = true,
+            Text = Application.ProductName,
+            Font = new Font("Segoe UI Semibold", 8.5f),
+            Location = new Point(20, ClientSize.Height - 68),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _versionLabel = new Label
@@ -144,6 +164,7 @@ public sealed class SettingsForm : Form
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _sidebar.Controls.Add(_logo);
+        _sidebar.Controls.Add(_applicationNameLabel);
         _sidebar.Controls.Add(_versionLabel);
 
         BuildSidebar();
@@ -204,20 +225,20 @@ public sealed class SettingsForm : Form
     {
         string[] keys = { "Device", "Interface", "BatteryMonitor", "Notifications", "General", "About" };
         Glyph[] glyphs = { Glyph.Headphones, Glyph.Monitor, Glyph.Battery, Glyph.Bell, Glyph.Gear, Glyph.Info };
-        string?[] iconPaths =
+        string[] iconKeys =
         {
-            IconPath("device.png"),
-            IconPath("interface.png"),
-            IconPath("battery_monitor.png"),
-            IconPath("notification.png"),
-            IconPath("general.png"),
-            IconPath("about.png")
+            "device",
+            "interface",
+            "battery_monitor",
+            "notification",
+            "general",
+            "about"
         };
         int y = 4;
 
         for (int i = 0; i < keys.Length; i++)
         {
-            SidebarItem item = new SidebarItem(glyphs[i], iconPaths[i])
+            SidebarItem item = new SidebarItem(glyphs[i], iconKeys[i], _iconCache)
             {
                 Text = L(keys[i]),
                 Tag = keys[i],
@@ -274,8 +295,8 @@ public sealed class SettingsForm : Form
 
         _batteryIcon = new BatteryIconControl
         {
-            Location = new Point(330, 20),
-            Size = new Size(40, 40)
+            Location = new Point(327, 17),
+            Size = new Size(46, 46)
         };
         statusCard.Controls.Add(_batteryIcon);
 
@@ -303,9 +324,9 @@ public sealed class SettingsForm : Form
 
         // Interface uses independent cards so future layout changes stay isolated
         // from the finalized Device page.
-        RoundedPanel languageCard = CreateInterfaceCard(new Point(20, 106), new Size(528, 68), true);
+        RoundedPanel languageCard = CreateInterfaceCard(new Point(20, 82), new Size(528, 68), true);
         _pageHost.Controls.Add(languageCard);
-        languageCard.Controls.Add(new SvgIconControl(IconPath("language.png")) { Location = new Point(18, 18), Size = new Size(24, 24) });
+        languageCard.Controls.Add(new PngIconControl(_iconCache, "language") { Location = new Point(18, 18), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         languageCard.Controls.Add(CreateInterfaceLabel(L("LanguageShort"), true, new Point(58, 12), 9.5f));
         languageCard.Controls.Add(CreateInterfaceLabel(L("LanguageDescription"), false, new Point(58, 33), 8.5f));
 
@@ -324,33 +345,33 @@ public sealed class SettingsForm : Form
         _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
         languageCard.Controls.Add(_languageComboBox);
 
-        RoundedPanel themeCard = CreateInterfaceCard(new Point(20, 182), new Size(528, 154), true);
+        RoundedPanel themeCard = CreateInterfaceCard(new Point(20, 158), new Size(528, 202), true);
         _pageHost.Controls.Add(themeCard);
-        themeCard.Controls.Add(new SvgIconControl(IconPath("theme.png")) { Location = new Point(18, 19), Size = new Size(24, 24) });
+        themeCard.Controls.Add(new PngIconControl(_iconCache, "theme") { Location = new Point(18, 19), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         themeCard.Controls.Add(CreateInterfaceLabel(L("ThemeShort"), true, new Point(58, 12), 9.5f));
         themeCard.Controls.Add(CreateInterfaceLabel(L("ThemeDescription"), false, new Point(58, 33), 8.5f));
 
         Panel themePanel = new Panel
         {
             Location = new Point(16, 58),
-            Size = new Size(496, 84),
+            Size = new Size(496, 130),
             BackColor = Color.Transparent
         };
-        _lightThemeOption = new ThemeOptionControl(AppTheme.Light, IconPath("light.png"), ThemeText(AppTheme.Light))
-        { Location = new Point(0, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.Light, DarkMode = EffectiveTheme == AppTheme.Dark };
-        _darkThemeOption = new ThemeOptionControl(AppTheme.Dark, IconPath("dark.png"), ThemeText(AppTheme.Dark))
-        { Location = new Point(166, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.Dark, DarkMode = EffectiveTheme == AppTheme.Dark };
-        _systemThemeOption = new ThemeOptionControl(AppTheme.System, IconPath("interface.png"), ThemeText(AppTheme.System))
-        { Location = new Point(332, 0), Size = new Size(156, 84), Selected = _selectedTheme == AppTheme.System, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _lightThemeOption = new ThemeOptionControl(AppTheme.Light, "light", ThemeText(AppTheme.Light), _iconCache)
+        { Location = new Point(0, 0), Size = new Size(156, 130), Selected = _selectedTheme == AppTheme.Light, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _darkThemeOption = new ThemeOptionControl(AppTheme.Dark, "dark", ThemeText(AppTheme.Dark), _iconCache)
+        { Location = new Point(166, 0), Size = new Size(156, 130), Selected = _selectedTheme == AppTheme.Dark, DarkMode = EffectiveTheme == AppTheme.Dark };
+        _systemThemeOption = new ThemeOptionControl(AppTheme.System, "interface", ThemeText(AppTheme.System), _iconCache)
+        { Location = new Point(332, 0), Size = new Size(156, 130), Selected = _selectedTheme == AppTheme.System, DarkMode = EffectiveTheme == AppTheme.Dark };
         _lightThemeOption.Click += ThemeOption_Click;
         _darkThemeOption.Click += ThemeOption_Click;
         _systemThemeOption.Click += ThemeOption_Click;
         themePanel.Controls.AddRange(new Control[] { _lightThemeOption, _darkThemeOption, _systemThemeOption });
         themeCard.Controls.Add(themePanel);
 
-        RoundedPanel startupCard = CreateInterfaceCard(new Point(20, 344), new Size(528, 68), true);
+        RoundedPanel startupCard = CreateInterfaceCard(new Point(20, 376), new Size(528, 68), true);
         _pageHost.Controls.Add(startupCard);
-        startupCard.Controls.Add(new SvgIconControl(IconPath("windows.png")) { Location = new Point(18, 19), Size = new Size(24, 24) });
+        startupCard.Controls.Add(new PngIconControl(_iconCache, "windows") { Location = new Point(18, 19), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         startupCard.Controls.Add(CreateInterfaceLabel(L("StartupShort"), true, new Point(58, 12), 9.5f));
         startupCard.Controls.Add(CreateInterfaceLabel(L("StartupDescription"), false, new Point(58, 34), 8.5f));
         _startupToggle = new ToggleSwitchControl
@@ -364,18 +385,9 @@ public sealed class SettingsForm : Form
         startupCard.Controls.Add(_startupToggle);
     }
 
-    internal static void WarmUpIconCacheAsync() => PngIconRenderer.WarmUpBothThemesAsync();
-
-    private static string? IconPath(string fileName)
-    {
-        string path = Path.Combine(AppContext.BaseDirectory, "Icons", "Vector", fileName);
-        return File.Exists(path) ? path : null;
-    }
-
-    // Page-specific layout helpers keep finalized pages isolated from future layout changes.
     // Device layout must remain stable even when the Interface page is redesigned.
     private void AddDevicePageHeader() =>
-        AddPageHeader(IconPath("device.png"), Glyph.Headphones, "Device", "DeviceDescription", 42);
+        AddPageHeader("device", Glyph.Headphones, "Device", "DeviceDescription", 42);
 
     private RoundedPanel CreateDeviceCard(Point location, Size size, bool inner = false) =>
         CreateCard(location, size, inner);
@@ -386,7 +398,7 @@ public sealed class SettingsForm : Form
     // Interface has its own layout entry points so future Interface-only adjustments
     // do not require changing shared helpers used by finalized pages.
     private void AddInterfacePageHeader() =>
-        AddPageHeader(IconPath("interface.png"), Glyph.Monitor, "Interface", "InterfaceDescription", 40);
+        AddPageHeader("interface", Glyph.Monitor, "Interface", "InterfaceDescription", 40);
 
     private RoundedPanel CreateInterfaceCard(Point location, Size size, bool inner = false) =>
         CreateCard(location, size, inner);
@@ -394,10 +406,10 @@ public sealed class SettingsForm : Form
     private Label CreateInterfaceLabel(string text, bool semibold, Point location, float size) =>
         CreateLabel(text, semibold, location, size);
 
-    private void AddPageHeader(string? iconPath, Glyph fallbackGlyph, string titleKey, string descriptionKey, int descriptionY = 37)
+    private void AddPageHeader(string? iconKey, Glyph fallbackGlyph, string titleKey, string descriptionKey, int descriptionY = 37)
     {
-        if (!string.IsNullOrWhiteSpace(iconPath))
-            _pageHost.Controls.Add(new SvgIconControl(iconPath) { Location = new Point(20, 3), Size = new Size(38, 38) });
+        if (!string.IsNullOrWhiteSpace(iconKey))
+            _pageHost.Controls.Add(new PngIconControl(_iconCache, iconKey) { Location = new Point(20, 3), Size = new Size(36, 36), DarkMode = EffectiveTheme == AppTheme.Dark });
         else
             _pageHost.Controls.Add(new GlyphControl(fallbackGlyph) { Location = new Point(20, 3), Size = new Size(38, 38) });
 
@@ -476,7 +488,7 @@ public sealed class SettingsForm : Form
 
     private Button CreateFooterButton(string text, bool primary)
     {
-        return new ActionButton
+        return new ActionButton(_iconCache)
         {
             Text = text,
             Size = new Size(primary ? 84 : (text == L("RestoreDefaults") ? 178 : 92), 36),
@@ -516,14 +528,14 @@ public sealed class SettingsForm : Form
             }
 
             _pageHost.Controls.Clear();
-            AddPageHeader(IconPath(key switch
+            AddPageHeader(key switch
             {
-                "BatteryMonitor" => "battery_monitor.png",
-                "Notifications" => "notification.png",
-                "General" => "general.png",
-                "About" => "about.png",
-                _ => "about.png"
-            }), Glyph.Info, key, key switch
+                "BatteryMonitor" => "battery_monitor",
+                "Notifications" => "notification",
+                "General" => "general",
+                "About" => "about",
+                _ => "about"
+            }, Glyph.Info, key, key switch
             {
                 "BatteryMonitor" => "ComingSoonBatteryMonitor",
                 "Notifications" => "ComingSoonNotifications",
@@ -689,6 +701,7 @@ public sealed class SettingsForm : Form
         _pageHost.ForeColor = foreground;
         if (_footer != null) _footer.BackColor = background;
         _versionLabel.ForeColor = secondary;
+        _applicationNameLabel.ForeColor = foreground;
         _versionLabel.Text = "v" + Application.ProductVersion.Split('+')[0];
 
         try
@@ -704,6 +717,7 @@ public sealed class SettingsForm : Form
         catch { }
 
         Icon = LoadThemeIcon(dark ? AppTheme.Dark : AppTheme.Light);
+        WarmUpIcons();
         ApplyThemeRecursive(this, foreground, dark);
 
         if (_lightThemeOption != null) _lightThemeOption.DarkMode = dark;
@@ -764,6 +778,12 @@ public sealed class SettingsForm : Form
     {
         foreach (Control c in parent.Controls)
         {
+            if (c is PngIconControl pngIcon)
+            {
+                pngIcon.DarkMode = dark;
+                continue;
+            }
+
             if (c is SidebarItem || c is Button || c is DeviceSelector || c is StatusDotControl || c is BatteryIconControl || c == _footer)
                 continue;
 
@@ -830,7 +850,12 @@ public sealed class SettingsForm : Form
 
     private void ResetButton_Click(object? sender, EventArgs e)
     {
-        DialogResult result = MessageBox.Show(this, L("RestoreDefaultsQuestion"), L("RestoreDefaults"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        using RestoreDefaultsDialog dialog = new(
+            L("RestoreDefaults"),
+            L("RestoreDefaultsQuestion"),
+            EffectiveTheme == AppTheme.Dark);
+
+        DialogResult result = dialog.ShowDialog(this);
         if (result != DialogResult.Yes) return;
 
         AppSettings defaults = AppSettings.CreateDefault();
@@ -882,6 +907,33 @@ public sealed class SettingsForm : Form
     {
         if (_device != null) _device.BatteryChanged -= Device_BatteryChanged;
         _logo.Image?.Dispose();
+        _iconCache.Dispose();
+    }
+
+    private void WarmUpIcons()
+    {
+        _iconCache.Prewarm(new[]
+        {
+            new PngIconRequest("device", 25),
+            new PngIconRequest("interface", 25),
+            new PngIconRequest("battery_monitor", 25),
+            new PngIconRequest("notification", 25),
+            new PngIconRequest("general", 25),
+            new PngIconRequest("about", 25),
+            new PngIconRequest("device", 36),
+            new PngIconRequest("interface", 36),
+            new PngIconRequest("battery_monitor", 36),
+            new PngIconRequest("notification", 36),
+            new PngIconRequest("general", 36),
+            new PngIconRequest("about", 36),
+            new PngIconRequest("language", 25),
+            new PngIconRequest("theme", 25),
+            new PngIconRequest("windows", 25),
+            new PngIconRequest("light", 36),
+            new PngIconRequest("dark", 36),
+            new PngIconRequest("interface", 36),
+            new PngIconRequest("reset", 20)
+        }, EffectiveTheme == AppTheme.Dark, DeviceDpi);
     }
 
     private string StatusText(string key, string english, string portuguese, string spanish)
@@ -955,7 +1007,8 @@ public sealed class SettingsForm : Form
     private sealed class SidebarItem : Control
     {
         private readonly Glyph _glyph;
-        private readonly string? _svgPath;
+        private readonly string? _iconKey;
+        private readonly PngIconCache _iconCache;
         private bool _hover;
         private bool _selected;
         private bool _dark;
@@ -965,10 +1018,11 @@ public sealed class SettingsForm : Form
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
 
-        public SidebarItem(Glyph glyph, string? svgPath = null)
+        public SidebarItem(Glyph glyph, string? iconKey, PngIconCache iconCache)
         {
             _glyph = glyph;
-            _svgPath = svgPath;
+            _iconKey = iconKey;
+            _iconCache = iconCache;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
             ForeColor = LightText;
@@ -995,8 +1049,8 @@ public sealed class SettingsForm : Form
             }
 
             Color iconColor = text;
-            if (!string.IsNullOrWhiteSpace(_svgPath))
-                PngIconRenderer.Draw(e.Graphics, _svgPath, new RectangleF(14, 7, 25, 25), iconColor);
+            if (!string.IsNullOrWhiteSpace(_iconKey))
+                _iconCache.Draw(e.Graphics, _iconKey, new RectangleF(14, 7, 25, 25), _dark, DeviceDpi);
             else
                 DrawGlyph(e.Graphics, _glyph, new Rectangle(15, 8, 23, 23), iconColor, 1.65f);
             TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(48, 0, Width - 54, Height), _selected ? Color.FromArgb(0, 105, 220) : text, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
@@ -1415,9 +1469,125 @@ public sealed class SettingsForm : Form
         }
     }
 
+    private sealed class RestoreDefaultsDialog : Form
+    {
+        private readonly bool _dark;
+
+        public RestoreDefaultsDialog(string title, string question, bool dark)
+        {
+            _dark = dark;
+
+            Text = title;
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            ClientSize = new Size(390, 120);
+            MinimizeBox = false;
+            MaximizeBox = false;
+            ShowInTaskbar = false;
+            ShowIcon = false;
+            TopMost = true;
+            DoubleBuffered = true;
+
+            BackColor = dark ? DarkBackground : Color.White;
+            ForeColor = dark ? Color.WhiteSmoke : LightText;
+
+            PictureBox questionIcon = new()
+            {
+                Location = new Point(20, 18),
+                Size = new Size(32, 32),
+                SizeMode = PictureBoxSizeMode.CenterImage,
+                Image = SystemIcons.Question.ToBitmap(),
+                BackColor = Color.Transparent
+            };
+
+            Label questionLabel = new()
+            {
+                AutoSize = false,
+                Location = new Point(62, 18),
+                Size = new Size(305, 42),
+                Text = question,
+                ForeColor = ForeColor,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            Panel buttonPanel = new()
+            {
+                Dock = DockStyle.Bottom,
+                Height = 44,
+                BackColor = dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(245, 246, 248)
+            };
+
+            Button yesButton = CreateButton("Yes", DialogResult.Yes, true);
+            Button noButton = CreateButton("No", DialogResult.No, false);
+
+            yesButton.Location = new Point(216, 10);
+            noButton.Location = new Point(300, 10);
+            buttonPanel.Controls.Add(yesButton);
+            buttonPanel.Controls.Add(noButton);
+
+            Controls.Add(questionIcon);
+            Controls.Add(questionLabel);
+            Controls.Add(buttonPanel);
+
+            AcceptButton = yesButton;
+            CancelButton = noButton;
+
+            Shown += (_, _) =>
+            {
+                ApplyDialogTitleBarTheme(_dark);
+                yesButton.Focus();
+            };
+        }
+
+        private Button CreateButton(string text, DialogResult result, bool primary)
+        {
+            Button button = new()
+            {
+                Text = text,
+                DialogResult = result,
+                Size = new Size(74, 24),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = primary
+                    ? (_dark ? Color.FromArgb(0, 122, 255) : Color.White)
+                    : (_dark ? Color.FromArgb(52, 56, 60) : Color.White),
+                ForeColor = primary
+                    ? (_dark ? Color.White : Accent)
+                    : (_dark ? Color.WhiteSmoke : LightText),
+                Font = new Font("Segoe UI", 9f),
+                UseVisualStyleBackColor = false,
+                TabStop = true
+            };
+
+            button.FlatAppearance.BorderColor = primary
+                ? Accent
+                : (_dark ? Color.FromArgb(82, 87, 93) : Color.FromArgb(190, 196, 204));
+            button.FlatAppearance.BorderSize = 1;
+
+            return button;
+        }
+
+        private void ApplyDialogTitleBarTheme(bool dark)
+        {
+            if (!IsHandleCreated)
+                return;
+
+            try
+            {
+                int useDarkMode = dark ? 1 : 0;
+                _ = DwmSetWindowAttribute(Handle, DwmwaUseImmersiveDarkMode, ref useDarkMode, sizeof(int));
+            }
+            catch
+            {
+                // Keep the dialog functional if the DWM attribute is unavailable.
+            }
+        }
+    }
+
     private sealed class ThemeOptionControl : Control
     {
-        private readonly string? _iconPath;
+        private readonly string? _iconKey;
+        private readonly PngIconCache _iconCache;
         private bool _selected;
         private bool _dark;
         private bool _hover;
@@ -1430,10 +1600,11 @@ public sealed class SettingsForm : Form
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
 
-        public ThemeOptionControl(AppTheme theme, string? iconPath, string labelText)
+        public ThemeOptionControl(AppTheme theme, string? iconKey, string labelText, PngIconCache iconCache)
         {
             Theme = theme;
-            _iconPath = iconPath;
+            _iconKey = iconKey;
+            _iconCache = iconCache;
             LabelText = labelText;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
@@ -1460,21 +1631,27 @@ public sealed class SettingsForm : Form
 
             Color text = _dark ? Color.WhiteSmoke : LightText;
             Color secondary = _dark ? DarkSecondary : LightSecondary;
-            if (!string.IsNullOrWhiteSpace(_iconPath))
-                PngIconRenderer.Draw(e.Graphics, _iconPath, new RectangleF((Width - 28) / 2f, 12, 28, 28), text);
+            const float iconSize = 36f;
+            float iconY = (Height - 73f) / 2f;
+            if (!string.IsNullOrWhiteSpace(_iconKey))
+                _iconCache.Draw(e.Graphics, _iconKey, new RectangleF((Width - iconSize) / 2f, iconY, iconSize, iconSize), _dark, DeviceDpi);
 
             string label = LabelText;
-            Size textSize = TextRenderer.MeasureText(label, new Font("Segoe UI", 9f));
-            float textX = (Width - textSize.Width + 14) / 2f;
-            float textY = 61;
+            using Font labelFont = new("Segoe UI", 9f);
+            Size textSize = TextRenderer.MeasureText(label, labelFont);
+            float labelY = iconY + 53f;
+            float groupWidth = textSize.Width + 18f;
+            float groupX = (Width - groupWidth) / 2f;
+            float radioX = groupX;
+            float textX = radioX + 16f;
             using (Brush radio = new SolidBrush(_selected ? Accent : secondary))
-                e.Graphics.FillEllipse(radio, textX - 12, textY + 2, 10, 10);
+                e.Graphics.FillEllipse(radio, radioX, labelY + 3f, 10f, 10f);
             if (_selected)
             {
                 using Brush dot = new SolidBrush(Color.White);
-                e.Graphics.FillEllipse(dot, textX - 9, textY + 5, 4, 4);
+                e.Graphics.FillEllipse(dot, radioX + 3f, labelY + 6f, 4f, 4f);
             }
-            TextRenderer.DrawText(e.Graphics, label, new Font("Segoe UI", 9f), new Point((int)textX + 4, (int)textY - 1), text, TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(e.Graphics, label, labelFont, new Point((int)textX, (int)labelY), text, TextFormatFlags.NoPrefix);
         }
     }
 
@@ -1517,14 +1694,16 @@ public sealed class SettingsForm : Form
         }
     }
 
-    private sealed class SvgIconControl : Control
+    private sealed class PngIconControl : Control
     {
-        private readonly string? _path;
+        private readonly PngIconCache _iconCache;
+        private readonly string _iconKey;
         private bool _dark;
 
-        public SvgIconControl(string? path)
+        public PngIconControl(PngIconCache iconCache, string iconKey)
         {
-            _path = path;
+            _iconCache = iconCache;
+            _iconKey = iconKey;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
         }
@@ -1538,214 +1717,8 @@ public sealed class SettingsForm : Form
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            PngIconRenderer.Draw(e.Graphics, _path, new RectangleF(1, 1, Math.Max(2, Width - 2), Math.Max(2, Height - 2)), ForeColor.IsEmpty ? (_dark ? Color.WhiteSmoke : LightText) : ForeColor);
-        }
-    }
-
-    private static class PngIconRenderer
-    {
-        private sealed class CacheEntry
-        {
-            public required Bitmap Bitmap { get; init; }
-        }
-
-        private static readonly Dictionary<string, CacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly object CacheLock = new();
-
-        private static readonly string[] CommonIconNames =
-        {
-            "device.png", "interface.png", "battery_monitor.png", "notification.png",
-            "general.png", "about.png", "language.png", "theme.png", "windows.png", "reset.png"
-        };
-
-        private static Task? _warmUpTask;
-
-        public static void WarmUpBothThemesAsync()
-        {
-            lock (CacheLock)
-            {
-                if (_warmUpTask is { IsCompleted: false })
-                    return;
-
-                _warmUpTask = Task.Run(() =>
-                {
-                    PreloadCommonIcons(Color.WhiteSmoke);
-                    PreloadCommonIcons(LightText);
-                });
-            }
-        }
-
-        public static void PreloadCommonIcons(Color color)
-        {
-            Size[] sizes = { new(25, 25), new(38, 38), new(24, 24), new(20, 20) };
-
-            foreach (string name in CommonIconNames)
-            {
-                string? path = IconPath(name);
-                if (string.IsNullOrWhiteSpace(path)) continue;
-
-                foreach (Size size in sizes)
-                    EnsureCached(path, size.Width, size.Height, color);
-            }
-        }
-
-        public static void Draw(Graphics graphics, string? filePath, RectangleF bounds, Color color)
-        {
-            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath) || bounds.Width <= 0 || bounds.Height <= 0)
-                return;
-
-            int width = Math.Max(1, (int)Math.Round(bounds.Width * graphics.DpiX / 96f));
-            int height = Math.Max(1, (int)Math.Round(bounds.Height * graphics.DpiY / 96f));
-            Bitmap bitmap = EnsureCached(filePath, width, height, color);
-
-            GraphicsState state = graphics.Save();
-            try
-            {
-                graphics.CompositingMode = CompositingMode.SourceOver;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                graphics.DrawImage(bitmap, bounds);
-            }
-            finally
-            {
-                graphics.Restore(state);
-            }
-        }
-
-        private static Bitmap EnsureCached(string filePath, int width, int height, Color color)
-        {
-            string key = $"{filePath}|{width}x{height}|{color.ToArgb()}";
-            lock (CacheLock)
-            {
-                if (Cache.TryGetValue(key, out CacheEntry? entry))
-                    return entry.Bitmap;
-            }
-
-            // Rasterization can be relatively expensive. Never hold CacheLock while
-            // doing it, otherwise the UI thread can stall behind background warm-up.
-            Bitmap bitmap = CreateTintedBitmap(filePath, width, height, color);
-
-            lock (CacheLock)
-            {
-                if (Cache.TryGetValue(key, out CacheEntry? existing))
-                {
-                    bitmap.Dispose();
-                    return existing.Bitmap;
-                }
-
-                Cache[key] = new CacheEntry { Bitmap = bitmap };
-                return bitmap;
-            }
-        }
-
-        private static Bitmap CreateTintedBitmap(string filePath, int width, int height, Color color)
-        {
-            using Bitmap source = new(filePath);
-            Rectangle alphaBounds = GetAlphaBounds(source);
-            if (alphaBounds.Width <= 0 || alphaBounds.Height <= 0)
-                return new Bitmap(width, height, PixelFormat.Format32bppArgb);
-
-            using Bitmap cropped = source.Clone(alphaBounds, PixelFormat.Format32bppArgb);
-            Bitmap result = new(width, height, PixelFormat.Format32bppArgb);
-
-            using (Graphics g = Graphics.FromImage(result))
-            {
-                g.CompositingMode = CompositingMode.SourceCopy;
-                g.Clear(Color.Transparent);
-                g.CompositingMode = CompositingMode.SourceOver;
-                g.CompositingQuality = CompositingQuality.HighQuality;
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.SmoothingMode = SmoothingMode.HighQuality;
-
-                Rectangle destination = GetFitRectangle(cropped.Size, result.Size);
-                g.DrawImage(cropped, destination, 0, 0, cropped.Width, cropped.Height, GraphicsUnit.Pixel);
-            }
-
-            // The supplied PNGs already contain the correct anti-aliased alpha mask.
-            // Replace only RGB and preserve every alpha value, including transparent
-            // pixels and partially transparent edge pixels. This avoids ColorMatrix
-            // differences between GDI+ rendering paths while keeping the source mask.
-            BitmapData data = result.LockBits(
-                new Rectangle(0, 0, result.Width, result.Height),
-                ImageLockMode.ReadWrite,
-                PixelFormat.Format32bppArgb);
-            try
-            {
-                int stride = Math.Abs(data.Stride);
-                byte[] pixels = new byte[stride * result.Height];
-                System.Runtime.InteropServices.Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
-
-                for (int y = 0; y < result.Height; y++)
-                {
-                    int rowOffset = y * stride;
-                    for (int x = 0; x < result.Width; x++)
-                    {
-                        int offset = rowOffset + x * 4;
-                        if (pixels[offset + 3] == 0) continue;
-                        pixels[offset] = color.B;
-                        pixels[offset + 1] = color.G;
-                        pixels[offset + 2] = color.R;
-                    }
-                }
-
-                System.Runtime.InteropServices.Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
-            }
-            finally
-            {
-                result.UnlockBits(data);
-            }
-
-            return result;
-        }
-
-        private static Rectangle GetAlphaBounds(Bitmap bitmap)
-        {
-            int left = bitmap.Width;
-            int top = bitmap.Height;
-            int right = -1;
-            int bottom = -1;
-
-            BitmapData data = bitmap.LockBits(
-                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                ImageLockMode.ReadOnly,
-                PixelFormat.Format32bppArgb);
-            try
-            {
-                int stride = Math.Abs(data.Stride);
-                byte[] pixels = new byte[stride * bitmap.Height];
-                System.Runtime.InteropServices.Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
-
-                for (int y = 0; y < bitmap.Height; y++)
-                {
-                    int rowOffset = y * stride;
-                    for (int x = 0; x < bitmap.Width; x++)
-                    {
-                        if (pixels[rowOffset + x * 4 + 3] == 0) continue;
-                        if (x < left) left = x;
-                        if (y < top) top = y;
-                        if (x > right) right = x;
-                        if (y > bottom) bottom = y;
-                    }
-                }
-            }
-            finally
-            {
-                bitmap.UnlockBits(data);
-            }
-
-            return right < left || bottom < top
-                ? Rectangle.Empty
-                : Rectangle.FromLTRB(left, top, right + 1, bottom + 1);
-        }
-
-        private static Rectangle GetFitRectangle(Size source, Size target)
-        {
-            float scale = Math.Min((float)target.Width / source.Width, (float)target.Height / source.Height);
-            int width = Math.Max(1, (int)Math.Round(source.Width * scale));
-            int height = Math.Max(1, (int)Math.Round(source.Height * scale));
-            return new Rectangle((target.Width - width) / 2, (target.Height - height) / 2, width, height);
+            int size = Math.Max(1, Math.Min(Width, Height));
+            _iconCache.Draw(e.Graphics, _iconKey, new RectangleF((Width - size) / 2f, (Height - size) / 2f, size, size), _dark, DeviceDpi);
         }
     }
 
@@ -2223,7 +2196,13 @@ public sealed class SettingsForm : Form
 
     private sealed class BatteryIconControl : Control
     {
-        private readonly List<GraphicsPath> _svgPaths = new();
+        private const int IconSize = 46;
+        // Coordinates of the transparent interior on the supplied 46x46 battery PNG.
+        // Only this area receives the dynamic battery-level fill.
+        private static readonly Rectangle InteriorPixels = new(9, 18, 26, 12);
+
+        private Bitmap? _darkTemplate;
+        private Bitmap? _lightTemplate;
         private int _battery;
         private bool _connected;
         private bool _charging;
@@ -2243,130 +2222,50 @@ public sealed class SettingsForm : Form
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
-            LoadTemplate();
+            LoadTemplates();
         }
 
-        private void LoadTemplate()
+        private void LoadTemplates()
         {
-            foreach (GraphicsPath path in _svgPaths) path.Dispose();
-            _svgPaths.Clear();
+            DisposeTemplate(ref _darkTemplate);
+            DisposeTemplate(ref _lightTemplate);
+            _darkTemplate = LoadTemplate("Dark", "battery-dark-46x46.png");
+            _lightTemplate = LoadTemplate("Light", "battery-light-46x46.png");
+        }
+
+        private static Bitmap? LoadTemplate(string themeFolder, string fileName)
+        {
             try
             {
-                string filePath = Path.Combine(AppContext.BaseDirectory, "Icons", "Vector", "battery.svg");
-                if (!File.Exists(filePath)) return;
+                string filePath = Path.Combine(AppContext.BaseDirectory, "Icons", themeFolder, fileName);
+                if (!File.Exists(filePath))
+                    return null;
 
-                XDocument document = XDocument.Load(filePath);
-                XElement? root = document.Root;
-                if (root == null) return;
-
-                List<XElement> pathElements = document.Descendants(root.Name.Namespace + "path").ToList();
-
-                // battery.svg is made of exactly two <path> elements:
-                //   [0] the shell + terminal nub (drawn as the battery's solid outline)
-                //   [1] a frame: the cavity's own boundary plus a second, smaller
-                //       cutout sub-path that is the actual hollow charge area.
-                // Combining path [1]'s two sub-paths together (as plain nonzero-winding
-                // fill would) only produces a thin ring, not a fillable meter, so the
-                // smaller cutout has to be pulled out on its own.
-                for (int elementIndex = 0; elementIndex < pathElements.Count; elementIndex++)
+                using Bitmap source = new(filePath);
+                Bitmap template = new(IconSize, IconSize, PixelFormat.Format32bppArgb);
+                using (Graphics graphics = Graphics.FromImage(template))
                 {
-                    XElement element = pathElements[elementIndex];
-                    string? raw = element.Attribute("d")?.Value;
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-
-                    List<GraphicsPath> figures = SvgIconRenderer.ParseFigures(raw);
-                    if (figures.Count == 0) continue;
-                    if (SvgIconRenderer.HasLeadingCanvasFigure(raw))
-                    {
-                        figures[0].Dispose();
-                        figures.RemoveAt(0);
-                    }
-                    if (figures.Count == 0) continue;
-
-                    GraphicsPath combined;
-                    if (elementIndex == 1 && figures.Count >= 2)
-                    {
-                        GraphicsPath cavity = figures[0];
-                        float cavityArea = AreaOf(cavity);
-                        foreach (GraphicsPath figure in figures.Skip(1))
-                        {
-                            float area = AreaOf(figure);
-                            if (area < cavityArea) { cavityArea = area; cavity = figure; }
-                        }
-                        foreach (GraphicsPath figure in figures)
-                            if (figure != cavity) figure.Dispose();
-                        combined = cavity;
-                    }
-                    else
-                    {
-                        combined = new GraphicsPath(FillMode.Winding);
-                        foreach (GraphicsPath figure in figures)
-                        {
-                            combined.AddPath(figure, false);
-                            figure.Dispose();
-                        }
-                    }
-
-                    using Matrix transform = GetCumulativeTransform(element, root);
-                    if (!transform.IsIdentity) combined.Transform(transform);
-                    if (combined.PointCount == 0) { combined.Dispose(); continue; }
-                    _svgPaths.Add(combined);
+                    graphics.Clear(Color.Transparent);
+                    graphics.DrawImageUnscaled(source, 0, 0);
                 }
+
+                // The supplied PNG already contains the battery frame. Clear only the
+                // center area so the dynamic charge level can be painted underneath it.
+                for (int y = InteriorPixels.Top; y < InteriorPixels.Bottom; y++)
+                {
+                    for (int x = InteriorPixels.Left; x < InteriorPixels.Right; x++)
+                    {
+                        Color pixel = template.GetPixel(x, y);
+                        template.SetPixel(x, y, Color.FromArgb(0, pixel.R, pixel.G, pixel.B));
+                    }
+                }
+
+                return template;
             }
             catch
             {
-                foreach (GraphicsPath path in _svgPaths) path.Dispose();
-                _svgPaths.Clear();
+                return null;
             }
-        }
-
-        private static float AreaOf(GraphicsPath path)
-        {
-            RectangleF bounds = path.GetBounds();
-            return bounds.Width * bounds.Height;
-        }
-
-        private static Matrix GetCumulativeTransform(XElement element, XElement root)
-        {
-            Matrix result = new();
-            List<XElement> chain = new();
-            for (XElement? current = element; current != null; current = current.Parent)
-            {
-                chain.Add(current);
-                if (current == root) break;
-            }
-            chain.Reverse();
-            foreach (XElement current in chain)
-            {
-                string? transformText = current.Attribute("transform")?.Value;
-                if (string.IsNullOrWhiteSpace(transformText)) continue;
-                using Matrix next = ParseTransform(transformText);
-                result.Multiply(next, MatrixOrder.Prepend);
-            }
-            return result;
-        }
-
-        private static Matrix ParseTransform(string value)
-        {
-            // The supplied Potrace battery uses translate(0,1254) scale(0.1,-0.1).
-            // Keep this local implementation aligned with the generic SVG renderer.
-            Matrix result = new();
-            System.Text.RegularExpressions.Regex regex = new(@"(?<name>matrix|translate|scale|rotate|skewX|skewY)\s*\((?<args>[^)]*)\)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            foreach (System.Text.RegularExpressions.Match match in regex.Matches(value))
-            {
-                string name = match.Groups["name"].Value.ToLowerInvariant();
-                float[] a = match.Groups["args"].Value.Split(new[] { ' ', ',', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(v => float.Parse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
-                using Matrix next = name switch
-                {
-                    "matrix" when a.Length >= 6 => new Matrix(a[0], a[1], a[2], a[3], a[4], a[5]),
-                    "translate" when a.Length >= 1 => new Matrix(1, 0, 0, 1, a[0], a.Length > 1 ? a[1] : 0),
-                    "scale" when a.Length >= 1 => new Matrix(a[0], 0, 0, a.Length > 1 ? a[1] : a[0], 0, 0),
-                    _ => new Matrix()
-                };
-                result.Multiply(next, MatrixOrder.Prepend);
-            }
-            return result;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2377,74 +2276,87 @@ public sealed class SettingsForm : Form
             e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
             e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            Color cardBackground = _dark ? Color.FromArgb(46, 50, 54) : Color.FromArgb(248, 249, 251);
-            Color outline = _dark ? Color.WhiteSmoke : Color.FromArgb(65, 72, 82);
+            Bitmap? template = _dark ? _darkTemplate : _lightTemplate;
+            if (template == null)
+                return;
 
-            if (_svgPaths.Count >= 2)
+            float scale = Math.Min(Width / (float)IconSize, Height / (float)IconSize);
+            if (scale <= 0)
+                return;
+
+            float drawWidth = IconSize * scale;
+            float drawHeight = IconSize * scale;
+            float ox = (Width - drawWidth) / 2f;
+            float oy = (Height - drawHeight) / 2f;
+
+            RectangleF interior = new(
+                ox + InteriorPixels.X * scale,
+                oy + InteriorPixels.Y * scale,
+                InteriorPixels.Width * scale,
+                InteriorPixels.Height * scale);
+
+            Color cardBackground = _dark
+                ? Color.FromArgb(46, 50, 54)
+                : Color.FromArgb(248, 249, 251);
+
+            // Restore the background inside the transparent charge cavity.
+            using (Brush backgroundBrush = new SolidBrush(cardBackground))
+                e.Graphics.FillRectangle(backgroundBrush, interior);
+
+            if (_connected && _battery > 0)
             {
-                RectangleF sourceBounds = _svgPaths[0].GetBounds();
-                float sourceWidth = Math.Max(1f, sourceBounds.Width);
-                float sourceHeight = Math.Max(1f, sourceBounds.Height);
-                float scale = Math.Min((Width - 2f) / sourceWidth, (Height - 2f) / sourceHeight);
-                float ox = (Width - sourceWidth * scale) / 2f - sourceBounds.X * scale;
-                float oy = (Height - sourceHeight * scale) / 2f - sourceBounds.Y * scale;
+                Color green = Color.FromArgb(52, 211, 85);
+                Color yellow = Color.FromArgb(250, 204, 21);
+                Color orange = Color.FromArgb(249, 115, 22);
+                Color red = Color.FromArgb(239, 68, 68);
+                Color active = GetBatteryLevelColor(_battery, green, yellow, orange, red);
 
-                using GraphicsPath outer = TransformPath(_svgPaths[0], scale, ox, oy);
-                using GraphicsPath inner = TransformPath(_svgPaths[1], scale, ox, oy);
-                RectangleF innerBounds = inner.GetBounds();
-
-                using Brush outlineBrush = new SolidBrush(outline);
-                using Brush backgroundBrush = new SolidBrush(cardBackground);
-
-                // Original battery.svg: path 0 is the shell/terminal and path 1 is the
-                // inner charge area. Draw the source artwork first, then fill only the
-                // inner path according to the actual battery percentage.
-                e.Graphics.FillPath(outlineBrush, outer);
-                e.Graphics.FillPath(backgroundBrush, inner);
-
-                if (_connected && _battery > 0)
+                float fillWidth = interior.Width * (_battery / 100f);
+                if (fillWidth > 0)
                 {
-                    Color start = Color.FromArgb(52, 211, 85);       // green
-                    Color yellow = Color.FromArgb(250, 204, 21);     // yellow
-                    Color orange = Color.FromArgb(249, 115, 22);    // orange
-                    Color red = Color.FromArgb(239, 68, 68);        // red
-                    Color active = GetBatteryLevelColor(_battery, start, yellow, orange, red);
-
+                    RectangleF fillBounds = new(interior.Left, interior.Top, fillWidth, interior.Height);
                     GraphicsState state = e.Graphics.Save();
                     try
                     {
-                        e.Graphics.SetClip(inner, CombineMode.Intersect);
+                        e.Graphics.SetClip(interior, CombineMode.Intersect);
                         using LinearGradientBrush gradient = new(
-                            new PointF(innerBounds.Left, 0),
-                            new PointF(innerBounds.Right, 0),
-                            Blend(active, Color.FromArgb(255, 255, 255), 0.08),
+                            new PointF(interior.Left, interior.Top),
+                            new PointF(interior.Right, interior.Top),
+                            Blend(active, Color.White, 0.08),
                             active);
-                        e.Graphics.FillRectangle(gradient, innerBounds);
+                        e.Graphics.FillRectangle(gradient, fillBounds);
                     }
                     finally
                     {
                         e.Graphics.Restore(state);
                     }
                 }
-
-                if (_connected && _charging)
-                {
-                    DrawChargingBolt(e.Graphics, innerBounds);
-                }
-
-                // Redraw the shell so the fill never covers its outline.
-                using Pen outlinePen = new(outline, Math.Max(1.2f, 1.8f * scale))
-                { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-                e.Graphics.DrawPath(outlinePen, outer);
-                return;
             }
 
-            using Pen fallbackPen = new(outline, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-            RectangleF fallback = new(2f, 5f, Math.Max(1f, Width - 9f), Math.Max(1f, Height - 10f));
-            e.Graphics.DrawRoundedRectangle(fallbackPen, fallback, 3);
+            // Draw the PNG frame over the dynamic fill.
+            e.Graphics.DrawImage(template, new RectangleF(ox, oy, drawWidth, drawHeight));
+
+            if (_connected && _charging)
+                DrawChargingBolt(e.Graphics, interior);
         }
 
-            private static void DrawChargingBolt(Graphics graphics, RectangleF bounds)
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                DisposeTemplate(ref _darkTemplate);
+                DisposeTemplate(ref _lightTemplate);
+            }
+            base.Dispose(disposing);
+        }
+
+        private static void DisposeTemplate(ref Bitmap? bitmap)
+        {
+            bitmap?.Dispose();
+            bitmap = null;
+        }
+
+        private static void DrawChargingBolt(Graphics graphics, RectangleF bounds)
         {
             float width = Math.Min(bounds.Width * 0.42f, 15f);
             float height = Math.Min(bounds.Height * 0.72f, 24f);
@@ -2471,7 +2383,7 @@ public sealed class SettingsForm : Form
             graphics.DrawPolygon(outline, points);
         }
 
-    private static Color GetBatteryLevelColor(int battery, Color green, Color yellow, Color orange, Color red)
+        private static Color GetBatteryLevelColor(int battery, Color green, Color yellow, Color orange, Color red)
         {
             battery = Math.Clamp(battery, 0, 100);
             if (battery >= 50)
@@ -2490,24 +2402,6 @@ public sealed class SettingsForm : Form
                 (int)Math.Round(a.R + (b.R - a.R) * t),
                 (int)Math.Round(a.G + (b.G - a.G) * t),
                 (int)Math.Round(a.B + (b.B - a.B) * t));
-        }
-
-        private static GraphicsPath TransformPath(GraphicsPath source, float scale, float ox, float oy)
-        {
-            GraphicsPath result = (GraphicsPath)source.Clone();
-            using Matrix matrix = new(scale, 0, 0, scale, ox, oy);
-            result.Transform(matrix);
-            return result;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                foreach (GraphicsPath path in _svgPaths) path.Dispose();
-                _svgPaths.Clear();
-            }
-            base.Dispose(disposing);
         }
     }
 
@@ -3111,6 +3005,7 @@ public sealed class SettingsForm : Form
 
     private sealed class ActionButton : Button
     {
+        private readonly PngIconCache _iconCache;
         private bool _hover;
         private bool _pressed;
         private bool _dark;
@@ -3129,8 +3024,9 @@ public sealed class SettingsForm : Form
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color OutsideBackColor { get; set; } = LightBackground;
 
-        public ActionButton()
+        public ActionButton(PngIconCache iconCache)
         {
+            _iconCache = iconCache;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             FlatStyle = FlatStyle.Flat;
@@ -3176,8 +3072,7 @@ public sealed class SettingsForm : Form
             if (_showResetIcon)
             {
                 Color iconColor = _primary ? Color.White : (_dark ? Color.WhiteSmoke : LightText);
-                string? resetIconPath = IconPath("reset.png");
-                PngIconRenderer.Draw(e.Graphics, resetIconPath, new RectangleF(rect.X + 10, rect.Y + 8, 20, 20), iconColor);
+                _iconCache.Draw(e.Graphics, "reset", new RectangleF(rect.X + 10, rect.Y + 8, 20, 20), _dark, DeviceDpi);
                 textRect.X += 30;
                 textRect.Width -= 30;
             }

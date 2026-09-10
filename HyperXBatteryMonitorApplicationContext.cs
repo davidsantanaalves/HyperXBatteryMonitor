@@ -85,11 +85,6 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _contextMenu.Opening += ContextMenu_Opening;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
-        // Warm both light/dark PNG icon variants off the UI thread.
-        // This keeps Settings responsive without doing icon rasterization during
-        // the first frame of the Settings window.
-        SettingsForm.WarmUpIconCacheAsync();
-
         ApplyLocalization();
         ApplyTheme();
         UpdateTrayIcon();
