@@ -62,21 +62,22 @@ public sealed class BatteryMonitor : IDisposable
                     cancellationToken);
 
                 if (battery.HasValue)
-				{
-					BatteryChanged?.Invoke(
-						this,
-						battery.Value);
+                {
+                    bool? chargeStatus = await _device.QueryChargeStatusAsync(
+                        cancellationToken);
 
-					bool? chargeStatus = await _device.QueryChargeStatusAsync(
-						cancellationToken);
+                    if (chargeStatus.HasValue)
+                    {
+                        ChargingChanged?.Invoke(
+                            this,
+                            chargeStatus.Value);
+                    }
 
-					if (chargeStatus.HasValue)
-					{
-						ChargingChanged?.Invoke(
-							this,
-							chargeStatus.Value);
-					}
-				}
+                    BatteryChanged?.Invoke(
+                        this,
+                        battery.Value);
+                }
+
                 else
                 {
                     _device.Disconnect();

@@ -123,6 +123,12 @@ public static class Localization
         ["NotifyWhenFullyChargedDescription"] = "Show a notification when the headset is fully charged.",
         ["FlashSystrayIcon"] = "Flash systray icon",
         ["FlashSystrayIconDescription"] = "Make the systray icon flash when the battery reaches the critical level.",
+        ["NotificationLowBatteryTitle"] = "{0} is low on battery.",
+        ["NotificationLowBatteryInstruction"] = "Connect the charging cable to continue using your headset.",
+        ["NotificationBattery"] = "🔋 {0}%",
+        ["NotificationFullyChargedTitle"] = "{0} is fully charged.",
+        ["NotificationFullyChargedBattery"] = "🔋 100%",
+        ["NotificationFullyChargedInstruction"] = "The charging cable can be disconnected.",
 
         // Devices Information - HyperX Cloud III Wireless
         ["Cloud3Wireless_Connectivity"] = "Connectivity: 2.4 GHz wireless via USB dongle",
@@ -241,6 +247,12 @@ public static class Localization
         ["NotifyWhenFullyChargedDescription"] = "Mostrar uma notificação quando o headset estiver totalmente carregado.",
         ["FlashSystrayIcon"] = "Piscar o ícone do Systray",
         ["FlashSystrayIconDescription"] = "Fazer o ícone do Systray piscar quando a bateria atingir o nível crítico.",
+        ["NotificationLowBatteryTitle"] = "{0} está com bateria baixa.",
+        ["NotificationLowBatteryInstruction"] = "Conecte o cabo de carregamento para continuar usando seu fone.",
+        ["NotificationBattery"] = "🔋 {0}%",
+        ["NotificationFullyChargedTitle"] = "{0} está com bateria carregada.",
+        ["NotificationFullyChargedBattery"] = "🔋 100%",
+        ["NotificationFullyChargedInstruction"] = "O cabo de carregamento pode ser desconectado.",
 
         // Devices Information - HyperX Cloud III Wireless
         ["Cloud3Wireless_Connectivity"] = "Conectividade: Sem fio de 2.4 GHz via adaptador USB",
@@ -359,6 +371,12 @@ public static class Localization
         ["NotifyWhenFullyChargedDescription"] = "Mostrar una notificación cuando los auriculares estén completamente cargados.",
         ["FlashSystrayIcon"] = "Parpadear el icono de la bandeja del sistema",
         ["FlashSystrayIconDescription"] = "Hacer que el icono de la bandeja del sistema parpadee cuando la batería alcance el nivel crítico.",
+        ["NotificationLowBatteryTitle"] = "{0} tiene poca batería.",
+        ["NotificationLowBatteryInstruction"] = "Conecta el cable de carga para seguir usando tus auriculares.",
+        ["NotificationBattery"] = "🔋 {0}%",
+        ["NotificationFullyChargedTitle"] = "{0} está completamente cargado.",
+        ["NotificationFullyChargedBattery"] = "🔋 100%",
+        ["NotificationFullyChargedInstruction"] = "Puedes desconectar el cable de carga.",
 
         // Devices Information - HyperX Cloud III Wireless
         ["Cloud3Wireless_Connectivity"] = "Conectividad: Inalámbrica de 2.4 GHz mediante adaptador USB",

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using HyperXBatteryTray.Devices;
 using HyperXBatteryTray.Monitoring;
+using HyperXBatteryTray.Notifications;
 using HyperXBatteryTray.Settings;
 
 namespace HyperXBatteryTray;
@@ -18,6 +19,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private IHyperXDevice? _device;
     private readonly SettingsManager _settingsManager;
     private readonly AppSettings _settings;
+    private readonly NotificationService _notificationService;
 
     private readonly ToolStripMenuItem _deviceMenuItem;
     private readonly ToolStripMenuItem _batteryMenuItem;
@@ -36,6 +38,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     {
         _settingsManager = new SettingsManager();
         _settings = _settingsManager.Load();
+        _notificationService = new NotificationService();
 
         if (!_settings.ThemeConfigured)
         {
@@ -248,6 +251,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         try
         {
             _settingsManager.Save(_settings);
+            _notificationService.ResetState();
             InitializeSelectedDevice();
             _settingsForm?.SetDevice(_device);
             ApplyLocalization();
@@ -272,6 +276,16 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private void BatteryMonitor_BatteryChanged(object? sender, int battery)
     {
+        if (_device != null)
+        {
+            _notificationService.Update(
+                _settings.SelectedDevice,
+                battery,
+                _device.IsConnected,
+                _isCharging,
+                _settings);
+        }
+
         UpdateTrayIcon();
         UpdateTray();
     }
@@ -279,23 +293,46 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private void BatteryMonitor_ConnectionChanged(object? sender, bool connected)
     {
         if (!connected)
+        {
             _isCharging = false;
+            _notificationService.ResetState();
+        }
+
+        if (connected && _device != null)
+        {
+            _notificationService.Update(
+                _settings.SelectedDevice,
+                _device.Battery,
+                true,
+                _isCharging,
+                _settings);
+        }
 
         _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
     }
 
-	private void BatteryMonitor_ChargingChanged(
-		object? sender,
-		bool charging)
-	{
-		_isCharging = charging;
+    private void BatteryMonitor_ChargingChanged(
+        object? sender,
+        bool charging)
+    {
+        _isCharging = charging;
+
+        if (_device != null)
+        {
+            _notificationService.Update(
+                _settings.SelectedDevice,
+                _device.Battery,
+                _device.IsConnected,
+                _isCharging,
+                _settings);
+        }
 
         _settingsForm?.SetCharging(_isCharging);
-		UpdateTrayIcon();
-		UpdateTray();
-	}
+        UpdateTrayIcon();
+        UpdateTray();
+    }
 
     private void UpdateTray()
     {
@@ -1266,6 +1303,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _currentApplicationIcon = null;
 
         DisposeDeviceMonitor();
+        _notificationService.ResetState();
         _deviceManager.Dispose();
         base.ExitThreadCore();
     }
