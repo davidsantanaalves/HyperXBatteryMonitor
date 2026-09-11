@@ -95,6 +95,9 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
         UpdateTray();
 
+        if (string.IsNullOrWhiteSpace(_settings.SelectedDevice))
+            Application.Idle += Application_Idle;
+
         if (_batteryMonitor != null)
             _batteryMonitor.Start();
     }
@@ -137,6 +140,12 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     }
 
     private void NotifyIcon_DoubleClick(object? sender, EventArgs e) => ShowSettings(sender, e);
+
+    private void Application_Idle(object? sender, EventArgs e)
+    {
+        Application.Idle -= Application_Idle;
+        ShowSettings(null, EventArgs.Empty);
+    }
 
     private void ContextMenu_Opening(object? sender, CancelEventArgs e)
     {
