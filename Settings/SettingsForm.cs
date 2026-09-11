@@ -44,6 +44,14 @@ public sealed class SettingsForm : Form
     private AppTheme _selectedTheme;
     private string _pendingSelectedDevice;
     private bool _pendingStartupEnabled;
+    private bool _pendingNotifyOnLowBattery;
+    private bool _pendingNotifyWhenFullyCharged;
+    private bool _pendingBlinkOnCriticalBattery;
+    private int _pendingCriticalBatteryPercent;
+    private ToggleSwitchControl _notifyOnLowBatteryToggle = null!;
+    private ToggleSwitchControl _notifyWhenFullyChargedToggle = null!;
+    private ToggleSwitchControl _blinkOnCriticalBatteryToggle = null!;
+    private CriticalBatteryNumericControl _criticalBatteryPercentInput = null!;
     private bool _updatingLanguage;
     private bool _isCharging;
     private string _currentPage = "Device";
@@ -108,6 +116,10 @@ public sealed class SettingsForm : Form
         _selectedTheme = settings.Theme;
         _pendingSelectedDevice = settings.SelectedDevice;
         _pendingStartupEnabled = _startupManager.IsEnabled();
+        _pendingNotifyOnLowBattery = settings.NotifyOnLowBattery;
+        _pendingNotifyWhenFullyCharged = settings.NotifyWhenFullyCharged;
+        _pendingBlinkOnCriticalBattery = settings.BlinkOnCriticalBattery;
+        _pendingCriticalBatteryPercent = Math.Clamp(settings.CriticalBatteryPercent, 1, 100);
 
         Text = L("WindowTitle");
         StartPosition = FormStartPosition.Manual;
@@ -385,6 +397,98 @@ public sealed class SettingsForm : Form
         startupCard.Controls.Add(_startupToggle);
     }
 
+    private void ShowNotificationsPage()
+    {
+        _pageHost.Controls.Clear();
+        AddPageHeader("notification", Glyph.Bell, "Notifications", "NotificationsDescription", 42);
+
+        RoundedPanel lowBatteryCard = CreateCard(new Point(20, 82), new Size(528, 117), true);
+        _pageHost.Controls.Add(lowBatteryCard);
+        lowBatteryCard.Controls.Add(new PngIconControl(_iconCache, "battery_critical")
+        {
+            Location = new Point(18, 18),
+            Size = new Size(36, 36),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        });
+        lowBatteryCard.Controls.Add(CreateLabel(L("NotifyOnLowBattery"), true, new Point(68, 12), 9.5f));
+        Label lowBatteryDescription = CreateLabel(L("NotifyOnLowBatteryDescription"), false, new Point(68, 34), 8.5f);
+        lowBatteryDescription.MaximumSize = new Size(280, 0);
+        lowBatteryCard.Controls.Add(lowBatteryDescription);
+        lowBatteryCard.Controls.Add(CreateLabel(L("CriticalBatteryLevel"), true, new Point(68, 70), 8.8f));
+        Label criticalBatteryDescription = CreateLabel(L("CriticalBatteryLevelDescription"), false, new Point(68, 91), 7.8f);
+        criticalBatteryDescription.MaximumSize = new Size(280, 0);
+        lowBatteryCard.Controls.Add(criticalBatteryDescription);
+
+        _notifyOnLowBatteryToggle = new ToggleSwitchControl
+        {
+            Location = new Point(466, 18),
+            Size = new Size(42, 24),
+            Checked = _pendingNotifyOnLowBattery,
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        };
+        _notifyOnLowBatteryToggle.CheckedChanged += (_, _) => _pendingNotifyOnLowBattery = _notifyOnLowBatteryToggle.Checked;
+        lowBatteryCard.Controls.Add(_notifyOnLowBatteryToggle);
+
+        _criticalBatteryPercentInput = new CriticalBatteryNumericControl
+        {
+            Location = new Point(418, 68),
+            Size = new Size(70, 34),
+            Minimum = 1,
+            Maximum = 100,
+            Value = Math.Clamp(_pendingCriticalBatteryPercent, 1, 100),
+            Increment = 1,
+            Font = new Font("Segoe UI", 9.5f),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        };
+        _criticalBatteryPercentInput.ValueChanged += (_, _) => _pendingCriticalBatteryPercent = _criticalBatteryPercentInput.Value;
+        lowBatteryCard.Controls.Add(_criticalBatteryPercentInput);
+        lowBatteryCard.Controls.Add(CreateLabel("%", false, new Point(496, 77), 9f));
+
+        RoundedPanel fullCard = CreateCard(new Point(20, 211), new Size(528, 82), true);
+        _pageHost.Controls.Add(fullCard);
+        fullCard.Controls.Add(new PngIconControl(_iconCache, "battery_full")
+        {
+            Location = new Point(18, 18),
+            Size = new Size(36, 36),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        });
+        fullCard.Controls.Add(CreateLabel(L("NotifyWhenFullyCharged"), true, new Point(68, 18), 9.5f));
+        Label fullyChargedDescription = CreateLabel(L("NotifyWhenFullyChargedDescription"), false, new Point(68, 40), 8.5f);
+        fullyChargedDescription.MaximumSize = new Size(300, 0);
+        fullCard.Controls.Add(fullyChargedDescription);
+        _notifyWhenFullyChargedToggle = new ToggleSwitchControl
+        {
+            Location = new Point(466, 28),
+            Size = new Size(42, 24),
+            Checked = _pendingNotifyWhenFullyCharged,
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        };
+        _notifyWhenFullyChargedToggle.CheckedChanged += (_, _) => _pendingNotifyWhenFullyCharged = _notifyWhenFullyChargedToggle.Checked;
+        fullCard.Controls.Add(_notifyWhenFullyChargedToggle);
+
+        RoundedPanel blinkCard = CreateCard(new Point(20, 305), new Size(528, 82), true);
+        _pageHost.Controls.Add(blinkCard);
+        blinkCard.Controls.Add(new PngIconControl(_iconCache, "blink")
+        {
+            Location = new Point(18, 18),
+            Size = new Size(36, 36),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        });
+        blinkCard.Controls.Add(CreateLabel(L("FlashSystrayIcon"), true, new Point(68, 18), 9.5f));
+        Label blinkDescription = CreateLabel(L("FlashSystrayIconDescription"), false, new Point(68, 40), 8.5f);
+        blinkDescription.MaximumSize = new Size(300, 0);
+        blinkCard.Controls.Add(blinkDescription);
+        _blinkOnCriticalBatteryToggle = new ToggleSwitchControl
+        {
+            Location = new Point(466, 28),
+            Size = new Size(42, 24),
+            Checked = _pendingBlinkOnCriticalBattery,
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        };
+        _blinkOnCriticalBatteryToggle.CheckedChanged += (_, _) => _pendingBlinkOnCriticalBattery = _blinkOnCriticalBatteryToggle.Checked;
+        blinkCard.Controls.Add(_blinkOnCriticalBatteryToggle);
+    }
+
     // Device layout must remain stable even when the Interface page is redesigned.
     private void AddDevicePageHeader() =>
         AddPageHeader("device", Glyph.Headphones, "Device", "DeviceDescription", 42);
@@ -524,6 +628,11 @@ public sealed class SettingsForm : Form
             if (key == "Interface")
             {
                 ShowInterfacePage();
+                return;
+            }
+            if (key == "Notifications")
+            {
+                ShowNotificationsPage();
                 return;
             }
 
@@ -724,6 +833,11 @@ public sealed class SettingsForm : Form
         if (_darkThemeOption != null) _darkThemeOption.DarkMode = dark;
         if (_systemThemeOption != null) _systemThemeOption.DarkMode = dark;
         if (_startupToggle != null) _startupToggle.DarkMode = dark;
+        if (_notifyOnLowBatteryToggle != null) _notifyOnLowBatteryToggle.DarkMode = dark;
+        if (_notifyWhenFullyChargedToggle != null) _notifyWhenFullyChargedToggle.DarkMode = dark;
+        if (_blinkOnCriticalBatteryToggle != null) _blinkOnCriticalBatteryToggle.DarkMode = dark;
+        if (_criticalBatteryPercentInput != null)
+            _criticalBatteryPercentInput.DarkMode = dark;
 
         foreach (SidebarItem item in _navButtons.Values)
         {
@@ -861,6 +975,10 @@ public sealed class SettingsForm : Form
         AppSettings defaults = AppSettings.CreateDefault();
         _pendingSelectedDevice = defaults.SelectedDevice;
         _pendingStartupEnabled = _startupManager.IsEnabled();
+        _pendingNotifyOnLowBattery = defaults.NotifyOnLowBattery;
+        _pendingNotifyWhenFullyCharged = defaults.NotifyWhenFullyCharged;
+        _pendingBlinkOnCriticalBattery = defaults.BlinkOnCriticalBattery;
+        _pendingCriticalBatteryPercent = defaults.CriticalBatteryPercent;
         _selectedLanguage = defaults.Language;
         _selectedTheme = defaults.Theme;
 
@@ -886,6 +1004,10 @@ public sealed class SettingsForm : Form
     private bool ApplySettings()
     {
         _settings.SelectedDevice = _pendingSelectedDevice;
+        _settings.NotifyOnLowBattery = _pendingNotifyOnLowBattery;
+        _settings.NotifyWhenFullyCharged = _pendingNotifyWhenFullyCharged;
+        _settings.BlinkOnCriticalBattery = _pendingBlinkOnCriticalBattery;
+        _settings.CriticalBatteryPercent = Math.Clamp(_pendingCriticalBatteryPercent, 1, 100);
         _settings.Language = _selectedLanguage;
         _settings.Theme = _selectedTheme;
         _settings.ThemeConfigured = true;
@@ -1652,6 +1774,293 @@ public sealed class SettingsForm : Form
                 e.Graphics.FillEllipse(dot, radioX + 3f, labelY + 6f, 4f, 4f);
             }
             TextRenderer.DrawText(e.Graphics, label, labelFont, new Point((int)textX, (int)labelY), text, TextFormatFlags.NoPrefix);
+        }
+    }
+
+    private sealed class CriticalBatteryNumericControl : UserControl
+    {
+        private readonly TextBox _textBox;
+        private int _minimum = 1;
+        private int _maximum = 100;
+        private int _increment = 1;
+        private int _value = 10;
+        private bool _dark;
+
+        public event EventHandler? ValueChanged;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int Minimum
+        {
+            get => _minimum;
+            set
+            {
+                _minimum = Math.Min(value, _maximum);
+                Value = Math.Max(_minimum, _value);
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int Maximum
+        {
+            get => _maximum;
+            set
+            {
+                _maximum = Math.Max(value, _minimum);
+                Value = Math.Min(_maximum, _value);
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int Increment
+        {
+            get => _increment;
+            set => _increment = Math.Max(1, value);
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int Value
+        {
+            get => _value;
+            set
+            {
+                int clamped = Math.Clamp(value, _minimum, _maximum);
+                if (_value == clamped)
+                {
+                    UpdateText();
+                    return;
+                }
+
+                _value = clamped;
+                UpdateText();
+                Invalidate();
+                ValueChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode
+        {
+            get => _dark;
+            set
+            {
+                _dark = value;
+                ApplyTheme();
+                Invalidate();
+            }
+        }
+
+        public CriticalBatteryNumericControl()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            DoubleBuffered = true;
+            BackColor = Color.Transparent;
+            TabStop = true;
+            Padding = new Padding(8, 0, 24, 0);
+
+            _textBox = new TextBox
+            {
+                BorderStyle = BorderStyle.None,
+                TextAlign = HorizontalAlignment.Center,
+                Dock = DockStyle.None,
+                Location = new Point(8, 5),
+                Size = new Size(38, 24),
+                Margin = Padding.Empty,
+                Multiline = false,
+                TabStop = true,
+                Font = Font,
+                BackColor = Color.FromArgb(38, 41, 44),
+                ForeColor = Color.WhiteSmoke
+            };
+            _textBox.KeyPress += TextBox_KeyPress;
+            _textBox.KeyDown += TextBox_KeyDown;
+            _textBox.MouseDown += TextBox_MouseDown;
+            _textBox.Validating += TextBox_Validating;
+            _textBox.TextChanged += (_, _) => Invalidate();
+            Controls.Add(_textBox);
+            ApplyTheme();
+            UpdateText();
+        }
+
+        protected override void OnFontChanged(EventArgs e)
+        {
+            base.OnFontChanged(e);
+            if (_textBox != null)
+                _textBox.Font = Font;
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (_textBox != null)
+            {
+                _textBox.Location = new Point(8, Math.Max(0, (Height - _textBox.Height) / 2));
+                _textBox.Width = Math.Max(1, Width - Padding.Left - Padding.Right);
+            }
+            Invalidate();
+        }
+
+        protected override void OnEnter(EventArgs e)
+        {
+            base.OnEnter(e);
+            _textBox.Focus();
+            _textBox.SelectAll();
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            base.OnClick(e);
+            Focus();
+            _textBox.Focus();
+            _textBox.SelectAll();
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            if (e.Delta > 0)
+                ChangeValue(_increment);
+            else if (e.Delta < 0)
+                ChangeValue(-_increment);
+            base.OnMouseWheel(e);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Rectangle borderRect = new(1, 1, Width - 3, Height - 3);
+            Color background = _dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(248, 249, 251);
+            Color border = _dark ? Color.FromArgb(91, 96, 102) : Color.FromArgb(150, 157, 168);
+            Color chevron = _dark ? Color.FromArgb(224, 227, 231) : Color.FromArgb(82, 89, 99);
+
+            using Brush backgroundBrush = new SolidBrush(background);
+            using Pen borderPen = new(border, 1f);
+            e.Graphics.FillRoundedRectangle(backgroundBrush, borderRect, 7);
+            e.Graphics.DrawRoundedRectangle(borderPen, borderRect, 7);
+
+            int centerX = Width - 13;
+            using Pen chevronPen = new(chevron, 1.5f)
+            {
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round,
+                LineJoin = LineJoin.Round
+            };
+
+            Point[] up =
+            {
+                new(centerX - 3, 16),
+                new(centerX, 13),
+                new(centerX + 3, 16)
+            };
+            Point[] down =
+            {
+                new(centerX - 3, 25),
+                new(centerX, 28),
+                new(centerX + 3, 25)
+            };
+            e.Graphics.DrawLines(chevronPen, up);
+            e.Graphics.DrawLines(chevronPen, down);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            if (e.X >= Width - 28)
+            {
+                if (e.Y < Height / 2)
+                    ChangeValue(_increment);
+                else
+                    ChangeValue(-_increment);
+            }
+            else
+            {
+                _textBox.Focus();
+                _textBox.SelectAll();
+            }
+        }
+
+        private void ChangeValue(int delta)
+        {
+            Value = Math.Clamp(_value + delta, _minimum, _maximum);
+            _textBox.Focus();
+            _textBox.SelectAll();
+        }
+
+        private void TextBox_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            BeginInvoke(new Action(() =>
+            {
+                if (!_textBox.IsDisposed)
+                {
+                    _textBox.Focus();
+                    _textBox.SelectAll();
+                }
+            }));
+        }
+
+        private void TextBox_KeyPress(object? sender, KeyPressEventArgs e)
+        {
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+                e.Handled = true;
+        }
+
+        private void TextBox_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Up)
+            {
+                ChangeValue(_increment);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Down)
+            {
+                ChangeValue(-_increment);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Enter)
+            {
+                CommitText();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Escape)
+            {
+                UpdateText();
+                e.Handled = true;
+            }
+        }
+
+        private void TextBox_Validating(object? sender, CancelEventArgs e) => CommitText();
+
+        private void CommitText()
+        {
+            if (int.TryParse(_textBox.Text, out int parsed))
+                Value = parsed;
+            else
+                UpdateText();
+        }
+
+        private void UpdateText()
+        {
+            if (_textBox == null)
+                return;
+
+            string text = _value.ToString();
+            if (_textBox.Text != text)
+                _textBox.Text = text;
+        }
+
+        private void ApplyTheme()
+        {
+            if (_textBox == null)
+                return;
+
+            _textBox.BackColor = _dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(248, 249, 251);
+            _textBox.ForeColor = _dark ? Color.WhiteSmoke : LightText;
         }
     }
 

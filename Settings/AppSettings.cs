@@ -38,8 +38,10 @@ public sealed class AppSettings
     public AdvancedDisplayMode AdvancedDisplayMode { get; set; } = AdvancedDisplayMode.BatteryGradient;
     public bool UseGradient { get; set; } = true;
     public int GradientPercent { get; set; } = 10;
+    public bool NotifyOnLowBattery { get; set; } = true;
+    public bool NotifyWhenFullyCharged { get; set; } = true;
     public bool BlinkOnCriticalBattery { get; set; } = true;
-    public int CriticalBatteryPercent { get; set; } = 5;
+    public int CriticalBatteryPercent { get; set; } = 10;
     public List<BatteryColorSettings> BatteryColors { get; set; } = CreateDefaultColors();
     public AppLanguage Language { get; set; } = AppLanguage.English;
     public AppTheme Theme { get; set; } = AppTheme.System;
@@ -54,8 +56,10 @@ public sealed class AppSettings
             AdvancedDisplayMode = AdvancedDisplayMode.BatteryGradient,
             UseGradient = true,
             GradientPercent = 10,
+            NotifyOnLowBattery = true,
+            NotifyWhenFullyCharged = true,
             BlinkOnCriticalBattery = true,
-            CriticalBatteryPercent = 5,
+            CriticalBatteryPercent = 10,
             BatteryColors = CreateDefaultColors(),
             Language = AppLanguage.English,
             Theme = AppTheme.System,

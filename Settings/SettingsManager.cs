@@ -114,7 +114,7 @@ public sealed class SettingsManager
         settings.CriticalBatteryPercent =
             Math.Clamp(
                 settings.CriticalBatteryPercent,
-                0,
+                1,
                 100);
 
         if (settings.BatteryColors == null ||
