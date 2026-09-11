@@ -37,7 +37,16 @@ public sealed class SettingsForm : Form
     private Button _applyButton = null!;
     private Label _versionLabel = null!;
     private Label _applicationNameLabel = null!;
-    private PictureBox _logo = null!;
+    private RoundedPanel _sidebarDeviceCard = null!;
+    private PictureBox _sidebarDeviceImage = null!;
+    private Label _sidebarDeviceNameLabel = null!;
+    private Label _sidebarStatusTitleLabel = null!;
+    private Label _sidebarStatusLabel = null!;
+    private StatusDotControl _sidebarStatusDot = null!;
+    private Label _sidebarBatteryTitleLabel = null!;
+    private Label _sidebarBatteryLabel = null!;
+    private Label _sidebarChargingLabel = null!;
+    private BatteryIconControl _sidebarBatteryIcon = null!;
     private readonly Dictionary<string, SidebarItem> _navButtons = new();
     private IHyperXDevice? _device;
     private AppLanguage _selectedLanguage;
@@ -153,13 +162,111 @@ public sealed class SettingsForm : Form
         Controls.Add(_pageHost);
         Controls.Add(_sidebar);
 
-        _logo = new PictureBox
+        _sidebarDeviceCard = new RoundedPanel
+        {
+            Location = new Point(10, 272),
+            Size = new Size(_sidebar.ClientSize.Width - 20, 170),
+            Anchor = AnchorStyles.Left | AnchorStyles.Top,
+            BorderColor = DarkBorder,
+            OutsideBackColor = LightSidebar,
+            BackColor = Color.FromArgb(248, 249, 251)
+        };
+
+        _sidebarDeviceImage = new PictureBox
         {
             SizeMode = PictureBoxSizeMode.Zoom,
             Size = new Size(64, 64),
-            Location = new Point((_sidebar.ClientSize.Width - 64) / 2, ClientSize.Height - 136),
-            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+            Location = new Point((_sidebarDeviceCard.Width - 64) / 2, 6),
+            BackColor = Color.Transparent
         };
+
+        _sidebarDeviceNameLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(_sidebarDeviceCard.Width - 12, 20),
+            Location = new Point(6, 69),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI Semibold", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarStatusTitleLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(52, 20),
+            Location = new Point(10, 96),
+            Text = L("SidebarStatus"),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarStatusDot = new StatusDotControl
+        {
+            Size = new Size(18, 18),
+            Location = new Point(62, 97)
+        };
+
+        _sidebarStatusLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(_sidebarDeviceCard.Width - 83, 20),
+            Location = new Point(83, 96),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarBatteryTitleLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(52, 20),
+            Location = new Point(10, 122),
+            Text = L("SidebarBattery"),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarBatteryIcon = new BatteryIconControl
+        {
+            Size = new Size(32, 32),
+            Location = new Point(62, 116),
+            DarkMode = false
+        };
+
+        _sidebarBatteryLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(_sidebarDeviceCard.Width - 95, 20),
+            Location = new Point(98, 122),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarChargingLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(96, 18),
+            Location = new Point(47, 147),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+
+        _sidebarDeviceCard.Controls.Add(_sidebarDeviceImage);
+        _sidebarDeviceCard.Controls.Add(_sidebarDeviceNameLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarStatusTitleLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarStatusDot);
+        _sidebarDeviceCard.Controls.Add(_sidebarStatusLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarBatteryTitleLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarBatteryIcon);
+        _sidebarDeviceCard.Controls.Add(_sidebarBatteryLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarChargingLabel);
+        _sidebar.Controls.Add(_sidebarDeviceCard);
+
         _applicationNameLabel = new Label
         {
             AutoSize = false,
@@ -167,7 +274,7 @@ public sealed class SettingsForm : Form
             Text = Application.ProductName,
             TextAlign = ContentAlignment.MiddleCenter,
             Font = new Font("Segoe UI Semibold", 8.5f),
-            Location = new Point(10, ClientSize.Height - 70),
+            Location = new Point(10, ClientSize.Height - 49),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _versionLabel = new Label
@@ -176,10 +283,9 @@ public sealed class SettingsForm : Form
             Size = new Size(_sidebar.ClientSize.Width - 20, 18),
             TextAlign = ContentAlignment.MiddleCenter,
             Font = new Font("Segoe UI", 8.5f),
-            Location = new Point(10, ClientSize.Height - 48),
+            Location = new Point(10, ClientSize.Height - 27),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
-        _sidebar.Controls.Add(_logo);
         _sidebar.Controls.Add(_applicationNameLabel);
         _sidebar.Controls.Add(_versionLabel);
 
@@ -239,15 +345,14 @@ public sealed class SettingsForm : Form
 
     private void BuildSidebar()
     {
-        string[] keys = { "Device", "Interface", "BatteryMonitor", "Notifications", "General", "About" };
-        Glyph[] glyphs = { Glyph.Headphones, Glyph.Monitor, Glyph.Battery, Glyph.Bell, Glyph.Gear, Glyph.Info };
+        string[] keys = { "Device", "Interface", "BatteryMonitor", "Notifications", "About" };
+        Glyph[] glyphs = { Glyph.Headphones, Glyph.Monitor, Glyph.Battery, Glyph.Bell, Glyph.Info };
         string[] iconKeys =
         {
             "device",
             "interface",
             "battery_monitor",
             "notification",
-            "general",
             "about"
         };
         int y = 4;
@@ -907,7 +1012,79 @@ public sealed class SettingsForm : Form
         }
         _deviceStatusDot.Connected = connected;
         _deviceStatusDot.Invalidate();
+        UpdateSidebarDeviceStatus(selected, connected);
         UpdateDeviceInformation();
+    }
+
+    private void UpdateSidebarDeviceStatus(bool selected, bool connected)
+    {
+        if (_sidebarDeviceCard == null)
+            return;
+
+        string deviceName = _deviceSelector?.SelectedDeviceName ?? string.Empty;
+        string normalized = string.Equals(deviceName, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
+            ? "HyperX Cloud III"
+            : deviceName;
+
+        string imageFile = normalized switch
+        {
+            "HyperX Cloud III" => "cloud3.png",
+            "HyperX Cloud III S" => "cloud3.png",
+            "HyperX Cloud 2 Core" => "cloud2core.png",
+            "HyperX Cloud Alpha" => "cloudalpha.png",
+            "HyperX Cloud Stinger 2" => "cloudstinger2.png",
+            _ => "unknown-device.png"
+        };
+
+        _sidebarDeviceNameLabel.Text = selected ? normalized : L("UnknownHeadphones");
+        _sidebarStatusLabel.Text = connected
+            ? L("Connected")
+            : selected ? L("Disconnected") : L("SidebarUnknown");
+        _sidebarStatusDot.Connected = connected;
+        _sidebarStatusDot.Invalidate();
+
+        _sidebarBatteryIcon.Connected = connected;
+        _sidebarBatteryIcon.Battery = connected && _device != null ? Math.Clamp(_device.Battery, 0, 100) : 0;
+        _sidebarBatteryIcon.Charging = connected && _isCharging;
+        _sidebarBatteryIcon.DarkMode = EffectiveTheme == AppTheme.Dark;
+        _sidebarBatteryIcon.Invalidate();
+
+        _sidebarBatteryLabel.Text = connected
+            ? $"{Math.Clamp(_device!.Battery, 0, 100)}%"
+            : L("BatteryNA");
+        _sidebarChargingLabel.Text = _isCharging && connected ? L("ChargingStatus") : string.Empty;
+        _sidebarChargingLabel.Visible = connected && _isCharging;
+
+        Color foreground = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
+        Color secondary = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
+        _sidebarDeviceNameLabel.ForeColor = foreground;
+        _sidebarStatusTitleLabel.ForeColor = secondary;
+        _sidebarStatusLabel.ForeColor = secondary;
+        _sidebarBatteryTitleLabel.ForeColor = secondary;
+        _sidebarBatteryLabel.ForeColor = foreground;
+        _sidebarChargingLabel.ForeColor = secondary;
+
+        _sidebarDeviceImage.Image?.Dispose();
+        _sidebarDeviceImage.Image = null;
+
+        if (!string.IsNullOrWhiteSpace(imageFile))
+        {
+            string imagePath = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices", imageFile);
+            if (File.Exists(imagePath))
+            {
+                try
+                {
+                    using Image source = Image.FromFile(imagePath);
+                    _sidebarDeviceImage.Image = new Bitmap(source);
+                }
+                catch
+                {
+                    _sidebarDeviceImage.Image = null;
+                }
+            }
+        }
+
+        _sidebarDeviceImage.Visible = _sidebarDeviceImage.Image != null;
     }
 
     private void UpdateDeviceInformation()
@@ -974,6 +1151,10 @@ public sealed class SettingsForm : Form
         _applyButton.Text = L("Apply");
         foreach ((string key, SidebarItem item) in _navButtons)
             item.Text = L(key);
+        if (_sidebarStatusTitleLabel != null)
+            _sidebarStatusTitleLabel.Text = L("SidebarStatus");
+        if (_sidebarBatteryTitleLabel != null)
+            _sidebarBatteryTitleLabel.Text = L("SidebarBattery");
         if (_deviceSelector != null)
             _deviceSelector.SetPlaceholder(L("LocateDevice"));
         UpdateDeviceInformation();
@@ -1017,26 +1198,16 @@ public sealed class SettingsForm : Form
         _applicationNameLabel.ForeColor = foreground;
         _versionLabel.Text = "v" + Application.ProductVersion.Split('+')[0];
 
-        try
-        {
-            string logoPath = Path.Combine(
-                AppContext.BaseDirectory,
-                "Icons",
-                "All",
-                "hxbm-logo-64x64.png");
-
-            if (File.Exists(logoPath))
-            {
-                using Image source = Image.FromFile(logoPath);
-                _logo.Image?.Dispose();
-                _logo.Image = new Bitmap(source);
-            }
-        }
-        catch { }
-
         Icon = LoadThemeIcon(dark ? AppTheme.Dark : AppTheme.Light);
         WarmUpIcons();
         ApplyThemeRecursive(this, foreground, dark);
+
+        if (_sidebarDeviceCard != null)
+        {
+            _sidebarDeviceCard.BackColor = dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251);
+            _sidebarDeviceCard.BorderColor = dark ? DarkBorder : LightBorder;
+            _sidebarDeviceCard.OutsideBackColor = sidebar;
+        }
 
         if (_lightThemeOption != null) _lightThemeOption.DarkMode = dark;
         if (_darkThemeOption != null) _darkThemeOption.DarkMode = dark;
@@ -1053,6 +1224,31 @@ public sealed class SettingsForm : Form
             item.DarkMode = dark;
             item.Invalidate();
         }
+
+        if (_sidebarDeviceCard != null)
+        {
+            _sidebarDeviceCard.BackColor = dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251);
+            _sidebarDeviceCard.BorderColor = dark ? DarkBorder : LightBorder;
+            _sidebarDeviceCard.OutsideBackColor = sidebar;
+        }
+        if (_sidebarDeviceNameLabel != null)
+            _sidebarDeviceNameLabel.ForeColor = foreground;
+        if (_sidebarStatusTitleLabel != null)
+            _sidebarStatusTitleLabel.ForeColor = secondary;
+        if (_sidebarStatusLabel != null)
+            _sidebarStatusLabel.ForeColor = secondary;
+        if (_sidebarBatteryTitleLabel != null)
+            _sidebarBatteryTitleLabel.ForeColor = secondary;
+        if (_sidebarBatteryLabel != null)
+            _sidebarBatteryLabel.ForeColor = foreground;
+        if (_sidebarBatteryIcon != null)
+        {
+            _sidebarBatteryIcon.DarkMode = dark;
+            _sidebarBatteryIcon.Invalidate();
+        }
+        UpdateSidebarDeviceStatus(
+            _deviceSelector != null && _deviceSelector.SelectedIndex > 0,
+            _device != null && _device.IsConnected && _device.Battery >= 0 && _device.Battery <= 100);
 
         if (_deviceStatusLabel != null)
         {
@@ -1239,7 +1435,6 @@ public sealed class SettingsForm : Form
     private void SettingsForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
         if (_device != null) _device.BatteryChanged -= Device_BatteryChanged;
-        _logo.Image?.Dispose();
         _iconCache.Dispose();
     }
 
@@ -1320,6 +1515,8 @@ public sealed class SettingsForm : Form
     {
         using Pen pen = new(EffectiveTheme == AppTheme.Dark ? Color.FromArgb(55, 59, 63) : Color.FromArgb(229, 233, 239));
         e.Graphics.DrawLine(pen, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
+        e.Graphics.DrawLine(pen, 16, 236, _sidebar.Width - 16, 236);
+        e.Graphics.DrawLine(pen, 16, 458, _sidebar.Width - 16, 458);
     }
 
     private enum Glyph { Headphones, Monitor, Battery, Bell, Gear, Info, Globe, Palette, Windows, Document }
@@ -2869,9 +3066,9 @@ public sealed class SettingsForm : Form
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             Color statusColor = Connected ? Color.FromArgb(52, 211, 85) : Color.FromArgb(239, 68, 68);
             using Brush brush = new SolidBrush(statusColor);
-            e.Graphics.FillEllipse(brush, 3, 3, 18, 18);
-            using Pen glow = new(Color.FromArgb(90, statusColor.R, statusColor.G, statusColor.B), 2f);
-            e.Graphics.DrawEllipse(glow, 1, 1, 22, 22);
+            e.Graphics.FillEllipse(brush, 2.5f, 2.5f, 13f, 13f);
+            using Pen glow = new(Color.FromArgb(90, statusColor.R, statusColor.G, statusColor.B), 1.5f);
+            e.Graphics.DrawEllipse(glow, 1f, 1f, 16f, 16f);
         }
     }
 
