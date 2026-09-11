@@ -340,7 +340,7 @@ public sealed class SettingsForm : Form
 
         // Interface uses independent cards so future layout changes stay isolated
         // from the finalized Device page.
-        RoundedPanel languageCard = CreateInterfaceCard(new Point(20, 82), new Size(528, 68), true);
+        RoundedPanel languageCard = CreateInterfaceCard(new Point(20, 70), new Size(528, 68), true);
         _pageHost.Controls.Add(languageCard);
         languageCard.Controls.Add(new PngIconControl(_iconCache, "language") { Location = new Point(18, 18), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         languageCard.Controls.Add(CreateInterfaceLabel(L("LanguageShort"), true, new Point(58, 12), 9.5f));
@@ -361,7 +361,7 @@ public sealed class SettingsForm : Form
         _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
         languageCard.Controls.Add(_languageComboBox);
 
-        RoundedPanel themeCard = CreateInterfaceCard(new Point(20, 158), new Size(528, 202), true);
+        RoundedPanel themeCard = CreateInterfaceCard(new Point(20, 150), new Size(528, 202), true);
         _pageHost.Controls.Add(themeCard);
         themeCard.Controls.Add(new PngIconControl(_iconCache, "theme") { Location = new Point(18, 19), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         themeCard.Controls.Add(CreateInterfaceLabel(L("ThemeShort"), true, new Point(58, 12), 9.5f));
@@ -385,7 +385,7 @@ public sealed class SettingsForm : Form
         themePanel.Controls.AddRange(new Control[] { _lightThemeOption, _darkThemeOption, _systemThemeOption });
         themeCard.Controls.Add(themePanel);
 
-        RoundedPanel startupCard = CreateInterfaceCard(new Point(20, 376), new Size(528, 68), true);
+        RoundedPanel startupCard = CreateInterfaceCard(new Point(20, 364), new Size(528, 68), true);
         _pageHost.Controls.Add(startupCard);
         startupCard.Controls.Add(new PngIconControl(_iconCache, "windows") { Location = new Point(18, 19), Size = new Size(25, 25), DarkMode = EffectiveTheme == AppTheme.Dark });
         startupCard.Controls.Add(CreateInterfaceLabel(L("StartupShort"), true, new Point(58, 12), 9.5f));
@@ -1775,6 +1775,7 @@ public sealed class SettingsForm : Form
         private int _increment = 1;
         private int _value = 10;
         private bool _dark;
+        private NumericInputMouseFilter? _mouseFilter;
 
         public event EventHandler? ValueChanged;
 
@@ -1864,6 +1865,7 @@ public sealed class SettingsForm : Form
             _textBox.KeyPress += TextBox_KeyPress;
             _textBox.KeyDown += TextBox_KeyDown;
             _textBox.MouseDown += TextBox_MouseDown;
+            _textBox.LostFocus += TextBox_LostFocus;
             _textBox.Validating += TextBox_Validating;
             _textBox.TextChanged += (_, _) => Invalidate();
             Controls.Add(_textBox);
@@ -1892,8 +1894,16 @@ public sealed class SettingsForm : Form
         protected override void OnEnter(EventArgs e)
         {
             base.OnEnter(e);
+            EnsureMouseFilter();
             _textBox.Focus();
             _textBox.SelectAll();
+        }
+
+        protected override void OnLostFocus(EventArgs e)
+        {
+            _textBox.DeselectAll();
+            RemoveMouseFilter();
+            base.OnLostFocus(e);
         }
 
         protected override void OnClick(EventArgs e)
@@ -1988,10 +1998,63 @@ public sealed class SettingsForm : Form
             {
                 if (!_textBox.IsDisposed)
                 {
+                    EnsureMouseFilter();
                     _textBox.Focus();
                     _textBox.SelectAll();
                 }
             }));
+        }
+
+        private void TextBox_LostFocus(object? sender, EventArgs e)
+        {
+            _textBox.DeselectAll();
+        }
+
+        private void EnsureMouseFilter()
+        {
+            if (_mouseFilter != null)
+                return;
+
+            _mouseFilter = new NumericInputMouseFilter(this);
+            Application.AddMessageFilter(_mouseFilter);
+        }
+
+        private void RemoveMouseFilter()
+        {
+            if (_mouseFilter == null)
+                return;
+
+            Application.RemoveMessageFilter(_mouseFilter);
+            _mouseFilter = null;
+        }
+
+        private void ClearFocusFromInput()
+        {
+            _textBox.DeselectAll();
+            FindForm()?.Focus();
+        }
+
+        private sealed class NumericInputMouseFilter : IMessageFilter
+        {
+            private readonly CriticalBatteryNumericControl _owner;
+
+            public NumericInputMouseFilter(CriticalBatteryNumericControl owner)
+            {
+                _owner = owner;
+            }
+
+            public bool PreFilterMessage(ref Message m)
+            {
+                if (m.Msg != 0x0201 || _owner.IsDisposed || !_owner.Visible)
+                    return false;
+
+                Point screenPoint = Control.MousePosition;
+                Rectangle ownerBounds = _owner.RectangleToScreen(_owner.ClientRectangle);
+                if (!ownerBounds.Contains(screenPoint))
+                    _owner.ClearFocusFromInput();
+
+                return false;
+            }
         }
 
         private void TextBox_KeyPress(object? sender, KeyPressEventArgs e)
@@ -2051,6 +2114,17 @@ public sealed class SettingsForm : Form
 
             _textBox.BackColor = _dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(248, 249, 251);
             _textBox.ForeColor = _dark ? Color.WhiteSmoke : LightText;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                RemoveMouseFilter();
+                _textBox.LostFocus -= TextBox_LostFocus;
+            }
+
+            base.Dispose(disposing);
         }
     }
 

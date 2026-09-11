@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace HyperXBatteryTray.Settings;
@@ -29,7 +30,21 @@ public sealed class SettingsManager
         try
         {
             if (!File.Exists(_settingsFile))
-                return AppSettings.CreateDefault();
+            {
+                AppSettings defaults = AppSettings.CreateDefault();
+                defaults.Language = DetectWindowsLanguage();
+
+                try
+                {
+                    Save(defaults);
+                }
+                catch
+                {
+                    // Keep the detected language for this session even if persistence fails.
+                }
+
+                return defaults;
+            }
 
             string json = File.ReadAllText(_settingsFile);
 
@@ -78,6 +93,22 @@ public sealed class SettingsManager
     {
         if (File.Exists(_settingsFile))
             File.Delete(_settingsFile);
+    }
+
+    private static AppLanguage DetectWindowsLanguage()
+    {
+        string cultureName = CultureInfo.CurrentUICulture.Name;
+
+        if (cultureName.StartsWith("pt-", StringComparison.OrdinalIgnoreCase))
+            return AppLanguage.PortugueseBrazil;
+
+        if (cultureName.StartsWith("es-", StringComparison.OrdinalIgnoreCase))
+            return AppLanguage.Spanish;
+
+        if (cultureName.StartsWith("en-", StringComparison.OrdinalIgnoreCase))
+            return AppLanguage.English;
+
+        return AppLanguage.English;
     }
 
     private static void Normalize(AppSettings settings)
