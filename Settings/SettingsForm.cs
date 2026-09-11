@@ -156,23 +156,27 @@ public sealed class SettingsForm : Form
         _logo = new PictureBox
         {
             SizeMode = PictureBoxSizeMode.Zoom,
-            Size = new Size(128, 47),
-            Location = new Point(20, ClientSize.Height - 120),
+            Size = new Size(64, 64),
+            Location = new Point((_sidebar.ClientSize.Width - 64) / 2, ClientSize.Height - 136),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _applicationNameLabel = new Label
         {
-            AutoSize = true,
+            AutoSize = false,
+            Size = new Size(_sidebar.ClientSize.Width - 20, 20),
             Text = Application.ProductName,
+            TextAlign = ContentAlignment.MiddleCenter,
             Font = new Font("Segoe UI Semibold", 8.5f),
-            Location = new Point(20, ClientSize.Height - 68),
+            Location = new Point(10, ClientSize.Height - 70),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _versionLabel = new Label
         {
-            AutoSize = true,
+            AutoSize = false,
+            Size = new Size(_sidebar.ClientSize.Width - 20, 18),
+            TextAlign = ContentAlignment.MiddleCenter,
             Font = new Font("Segoe UI", 8.5f),
-            Location = new Point(20, ClientSize.Height - 38),
+            Location = new Point(10, ClientSize.Height - 48),
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
         _sidebar.Controls.Add(_logo);
@@ -283,7 +287,7 @@ public sealed class SettingsForm : Form
             SelectedIndex = 0,
             DarkMode = EffectiveTheme == AppTheme.Dark
         };
-        _deviceSelector.SetPlaceholder(StatusText("LocateDevice", "Locate your device", "Localize seu dispositivo", "Localiza tu dispositivo"));
+        _deviceSelector.SetPlaceholder(L("LocateDevice"));
         _deviceSelector.SelectedDeviceName = _pendingSelectedDevice;
         _deviceSelector.SelectionChanged += DeviceSelector_SelectionChanged;
         card.Controls.Add(_deviceSelector);
@@ -402,7 +406,7 @@ public sealed class SettingsForm : Form
         _pageHost.Controls.Clear();
         AddPageHeader("notification", Glyph.Bell, "Notifications", "NotificationsDescription", 42);
 
-        RoundedPanel lowBatteryCard = CreateCard(new Point(20, 82), new Size(528, 117), true);
+        RoundedPanel lowBatteryCard = CreateCard(new Point(20, 97), new Size(528, 137), true);
         _pageHost.Controls.Add(lowBatteryCard);
         lowBatteryCard.Controls.Add(new PngIconControl(_iconCache, "battery_critical")
         {
@@ -411,13 +415,10 @@ public sealed class SettingsForm : Form
             DarkMode = EffectiveTheme == AppTheme.Dark
         });
         lowBatteryCard.Controls.Add(CreateLabel(L("NotifyOnLowBattery"), true, new Point(68, 12), 9.5f));
-        Label lowBatteryDescription = CreateLabel(L("NotifyOnLowBatteryDescription"), false, new Point(68, 34), 8.5f);
+        Label lowBatteryDescription = CreateLabel(L("NotifyOnLowBatteryDescription").TrimEnd('.'), false, new Point(68, 34), 8.5f);
         lowBatteryDescription.MaximumSize = new Size(280, 0);
         lowBatteryCard.Controls.Add(lowBatteryDescription);
-        lowBatteryCard.Controls.Add(CreateLabel(L("CriticalBatteryLevel"), true, new Point(68, 70), 8.8f));
-        Label criticalBatteryDescription = CreateLabel(L("CriticalBatteryLevelDescription"), false, new Point(68, 91), 7.8f);
-        criticalBatteryDescription.MaximumSize = new Size(280, 0);
-        lowBatteryCard.Controls.Add(criticalBatteryDescription);
+        lowBatteryCard.Controls.Add(CreateLabel(L("CriticalBatteryLevel"), true, new Point(68, 96), 8.8f));
 
         _notifyOnLowBatteryToggle = new ToggleSwitchControl
         {
@@ -431,7 +432,7 @@ public sealed class SettingsForm : Form
 
         _criticalBatteryPercentInput = new CriticalBatteryNumericControl
         {
-            Location = new Point(418, 68),
+            Location = new Point(418, 88),
             Size = new Size(70, 34),
             Minimum = 1,
             Maximum = 100,
@@ -442,9 +443,9 @@ public sealed class SettingsForm : Form
         };
         _criticalBatteryPercentInput.ValueChanged += (_, _) => _pendingCriticalBatteryPercent = _criticalBatteryPercentInput.Value;
         lowBatteryCard.Controls.Add(_criticalBatteryPercentInput);
-        lowBatteryCard.Controls.Add(CreateLabel("%", false, new Point(496, 77), 9f));
+        lowBatteryCard.Controls.Add(CreateLabel("%", false, new Point(490, 97), 9f));
 
-        RoundedPanel fullCard = CreateCard(new Point(20, 211), new Size(528, 82), true);
+        RoundedPanel fullCard = CreateCard(new Point(20, 246), new Size(528, 82), true);
         _pageHost.Controls.Add(fullCard);
         fullCard.Controls.Add(new PngIconControl(_iconCache, "battery_full")
         {
@@ -453,7 +454,7 @@ public sealed class SettingsForm : Form
             DarkMode = EffectiveTheme == AppTheme.Dark
         });
         fullCard.Controls.Add(CreateLabel(L("NotifyWhenFullyCharged"), true, new Point(68, 18), 9.5f));
-        Label fullyChargedDescription = CreateLabel(L("NotifyWhenFullyChargedDescription"), false, new Point(68, 40), 8.5f);
+        Label fullyChargedDescription = CreateLabel(L("NotifyWhenFullyChargedDescription").TrimEnd('.'), false, new Point(68, 40), 8.5f);
         fullyChargedDescription.MaximumSize = new Size(300, 0);
         fullCard.Controls.Add(fullyChargedDescription);
         _notifyWhenFullyChargedToggle = new ToggleSwitchControl
@@ -466,7 +467,7 @@ public sealed class SettingsForm : Form
         _notifyWhenFullyChargedToggle.CheckedChanged += (_, _) => _pendingNotifyWhenFullyCharged = _notifyWhenFullyChargedToggle.Checked;
         fullCard.Controls.Add(_notifyWhenFullyChargedToggle);
 
-        RoundedPanel blinkCard = CreateCard(new Point(20, 305), new Size(528, 82), true);
+        RoundedPanel blinkCard = CreateCard(new Point(20, 340), new Size(528, 82), true);
         _pageHost.Controls.Add(blinkCard);
         blinkCard.Controls.Add(new PngIconControl(_iconCache, "blink")
         {
@@ -475,7 +476,7 @@ public sealed class SettingsForm : Form
             DarkMode = EffectiveTheme == AppTheme.Dark
         });
         blinkCard.Controls.Add(CreateLabel(L("FlashSystrayIcon"), true, new Point(68, 18), 9.5f));
-        Label blinkDescription = CreateLabel(L("FlashSystrayIconDescription"), false, new Point(68, 40), 8.5f);
+        Label blinkDescription = CreateLabel(L("FlashSystrayIconDescription").TrimEnd('.'), false, new Point(68, 40), 8.5f);
         blinkDescription.MaximumSize = new Size(300, 0);
         blinkCard.Controls.Add(blinkDescription);
         _blinkOnCriticalBatteryToggle = new ToggleSwitchControl
@@ -680,11 +681,11 @@ public sealed class SettingsForm : Form
     {
         bool selected = _deviceSelector.SelectedIndex > 0;
         bool connected = selected && _device?.IsConnected == true && _device.Battery >= 0 && _device.Battery <= 100;
-        _deviceStatusLabel.Text = connected ? StatusText("Connected", "Connected", "Conectado", "Conectado") : selected ? StatusText("Disconnected", "Disconnected", "Desconectado", "Desconectado") : StatusText("UnknownHeadphones", "Unknown headphones", "Fone desconhecido", "Auriculares desconocidos");
-        _deviceStatusDescriptionLabel.Text = connected ? StatusText("ConnectedDescription", "Your device is ready to use.", "Seu dispositivo está pronto para uso.", "Tu dispositivo está listo para usar.") : selected ? StatusText("DisconnectedDescription", "Your device is not currently connected.", "Seu dispositivo não está conectado no momento.", "Tu dispositivo no está conectado actualmente.") : L("UnknownDeviceDescription");
+        _deviceStatusLabel.Text = connected ? L("Connected") : selected ? L("Disconnected") : L("UnknownHeadphones");
+        _deviceStatusDescriptionLabel.Text = connected ? L("ConnectedDescription") : selected ? L("DisconnectedDescription") : L("UnknownDeviceDescription");
         _deviceStatusLabel.Visible = true;
         _deviceStatusDescriptionLabel.Visible = true;
-        _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : "N/A";
+        _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : L("BatteryNA");
         _chargingLabel.Text = _isCharging ? L("ChargingStatus") : string.Empty;
         _chargingLabel.Visible = connected && _isCharging;
         Color primaryText = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
@@ -771,7 +772,7 @@ public sealed class SettingsForm : Form
         foreach ((string key, SidebarItem item) in _navButtons)
             item.Text = L(key);
         if (_deviceSelector != null)
-            _deviceSelector.SetPlaceholder(StatusText("LocateDevice", "Locate your device", "Localize seu dispositivo", "Localiza tu dispositivo"));
+            _deviceSelector.SetPlaceholder(L("LocateDevice"));
         UpdateDeviceInformation();
 
         if (_lightThemeOption != null) _lightThemeOption.LabelText = ThemeText(AppTheme.Light);
@@ -815,7 +816,12 @@ public sealed class SettingsForm : Form
 
         try
         {
-            string logoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "HyperXLogo.png");
+            string logoPath = Path.Combine(
+                AppContext.BaseDirectory,
+                "Icons",
+                "All",
+                "hxbm-logo-64x64.png");
+
             if (File.Exists(logoPath))
             {
                 using Image source = Image.FromFile(logoPath);
@@ -967,6 +973,8 @@ public sealed class SettingsForm : Form
         using RestoreDefaultsDialog dialog = new(
             L("RestoreDefaults"),
             L("RestoreDefaultsQuestion"),
+            L("Yes"),
+            L("No"),
             EffectiveTheme == AppTheme.Dark);
 
         DialogResult result = dialog.ShowDialog(this);
@@ -1056,24 +1064,6 @@ public sealed class SettingsForm : Form
             new PngIconRequest("interface", 36),
             new PngIconRequest("reset", 20)
         }, EffectiveTheme == AppTheme.Dark, DeviceDpi);
-    }
-
-    private string StatusText(string key, string english, string portuguese, string spanish)
-    {
-        try
-        {
-            string value = L(key);
-            if (!string.IsNullOrWhiteSpace(value) && !string.Equals(value, key, StringComparison.Ordinal))
-                return value;
-        }
-        catch (KeyNotFoundException) { }
-
-        return _selectedLanguage switch
-        {
-            AppLanguage.PortugueseBrazil => portuguese,
-            AppLanguage.Spanish => spanish,
-            _ => english
-        };
     }
 
     private string ThemeText(AppTheme theme) => theme switch
@@ -1595,7 +1585,7 @@ public sealed class SettingsForm : Form
     {
         private readonly bool _dark;
 
-        public RestoreDefaultsDialog(string title, string question, bool dark)
+        public RestoreDefaultsDialog(string title, string question, string yesText, string noText, bool dark)
         {
             _dark = dark;
 
@@ -1640,8 +1630,8 @@ public sealed class SettingsForm : Form
                 BackColor = dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(245, 246, 248)
             };
 
-            Button yesButton = CreateButton("Yes", DialogResult.Yes, true);
-            Button noButton = CreateButton("No", DialogResult.No, false);
+            Button yesButton = CreateButton(yesText, DialogResult.Yes, true);
+            Button noButton = CreateButton(noText, DialogResult.No, false);
 
             yesButton.Location = new Point(216, 10);
             noButton.Location = new Point(300, 10);
@@ -2824,7 +2814,7 @@ public sealed class SettingsForm : Form
         private bool _dark;
         private SearchPopup? _popup;
         private bool _updatingText;
-        private string _placeholder = "Locate your device";
+        private string _placeholder = string.Empty;
         private int _editOriginalIndex;
         private bool _editingDeviceSelection;
         private bool _selectionInProgress;
@@ -2956,7 +2946,7 @@ public sealed class SettingsForm : Form
 
         public void SetPlaceholder(string placeholder)
         {
-            _placeholder = string.IsNullOrWhiteSpace(placeholder) ? "Locate your device" : placeholder;
+            _placeholder = placeholder ?? string.Empty;
             _searchBox.PlaceholderText = _placeholder;
             if (_selectedIndex == 0) SetSearchText(string.Empty);
             Invalidate();
