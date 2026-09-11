@@ -636,6 +636,11 @@ public sealed class SettingsForm : Form
                 ShowNotificationsPage();
                 return;
             }
+            if (key == "About")
+            {
+                ShowAboutPage();
+                return;
+            }
 
             _pageHost.Controls.Clear();
             AddPageHeader(key switch
@@ -669,6 +674,204 @@ public sealed class SettingsForm : Form
         _pageHost.Controls.Clear();
         BuildDevicePage();
         RefreshDeviceStatus();
+    }
+
+    private void ShowAboutPage()
+    {
+        _pageHost.Controls.Clear();
+
+        bool dark = EffectiveTheme == AppTheme.Dark;
+        Color foreground = dark ? Color.WhiteSmoke : LightText;
+        Color secondary = dark ? DarkSecondary : LightSecondary;
+
+        PictureBox logo = new PictureBox
+        {
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Size = new Size(64, 64),
+            Location = new Point(20, 20),
+            BackColor = Color.Transparent
+        };
+
+        try
+        {
+            string logoPath = Path.Combine(
+                AppContext.BaseDirectory,
+                "Icons",
+                "All",
+                "hxbm-logo-64x64.png");
+
+            if (File.Exists(logoPath))
+            {
+                using Image source = Image.FromFile(logoPath);
+                logo.Image = new Bitmap(source);
+            }
+        }
+        catch
+        {
+            // Keep the About page functional if the optional logo asset cannot be loaded.
+        }
+
+        _pageHost.Controls.Add(logo);
+
+        _pageHost.Controls.Add(new Label
+        {
+            Text = "HyperX Battery Monitor",
+            AutoSize = true,
+            Font = new Font("Segoe UI Semibold", 15f),
+            ForeColor = foreground,
+            Location = new Point(100, 20),
+            BackColor = Color.Transparent
+        });
+
+        _pageHost.Controls.Add(new Label
+        {
+            Text = string.Format(L("AboutVersion"), Application.ProductVersion.Split('+')[0]),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = secondary,
+            Location = new Point(101, 47),
+            BackColor = Color.Transparent
+        });
+
+        _pageHost.Controls.Add(new Label
+        {
+            Text = L("AboutTagline"),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = foreground,
+            Location = new Point(101, 66),
+            BackColor = Color.Transparent
+        });
+
+        Label description = new Label
+        {
+            Text = L("AboutDescription"),
+            AutoSize = false,
+            Size = new Size(520, 38),
+            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = secondary,
+            Location = new Point(20, 97),
+            BackColor = Color.Transparent
+        };
+        _pageHost.Controls.Add(description);
+
+        AboutActionButton githubButton = CreateAboutActionButton(L("AboutGitHub"), AboutActionIcon.GitHub, dark, 20, 146, 118);
+        githubButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryTray");
+
+        AboutActionButton supportButton = CreateAboutActionButton(L("AboutSupportButton"), AboutActionIcon.Support, dark, 150, 146, 118);
+        supportButton.Click += (_, _) => OpenExternalUrl("https://buymeacoffee.com/davesantana");
+
+        AboutActionButton documentationButton = CreateAboutActionButton(L("AboutDocumentation"), AboutActionIcon.Documentation, dark, 280, 146, 138);
+        documentationButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryTray#readme");
+
+        AboutActionButton hyperXButton = CreateAboutActionButton(L("AboutHyperX"), AboutActionIcon.External, dark, 430, 146, 118);
+        hyperXButton.Click += (_, _) => OpenExternalUrl("https://hyperx.com/");
+
+        _pageHost.Controls.Add(githubButton);
+        _pageHost.Controls.Add(supportButton);
+        _pageHost.Controls.Add(documentationButton);
+        _pageHost.Controls.Add(hyperXButton);
+
+        Panel separator = new Panel
+        {
+            Location = new Point(20, 198),
+            Size = new Size(528, 1),
+            BackColor = dark ? DarkBorder : LightBorder
+        };
+        _pageHost.Controls.Add(separator);
+
+        PngIconControl legalIcon = new(_iconCache, "legal")
+        {
+            Location = new Point(20, 212),
+            Size = new Size(25, 25),
+            DarkMode = dark
+        };
+        _pageHost.Controls.Add(legalIcon);
+
+        _pageHost.Controls.Add(new Label
+        {
+            Text = L("AboutLegalTitle"),
+            AutoSize = true,
+            Font = new Font("Segoe UI Semibold", 9f),
+            ForeColor = foreground,
+            Location = new Point(50, 210),
+            BackColor = Color.Transparent
+        });
+
+        Label legalText = new Label
+        {
+            Text = L("AboutLegalText"),
+            AutoSize = false,
+            Size = new Size(498, 42),
+            Font = new Font("Segoe UI", 8f),
+            ForeColor = secondary,
+            Location = new Point(50, 230),
+            BackColor = Color.Transparent
+        };
+        _pageHost.Controls.Add(legalText);
+
+        LinkLabel licensesLink = new LinkLabel
+        {
+            Text = L("AboutThirdPartyLicenses"),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5f),
+            Location = new Point(50, 270),
+            BackColor = Color.Transparent,
+            LinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
+            ActiveLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
+            VisitedLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204)
+        };
+        licensesLink.LinkClicked += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryMonitor/blob/main/LICENSE");
+        _pageHost.Controls.Add(licensesLink);
+    }
+
+    private AboutActionButton CreateAboutActionButton(string text, AboutActionIcon icon, bool dark, int x, int y, int width)
+    {
+        return new AboutActionButton(_iconCache)
+        {
+            Text = text,
+            Icon = icon,
+            DarkMode = dark,
+            OutsideBackColor = dark ? DarkBackground : LightBackground,
+            Location = new Point(x, y),
+            Size = new Size(width, 38),
+            Font = new Font("Segoe UI", 8f)
+        };
+    }
+
+    private static void OpenExternalUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore shell launch failures; the About page remains usable.
+        }
+    }
+
+    private static void OpenLocalFile(string path)
+    {
+        if (!File.Exists(path))
+            return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore shell launch failures; the About page remains usable.
+        }
     }
 
     private void DeviceSelector_SelectionChanged(object? sender, EventArgs e)
@@ -1062,7 +1265,12 @@ public sealed class SettingsForm : Form
             new PngIconRequest("light", 36),
             new PngIconRequest("dark", 36),
             new PngIconRequest("interface", 36),
-            new PngIconRequest("reset", 20)
+            new PngIconRequest("reset", 20),
+            new PngIconRequest("git", 25),
+            new PngIconRequest("support", 25),
+            new PngIconRequest("documentation", 25),
+            new PngIconRequest("external", 25),
+            new PngIconRequest("legal", 25)
         }, EffectiveTheme == AppTheme.Dark, DeviceDpi);
     }
 
@@ -1114,7 +1322,7 @@ public sealed class SettingsForm : Form
         e.Graphics.DrawLine(pen, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
     }
 
-    private enum Glyph { Headphones, Monitor, Battery, Bell, Gear, Info, Globe, Palette, Windows }
+    private enum Glyph { Headphones, Monitor, Battery, Bell, Gear, Info, Globe, Palette, Windows, Document }
 
     private sealed class SidebarItem : Control
     {
@@ -1242,7 +1450,7 @@ public sealed class SettingsForm : Form
             string text = SelectedItem ?? string.Empty;
             Rectangle textBounds = new(11, 1, Math.Max(1, Width - 43), Math.Max(1, Height - 2));
             TextRenderer.DrawText(e.Graphics, text, Font, textBounds, foreground,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
 
             int centerX = Width - 13;
             int centerY = Height / 2;
@@ -3476,6 +3684,112 @@ public sealed class SettingsForm : Form
         }
     }
 
+    private enum AboutActionIcon { GitHub, Support, Documentation, External }
+
+    private sealed class AboutActionButton : Button
+    {
+        private readonly PngIconCache _iconCache;
+        private bool _hover;
+        private bool _pressed;
+        private bool _dark;
+        private AboutActionIcon _icon;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color OutsideBackColor { get; set; } = LightBackground;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public AboutActionIcon Icon { get => _icon; set { _icon = value; Invalidate(); } }
+
+        public AboutActionButton(PngIconCache iconCache)
+        {
+            _iconCache = iconCache;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor |
+                     ControlStyles.ResizeRedraw, true);
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+            TabStop = false;
+            SetStyle(ControlStyles.Selectable, false);
+            MouseEnter += (_, _) => { _hover = true; Invalidate(); };
+            MouseLeave += (_, _) => { _hover = false; _pressed = false; Invalidate(); };
+            MouseDown += (_, e) => { if (e.Button == MouseButtons.Left) { _pressed = true; Invalidate(); } };
+            MouseUp += (_, _) => { _pressed = false; Invalidate(); };
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(OutsideBackColor);
+        }
+
+        protected override bool ShowFocusCues => false;
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+
+            if (Width <= 0 || Height <= 0)
+                return;
+
+            Region?.Dispose();
+            using GraphicsPath path = GraphicsExtensions.CreateRoundedPath(
+                new RectangleF(0.5f, 0.5f, Math.Max(1f, Width - 1f), Math.Max(1f, Height - 1f)), 7);
+            Region = new Region(path);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
+            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            e.Graphics.SetClip(ClientRectangle);
+            e.Graphics.Clear(OutsideBackColor);
+
+            Color fill = _dark ? Color.FromArgb(39, 43, 47) : Color.White;
+            if (_hover)
+                fill = _dark ? Color.FromArgb(48, 53, 58) : Color.FromArgb(247, 249, 252);
+            if (_pressed)
+                fill = _dark ? Color.FromArgb(32, 36, 40) : Color.FromArgb(239, 243, 248);
+
+            Color border = _dark ? Color.FromArgb(82, 88, 95) : Color.FromArgb(198, 205, 214);
+            RectangleF rect = new(1f, 1f, Math.Max(1f, Width - 2f), Math.Max(1f, Height - 2f));
+            using GraphicsPath path = GraphicsExtensions.CreateRoundedPath(rect, 7);
+            using Brush brush = new SolidBrush(fill);
+            using Pen pen = new(border, 1f)
+            {
+                LineJoin = LineJoin.Round,
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round
+            };
+            e.Graphics.FillPath(brush, path);
+            e.Graphics.DrawPath(pen, path);
+
+            string iconKey = _icon switch
+            {
+                AboutActionIcon.GitHub => "git",
+                AboutActionIcon.Support => "support",
+                AboutActionIcon.Documentation => "documentation",
+                AboutActionIcon.External => "external",
+                _ => "git"
+            };
+
+            Rectangle iconRect = new((int)rect.X + 8, (Height - 25) / 2, 25, 25);
+            _iconCache.Draw(e.Graphics, iconKey, iconRect, _dark, DeviceDpi);
+
+            Rectangle textRect = Rectangle.Round(rect);
+            textRect.X += 32;
+            textRect.Width -= 32;
+            TextRenderer.DrawText(e.Graphics, Text, Font, textRect,
+                _dark ? Color.WhiteSmoke : LightText,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        }
+    }
+
     private sealed class ActionButton : Button
     {
         private readonly PngIconCache _iconCache;
@@ -3615,6 +3929,14 @@ public sealed class SettingsForm : Form
                     graphics.FillEllipse(b, new RectangleF(x + w * .53f, y + h * .20f, 3, 3));
                     graphics.FillEllipse(b, new RectangleF(x + w * .69f, y + h * .39f, 3, 3));
                 }
+                break;
+            case Glyph.Document:
+                graphics.DrawRectangle(pen, new RectangleF(x + 2, y + 1, w * .72f, h - 3));
+                graphics.DrawLine(pen, x + w * .55f, y + 1, x + w * .75f, y + h * .20f);
+                graphics.DrawLine(pen, x + w * .55f, y + 1, x + w * .55f, y + h * .20f);
+                graphics.DrawLine(pen, x + w * .55f, y + h * .20f, x + w * .75f, y + h * .20f);
+                graphics.DrawLine(pen, x + 5, y + h * .48f, x + w * .60f, y + h * .48f);
+                graphics.DrawLine(pen, x + 5, y + h * .68f, x + w * .60f, y + h * .68f);
                 break;
             case Glyph.Windows:
                 graphics.DrawLine(pen, x + w * .48f, y, x + w * .46f, y + h);
