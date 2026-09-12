@@ -13,7 +13,6 @@ namespace HyperXBatteryTray;
 public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
-    private readonly ContextMenuStrip _contextMenu;
     private readonly HyperXDeviceManager _deviceManager;
     private BatteryMonitor? _batteryMonitor;
     private IHyperXDevice? _device;
@@ -21,15 +20,9 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private readonly AppSettings _settings;
     private readonly NotificationService _notificationService;
 
-    private readonly ToolStripMenuItem _deviceMenuItem;
-    private readonly ToolStripMenuItem _batteryMenuItem;
-    private readonly ToolStripMenuItem _statusMenuItem;
-    private readonly ToolStripMenuItem _settingsMenuItem;
-    private readonly ToolStripMenuItem _aboutMenuItem;
-    private readonly ToolStripMenuItem _exitMenuItem;
-
     private Icon? _currentApplicationIcon;
     private SettingsForm? _settingsForm;
+    private TrayContextMenuForm? _trayMenu;
     private bool _blinkState;
 	private bool _isCharging;
     private System.Windows.Forms.Timer? _blinkTimer;
@@ -54,38 +47,14 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         if (!string.IsNullOrWhiteSpace(_settings.SelectedDevice))
             InitializeSelectedDevice();
 
-        _deviceMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
-        _batteryMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
-        _statusMenuItem = new ToolStripMenuItem { Tag = "NonInteractive" };
-
-        _contextMenu = new ContextMenuStrip { ShowImageMargin = false };
-        _settingsMenuItem = new ToolStripMenuItem();
-        _aboutMenuItem = new ToolStripMenuItem();
-        _exitMenuItem = new ToolStripMenuItem();
-        _settingsMenuItem.Click += ShowSettings;
-        _aboutMenuItem.Click += ShowAbout;
-        _exitMenuItem.Click += ExitApplication;
-
-        _contextMenu.Items.AddRange(new ToolStripItem[]
-        {
-            _deviceMenuItem,
-            _batteryMenuItem,
-            _statusMenuItem,
-            new ToolStripSeparator(),
-            _settingsMenuItem,
-            _aboutMenuItem,
-            _exitMenuItem
-        });
-
         _currentApplicationIcon = CreateTrayIcon();
         _notifyIcon = new NotifyIcon
         {
             Icon = _currentApplicationIcon,
-            Visible = true,
-            ContextMenuStrip = _contextMenu
+            Visible = true
         };
         _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
-        _contextMenu.Opening += ContextMenu_Opening;
+        _notifyIcon.MouseUp += NotifyIcon_MouseUp;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
         ApplyLocalization();
@@ -147,26 +116,17 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         ShowSettings(null, EventArgs.Empty);
     }
 
-    private void ContextMenu_Opening(object? sender, CancelEventArgs e)
-    {
-        // Re-evaluate the Windows theme every time the tray menu opens.
-        // This guarantees the menu uses the current system theme even if
-        // Windows changed its theme while the application was running.
-        ApplyTheme();
-    }
-
     private void SystemEvents_UserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
     {
-        if (_settings.Theme != AppTheme.System)
+        if (_settings.Theme != AppTheme.System || _trayMenu == null || _trayMenu.IsDisposed)
             return;
 
-        // UserPreferenceChanged can be raised from a non-UI thread.
-        // Marshal the menu update back to the Windows Forms UI thread.
-        if (_contextMenu.IsHandleCreated && !_contextMenu.IsDisposed)
+        if (_trayMenu.IsHandleCreated)
         {
             try
             {
-                _contextMenu.BeginInvoke((MethodInvoker)ApplyTheme);
+                _trayMenu.BeginInvoke((MethodInvoker)(() =>
+                    _trayMenu?.ApplyTheme(GetEffectiveTheme() == AppTheme.Dark)));
             }
             catch (InvalidOperationException)
             {
@@ -207,25 +167,42 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private void ApplyLocalization()
     {
-        _settingsMenuItem.Text = L("Settings");
-        _aboutMenuItem.Text = L("About");
-        _exitMenuItem.Text = L("Exit");
+        _trayMenu?.ApplyLocalization();
         UpdateTray();
     }
 
     private void ApplyTheme()
     {
-        bool dark = GetEffectiveTheme() == AppTheme.Dark;
-        _contextMenu.Renderer = new TrayMenuRenderer(new TrayColorTable(dark), dark);
-        Color back = dark ? Color.FromArgb(45, 45, 48) : SystemColors.Menu;
-        Color fore = dark ? Color.WhiteSmoke : SystemColors.MenuText;
-        _contextMenu.BackColor = back;
-        _contextMenu.ForeColor = fore;
-        foreach (ToolStripItem item in _contextMenu.Items)
+        _trayMenu?.ApplyTheme(GetEffectiveTheme() == AppTheme.Dark);
+    }
+
+    private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left || e.Button == MouseButtons.Right)
+            ShowTrayContextMenu(Cursor.Position);
+    }
+
+    private void ShowTrayContextMenu(Point screenLocation)
+    {
+        if (_trayMenu == null || _trayMenu.IsDisposed)
         {
-            item.BackColor = back;
-            item.ForeColor = fore;
+            _trayMenu = new TrayContextMenuForm(
+                _settings,
+                _device,
+                _isCharging,
+                GetEffectiveTheme(),
+                ShowSettings,
+                ExitApplication);
+            _trayMenu.FormClosed += (_, _) => _trayMenu = null;
         }
+        else
+        {
+            _trayMenu.UpdateDevice(_device, _isCharging);
+        }
+
+        _trayMenu.ApplyLocalization();
+        _trayMenu.ApplyTheme(GetEffectiveTheme() == AppTheme.Dark);
+        _trayMenu.ShowAt(screenLocation);
     }
 
     private void ShowSettings(object? sender, EventArgs e)
@@ -297,6 +274,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
         UpdateTrayIcon();
         UpdateTray();
+        _trayMenu?.UpdateDevice(_device, _isCharging);
     }
 
     private void BatteryMonitor_ConnectionChanged(object? sender, bool connected)
@@ -320,6 +298,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
+        _trayMenu?.UpdateDevice(_device, _isCharging);
     }
 
     private void BatteryMonitor_ChargingChanged(
@@ -341,61 +320,41 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
+        _trayMenu?.UpdateDevice(_device, _isCharging);
     }
 
     private void UpdateTray()
     {
-        bool deviceSelected =
-            !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
-
-        _deviceMenuItem.Text = deviceSelected
-            ? _settings.SelectedDevice
-            : L("UnknownHeadphones");
-
-        if (!deviceSelected || _device == null)
-        {
-            _batteryMenuItem.Text = L("TrayBatteryNA");
-            _statusMenuItem.Text = L("TrayDisconnected");
-            UpdateNotifyIconTooltip();
-            return;
-        }
-
-        bool connected = _device.IsConnected && _device.Battery >= 0;
-
-        if (connected)
-        {
-            _batteryMenuItem.Text =
-                string.Format(
-                    L("TrayBattery"),
-                    _device.Battery);
-
-            if (_isCharging)
-            {
-                _batteryMenuItem.Text +=
-                    $" {L("TrayCharging")}";
-            }
-
-            _statusMenuItem.Text = L("TrayConnected");
-        }
-        else
-        {
-            _batteryMenuItem.Text = L("TrayBatteryNA");
-            _statusMenuItem.Text = L("TrayDisconnected");
-        }
-
         UpdateNotifyIconTooltip();
+        _trayMenu?.UpdateDevice(_device, _isCharging);
     }
 
     private void UpdateNotifyIconTooltip()
     {
-        string deviceName = _deviceMenuItem.Text ?? string.Empty;
-        string battery = _batteryMenuItem.Text ?? string.Empty;
-        string status = _statusMenuItem.Text ?? string.Empty;
+        bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
+        string deviceName = selected ? NormalizeDeviceName(_settings.SelectedDevice) : L("UnknownHeadphones");
+        string battery;
+        string status;
 
-        // .NET 6+ supports up to 127 characters for NotifyIcon.Text.
-        // Do not truncate the localized tooltip manually.
+        if (!selected || _device == null || !_device.IsConnected || _device.Battery < 0)
+        {
+            battery = L("TrayBatteryNA");
+            status = L("TrayDisconnected");
+        }
+        else
+        {
+            battery = string.Format(L("TrayBattery"), Math.Clamp(_device.Battery, 0, 100));
+            if (_isCharging)
+                battery += $" {L("TrayCharging")}";
+            status = L("TrayConnected");
+        }
+
         _notifyIcon.Text = $"{deviceName}\n{battery}\n{status}";
     }
+
+    private static string NormalizeDeviceName(string value) =>
+        string.Equals(value, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
+            ? "HyperX Cloud III" : value;
 
     private void RestartBlinkTimer()
     {
@@ -1303,11 +1262,13 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _blinkTimer = null;
 
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
-        _contextMenu.Opening -= ContextMenu_Opening;
+        _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
+        _trayMenu?.Close();
+        _trayMenu?.Dispose();
+        _trayMenu = null;
 
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
-        _contextMenu.Dispose();
         _currentApplicationIcon?.Dispose();
         _currentApplicationIcon = null;
 
@@ -1318,53 +1279,3 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     }
 }
 
-
-internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
-{
-    private readonly bool _dark;
-
-    public TrayMenuRenderer(ProfessionalColorTable colorTable, bool dark) : base(colorTable)
-    {
-        _dark = dark;
-    }
-
-    protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
-    {
-        if (e.Item.Tag is string tag && tag == "NonInteractive")
-        {
-            using var brush = new SolidBrush(_dark ? Color.FromArgb(45, 45, 48) : SystemColors.Menu);
-            e.Graphics.FillRectangle(brush, new Rectangle(Point.Empty, e.Item.Size));
-            return;
-        }
-
-        base.OnRenderMenuItemBackground(e);
-    }
-
-    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
-    {
-        if (e.Item.Tag is string tag && tag == "NonInteractive")
-        {
-            e.TextColor = _dark ? Color.WhiteSmoke : SystemColors.MenuText;
-        }
-
-        base.OnRenderItemText(e);
-    }
-}
-
-internal sealed class TrayColorTable : ProfessionalColorTable
-{
-    private readonly bool _dark;
-    public TrayColorTable(bool dark) => _dark = dark;
-    private Color Back => _dark ? Color.FromArgb(45, 45, 48) : SystemColors.Menu;
-    private Color Border => _dark ? Color.FromArgb(80, 80, 80) : SystemColors.ActiveBorder;
-    private Color Highlight => _dark ? Color.FromArgb(62, 62, 66) : SystemColors.Highlight;
-    public override Color MenuBorder => Border;
-    public override Color MenuItemBorder => Border;
-    public override Color MenuItemSelected => Highlight;
-    public override Color MenuItemSelectedGradientBegin => Highlight;
-    public override Color MenuItemSelectedGradientEnd => Highlight;
-    public override Color ToolStripDropDownBackground => Back;
-    public override Color ImageMarginGradientBegin => Back;
-    public override Color ImageMarginGradientMiddle => Back;
-    public override Color ImageMarginGradientEnd => Back;
-}
