@@ -1284,17 +1284,6 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             (int)Math.Round(first.G + (second.G - first.G) * t),
             (int)Math.Round(first.B + (second.B - first.B) * t));
     }
-
-    private void ShowAbout(object? sender, EventArgs e)
-	{
-		using var aboutForm =
-			new AboutForm(
-				_settings.Language,
-				GetEffectiveTheme());
-
-		aboutForm.ShowDialog();
-	}
-
     private void ExitApplication(object? sender, EventArgs e) => ExitThread();
 
     protected override void ExitThreadCore()
