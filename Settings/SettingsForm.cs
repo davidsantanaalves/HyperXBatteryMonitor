@@ -1574,7 +1574,7 @@ public sealed class SettingsForm : Form
                 _iconCache.Draw(e.Graphics, _iconKey, new RectangleF(14, 7, 25, 25), _dark, DeviceDpi);
             else
                 DrawGlyph(e.Graphics, _glyph, new Rectangle(15, 8, 23, 23), iconColor, 1.65f);
-            TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(48, 0, Width - 54, Height), _selected ? Color.FromArgb(0, 105, 220) : text, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(48, 0, Width - 54, Height), text, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
         }
     }
 

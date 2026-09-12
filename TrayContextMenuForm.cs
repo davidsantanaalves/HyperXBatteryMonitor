@@ -27,6 +27,7 @@ internal sealed class TrayContextMenuForm : Form
     private bool _charging;
     private bool _dark;
     private Bitmap? _deviceBitmap;
+    private string? _deviceImageFileName;
     private ToolTip? _toolTip;
 
     public TrayContextMenuForm(
@@ -70,8 +71,8 @@ internal sealed class TrayContextMenuForm : Form
         _statusTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 97, 44, 20));
         _statusDot = new TrayStatusDotControl { Size = new Size(18, 18), Location = new Point(65, 98) };
         _statusText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(88, 97, 68, 20));
-        _batteryTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 123, 44, 20));
-        _batteryIcon = new TrayBatteryIconControl { Size = new Size(30, 30), Location = new Point(64, 118) };
+        _batteryTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 123, 50, 20));
+        _batteryIcon = new TrayBatteryIconControl { Size = new Size(30, 30), Location = new Point(60, 118) };
         _batteryText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(98, 123, 58, 20));
         _chargingText = CreateLabel(7.8f, FontStyle.Regular, ContentAlignment.MiddleCenter, new Rectangle(52, 146, 64, 18));
         _chargingText.Visible = false;
@@ -235,13 +236,21 @@ internal sealed class TrayContextMenuForm : Form
         {
             _toolTip?.Dispose();
             _iconCache.Dispose();
+            _deviceImage.Image = null;
             _deviceBitmap?.Dispose();
+            _deviceBitmap = null;
         }
         base.Dispose(disposing);
     }
 
     private void SetDeviceImage(string fileName)
     {
+        if (string.Equals(_deviceImageFileName, fileName, StringComparison.OrdinalIgnoreCase) &&
+            _deviceImage.Image != null)
+        {
+            return;
+        }
+
         string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices", fileName);
         // Detach the current image before disposing its bitmap. PictureBox can
         // access Image during layout/paint, and keeping a disposed bitmap
@@ -259,6 +268,7 @@ internal sealed class TrayContextMenuForm : Form
             catch { }
         }
         _deviceImage.Image = _deviceBitmap;
+        _deviceImageFileName = fileName;
     }
 
     private static string NormalizeDeviceName(string value) =>
