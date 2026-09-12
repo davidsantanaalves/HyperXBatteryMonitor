@@ -26,6 +26,9 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private bool _blinkState;
 	private bool _isCharging;
     private System.Windows.Forms.Timer? _blinkTimer;
+    private System.Windows.Forms.Timer? _leftClickTimer;
+    private bool _leftClickPending;
+    private Point _leftClickScreenLocation;
 
     public HyperXBatteryMonitorApplicationContext()
     {
@@ -53,7 +56,6 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             Icon = _currentApplicationIcon,
             Visible = true
         };
-        _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
         _notifyIcon.MouseUp += NotifyIcon_MouseUp;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
@@ -107,8 +109,6 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _device = null;
         _isCharging = false;
     }
-
-    private void NotifyIcon_DoubleClick(object? sender, EventArgs e) => ShowSettings(sender, e);
 
     private void Application_Idle(object? sender, EventArgs e)
     {
@@ -178,8 +178,51 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
     {
-        if (e.Button == MouseButtons.Left || e.Button == MouseButtons.Right)
+        if (e.Button == MouseButtons.Right)
+        {
+            CancelPendingLeftClick();
             ShowTrayContextMenu(Cursor.Position);
+            return;
+        }
+
+        if (e.Button != MouseButtons.Left)
+            return;
+
+        if (_leftClickPending)
+        {
+            CancelPendingLeftClick();
+            ShowSettings(sender, e);
+            return;
+        }
+
+        StartPendingLeftClick();
+    }
+
+    private void StartPendingLeftClick()
+    {
+        if (_leftClickTimer == null)
+        {
+            _leftClickTimer = new System.Windows.Forms.Timer();
+            _leftClickTimer.Tick += LeftClickTimer_Tick;
+        }
+
+        _leftClickTimer.Stop();
+        _leftClickScreenLocation = Cursor.Position;
+        _leftClickTimer.Interval = Math.Max(1, SystemInformation.DoubleClickTime);
+        _leftClickPending = true;
+        _leftClickTimer.Start();
+    }
+
+    private void LeftClickTimer_Tick(object? sender, EventArgs e)
+    {
+        CancelPendingLeftClick();
+        ShowTrayContextMenu(_leftClickScreenLocation);
+    }
+
+    private void CancelPendingLeftClick()
+    {
+        _leftClickPending = false;
+        _leftClickTimer?.Stop();
     }
 
     private void ShowTrayContextMenu(Point screenLocation)
@@ -1260,6 +1303,9 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _blinkTimer?.Stop();
         _blinkTimer?.Dispose();
         _blinkTimer = null;
+        _leftClickTimer?.Stop();
+        _leftClickTimer?.Dispose();
+        _leftClickTimer = null;
 
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
