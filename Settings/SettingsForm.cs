@@ -141,7 +141,7 @@ public sealed class SettingsForm : Form
         DoubleBuffered = true;
         BackColor = LightBackground;
         Font = new Font("Segoe UI", 9.5f);
-        Icon = LoadThemeIcon(EffectiveTheme);
+        Icon = LoadApplicationIcon();
 
         _sidebar = new Panel
         {
@@ -752,14 +752,12 @@ public sealed class SettingsForm : Form
             {
                 "BatteryMonitor" => "battery_monitor",
                 "Notifications" => "notification",
-                "General" => "general",
                 "About" => "about",
                 _ => "about"
             }, Glyph.Info, key, key switch
             {
                 "BatteryMonitor" => "ComingSoonBatteryMonitor",
                 "Notifications" => "ComingSoonNotifications",
-                "General" => "ComingSoonGeneral",
                 "About" => "ComingSoonAbout",
                 _ => string.Empty
             });
@@ -1198,7 +1196,7 @@ public sealed class SettingsForm : Form
         _applicationNameLabel.ForeColor = foreground;
         _versionLabel.Text = "v" + Application.ProductVersion.Split('+')[0];
 
-        Icon = LoadThemeIcon(dark ? AppTheme.Dark : AppTheme.Light);
+        Icon = LoadApplicationIcon();
         WarmUpIcons();
         ApplyThemeRecursive(this, foreground, dark);
 
@@ -1446,13 +1444,11 @@ public sealed class SettingsForm : Form
             new PngIconRequest("interface", 25),
             new PngIconRequest("battery_monitor", 25),
             new PngIconRequest("notification", 25),
-            new PngIconRequest("general", 25),
             new PngIconRequest("about", 25),
             new PngIconRequest("device", 36),
             new PngIconRequest("interface", 36),
             new PngIconRequest("battery_monitor", 36),
             new PngIconRequest("notification", 36),
-            new PngIconRequest("general", 36),
             new PngIconRequest("about", 36),
             new PngIconRequest("language", 25),
             new PngIconRequest("theme", 25),
@@ -1490,6 +1486,14 @@ public sealed class SettingsForm : Form
         }
         catch { }
         return AppTheme.Light;
+    }
+
+    private static Icon? LoadApplicationIcon()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "Icons", "All", "hxbm-logo.ico");
+        if (!File.Exists(path)) return null;
+        using FileStream stream = File.OpenRead(path);
+        return new Icon(stream);
     }
 
     private static Icon? LoadThemeIcon(AppTheme theme)

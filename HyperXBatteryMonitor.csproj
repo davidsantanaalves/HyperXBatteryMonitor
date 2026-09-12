@@ -8,10 +8,10 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>2.0.0</Version>
-    <AssemblyName>HyperXBatteryMonitor</AssemblyName>
+    <AssemblyName>HyperX Battery Monitor</AssemblyName>
     <Product>HyperX Battery Monitor</Product>
     <Title>HyperX Battery Monitor</Title>
-    <ApplicationIcon>Icons\Light\light.ico</ApplicationIcon>
+    <ApplicationIcon>Icons\All\hxbm-logo.ico</ApplicationIcon>
   </PropertyGroup>
 
 
@@ -23,6 +23,12 @@
     <None Update="Icons\**\*.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Icons\Dark\general-dark-25x25.png" />
+    <None Remove="Icons\Dark\general-dark-36x36.png" />
+    <None Remove="Icons\Light\general-light-25x25.png" />
+    <None Remove="Icons\Light\general-light-36x36.png" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Icons\Dark\*.png;Icons\Light\*.png">
