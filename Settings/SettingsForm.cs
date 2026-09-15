@@ -1255,11 +1255,11 @@ public sealed class SettingsForm : Form
             },
             _ => new[]
             {
-                L("DeviceInformationText"),
-                L("DeviceInformationText"),
-                L("DeviceInformationText"),
-                L("DeviceInformationText"),
-                L("DeviceInformationText")
+                L("DeviceInformationNA"),
+                L("DeviceInformationNA"),
+                L("DeviceInformationNA"),
+                L("DeviceInformationNA"),
+                L("DeviceInformationNA")
             }
         };
 
