@@ -387,10 +387,11 @@ public sealed class SettingsForm : Form
         const int deviceCardGap = 10;
         Color deviceCardBackground = EffectiveTheme == AppTheme.Dark
             ? Color.FromArgb(42, 45, 48)
-            : Color.White;
+            : Color.FromArgb(248, 249, 251);
 
         RoundedPanel selectorCard = CreateDeviceCard(new Point(20, deviceGroupTop), new Size(525, 88));
         selectorCard.BackColor = deviceCardBackground;
+        selectorCard.Tag = "device-card";
         _pageHost.Controls.Add(selectorCard);
 
         Label selectorLabel = CreateDeviceLabel(L("DeviceLabelShort"), true, new Point(20, 0), 9.5f);
@@ -413,6 +414,7 @@ public sealed class SettingsForm : Form
 
         RoundedPanel connectionCard = CreateDeviceCard(new Point(20, deviceGroupTop + 88 + deviceCardGap), new Size(525, 138));
         connectionCard.BackColor = deviceCardBackground;
+        connectionCard.Tag = "device-card";
         _pageHost.Controls.Add(connectionCard);
         AddDeviceSectionHeader(connectionCard, "connection", "Connection", "ConnectionDescription");
 
@@ -430,6 +432,7 @@ public sealed class SettingsForm : Form
 
         RoundedPanel batteryCard = CreateDeviceCard(new Point(20, deviceGroupTop + 88 + deviceCardGap + 138 + deviceCardGap), new Size(525, 125));
         batteryCard.BackColor = deviceCardBackground;
+        batteryCard.Tag = "device-card";
         _pageHost.Controls.Add(batteryCard);
         AddDeviceSectionHeader(batteryCard, "battery", "Battery", "BatteryDescription");
 
@@ -1363,6 +1366,7 @@ public sealed class SettingsForm : Form
         Icon = LoadApplicationIcon();
         WarmUpIcons();
         ApplyThemeRecursive(this, foreground, dark);
+        ApplyDeviceCardTheme(dark);
 
         if (_sidebarDeviceCard != null)
         {
@@ -1455,6 +1459,25 @@ public sealed class SettingsForm : Form
         }
     }
 
+    private void ApplyDeviceCardTheme(bool dark)
+    {
+        Color cardBackground = dark
+            ? Color.FromArgb(42, 45, 48)
+            : Color.FromArgb(248, 249, 251);
+        Color outsideBackground = dark ? DarkBackground : LightBackground;
+
+        foreach (Control control in _pageHost.Controls)
+        {
+            if (control is not RoundedPanel panel || panel.Tag is not string tag || tag != "device-card")
+                continue;
+
+            panel.BackColor = cardBackground;
+            panel.OutsideBackColor = outsideBackground;
+            panel.BorderColor = dark ? DarkBorder : LightBorder;
+            panel.Invalidate();
+        }
+    }
+
     private void ApplyThemeRecursive(Control parent, Color foreground, bool dark)
     {
         foreach (Control c in parent.Controls)
@@ -1478,13 +1501,18 @@ public sealed class SettingsForm : Form
 
             if (c is RoundedPanel panel)
             {
-                panel.BackColor = panel.Tag is string s && s == "outer"
-                    ? (dark ? Color.FromArgb(34, 37, 40) : Color.White)
-                    : (dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251));
+                bool isDeviceCard = panel.Tag is string cardTag && cardTag == "device-card";
+                panel.BackColor = isDeviceCard
+                    ? (dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251))
+                    : panel.Tag is string s && s == "outer"
+                        ? (dark ? Color.FromArgb(34, 37, 40) : Color.White)
+                        : (dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251));
                 panel.BorderColor = dark ? DarkBorder : LightBorder;
-                panel.OutsideBackColor = panel.Tag is string innerTag && innerTag == "inner"
-                    ? (dark ? Color.FromArgb(34, 37, 40) : Color.White)
-                    : (dark ? Color.FromArgb(32, 35, 38) : LightBackground);
+                panel.OutsideBackColor = isDeviceCard
+                    ? (dark ? Color.FromArgb(32, 35, 38) : LightBackground)
+                    : panel.Tag is string innerTag && innerTag == "inner"
+                        ? (dark ? Color.FromArgb(34, 37, 40) : Color.White)
+                        : (dark ? Color.FromArgb(32, 35, 38) : LightBackground);
             }
             else if (c is RoundedLanguageSelector languageSelector)
             {
