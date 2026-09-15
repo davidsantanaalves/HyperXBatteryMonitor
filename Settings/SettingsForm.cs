@@ -25,7 +25,11 @@ public sealed class SettingsForm : Form
     private Label _deviceStatusDescriptionLabel = null!;
     private Label _batteryValueLabel = null!;
     private Label _chargingLabel = null!;
-    private Label _deviceInfoTextLabel = null!;
+    private Label _wirelessTechnologyValueLabel = null!;
+    private Label _connectionMethodValueLabel = null!;
+    private Label _wirelessRangeValueLabel = null!;
+    private Label _batteryLifeValueLabel = null!;
+    private Label _chargeTimeValueLabel = null!;
     private StatusDotControl _deviceStatusDot = null!;
     private BatteryIconControl _batteryIcon = null!;
     private readonly Panel _pageHost;
@@ -379,63 +383,153 @@ public sealed class SettingsForm : Form
     {
         AddDevicePageHeader();
 
-        RoundedPanel card = CreateDeviceCard(new Point(20, 86), new Size(540, 342));
-        _pageHost.Controls.Add(card);
+        const int deviceGroupTop = 74;
+        const int deviceCardGap = 10;
+        Color deviceCardBackground = EffectiveTheme == AppTheme.Dark
+            ? Color.FromArgb(42, 45, 48)
+            : Color.White;
 
-        Label label = CreateDeviceLabel(L("DeviceLabelShort"), true, new Point(20, 0), 9.5f);
-        card.Controls.Add(label);
+        RoundedPanel selectorCard = CreateDeviceCard(new Point(20, deviceGroupTop), new Size(525, 88));
+        selectorCard.BackColor = deviceCardBackground;
+        _pageHost.Controls.Add(selectorCard);
+
+        Label selectorLabel = CreateDeviceLabel(L("DeviceLabelShort"), true, new Point(20, 0), 9.5f);
+        selectorCard.Controls.Add(selectorLabel);
 
         _deviceSelector = new DeviceSelector
         {
             Location = new Point(122, 18),
-            Size = new Size(398, 64),
+            Size = new Size(398, 56),
             SelectedIndex = 0,
             DarkMode = EffectiveTheme == AppTheme.Dark
         };
         _deviceSelector.SetPlaceholder(L("LocateDevice"));
         _deviceSelector.SelectedDeviceName = _pendingSelectedDevice;
         _deviceSelector.SelectionChanged += DeviceSelector_SelectionChanged;
-        card.Controls.Add(_deviceSelector);
-        label.Location = new Point(label.Left, _deviceSelector.Top + (_deviceSelector.Height - label.Height) / 2);
+        selectorCard.Controls.Add(_deviceSelector);
+        selectorLabel.Location = new Point(
+            selectorLabel.Left,
+            _deviceSelector.Top + (_deviceSelector.Height - selectorLabel.Height) / 2);
 
-        RoundedPanel statusCard = CreateDeviceCard(new Point(20, 108), new Size(500, 82), true);
-        statusCard.BackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(46, 50, 54) : Color.FromArgb(248, 249, 251);
-        card.Controls.Add(statusCard);
+        RoundedPanel connectionCard = CreateDeviceCard(new Point(20, deviceGroupTop + 88 + deviceCardGap), new Size(525, 138));
+        connectionCard.BackColor = deviceCardBackground;
+        _pageHost.Controls.Add(connectionCard);
+        AddDeviceSectionHeader(connectionCard, "connection", "Connection", "ConnectionDescription");
 
-        _deviceStatusDot = new StatusDotControl
+        AddDeviceInfoColumn(
+            connectionCard, "usb", "WirelessTechnology", "Cloud3Wireless_WirelessTechnology",
+            18, 58, 140, 0, 25, 32, 32, true);
+        AddDeviceInfoColumn(
+            connectionCard, "connection", "ConnectionMethod", "Cloud3Wireless_ConnectionMethod",
+            188, 58, 164, 0, 25, 32, 40, true);
+        AddDeviceInfoColumn(
+            connectionCard, "location", "WirelessRange", "Cloud3Wireless_Range",
+            378, 58, 130, 0, 25, 32, 40, true);
+        AddDeviceColumnDivider(connectionCard, 176, 58, 64);
+        AddDeviceColumnDivider(connectionCard, 364, 58, 64);
+
+        RoundedPanel batteryCard = CreateDeviceCard(new Point(20, deviceGroupTop + 88 + deviceCardGap + 138 + deviceCardGap), new Size(525, 125));
+        batteryCard.BackColor = deviceCardBackground;
+        _pageHost.Controls.Add(batteryCard);
+        AddDeviceSectionHeader(batteryCard, "battery", "Battery", "BatteryDescription");
+
+        AddDeviceInfoColumn(
+            batteryCard, "clock", "BatteryLife", "Cloud3Wireless_Battery",
+            22, 58, 175);
+        AddDeviceInfoColumn(
+            batteryCard, "energy", "ChargeTime", "Cloud3Wireless_ChargeTime",
+            291, 58, 180);
+        AddDeviceColumnDivider(batteryCard, 258, 58, 52);
+    }
+
+    private void AddDeviceSectionHeader(
+        RoundedPanel card,
+        string iconKey,
+        string titleKey,
+        string descriptionKey)
+    {
+        card.Controls.Add(new PngIconControl(_iconCache, iconKey)
         {
-            Size = new Size(24, 24),
-            Location = new Point(17, 28)
-        };
-        statusCard.Controls.Add(_deviceStatusDot);
+            Location = new Point(18, 15),
+            Size = new Size(36, 36),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        });
 
-        _deviceStatusLabel = CreateDeviceLabel(string.Empty, true, new Point(52, 13), 11f);
-        _deviceStatusDescriptionLabel = CreateDeviceLabel(string.Empty, false, new Point(52, 39), 9f);
-        statusCard.Controls.Add(_deviceStatusLabel);
-        statusCard.Controls.Add(_deviceStatusDescriptionLabel);
+        card.Controls.Add(CreateDeviceLabel(
+            L(titleKey), true, new Point(66, 12), 11f));
 
-        _batteryIcon = new BatteryIconControl
+        card.Controls.Add(CreateDeviceLabel(
+            L(descriptionKey), false, new Point(66, 34), 8.5f));
+    }
+
+    private void AddDeviceInfoColumn(
+        RoundedPanel card,
+        string iconKey,
+        string labelKey,
+        string valueKey,
+        int left,
+        int top,
+        int valueWidth,
+        int descriptionOffset = 40,
+        int iconSize = 25,
+        int valueTopOffset = 24,
+        int titleOffset = 40,
+        bool verticallyCenterTitle = false)
+    {
+        card.Controls.Add(new PngIconControl(_iconCache, iconKey)
         {
-            Location = new Point(327, 17),
-            Size = new Size(46, 46)
-        };
-        statusCard.Controls.Add(_batteryIcon);
+            Location = new Point(left, top),
+            Size = new Size(iconSize, iconSize),
+            DarkMode = EffectiveTheme == AppTheme.Dark
+        });
 
-        _batteryValueLabel = CreateDeviceLabel(string.Empty, true, new Point(380, 21), 15f);
-        statusCard.Controls.Add(_batteryValueLabel);
+        int textLeft = left + titleOffset;
+        Label titleLabel = CreateDeviceLabel(
+            L(labelKey), true, new Point(textLeft, top), 8.8f);
+        titleLabel.Location = new Point(
+            textLeft,
+            top + (iconSize - titleLabel.Height) / 2);
+        card.Controls.Add(titleLabel);
 
-        _chargingLabel = CreateDeviceLabel(string.Empty, false, new Point(380, 46), 8.5f);
-        _chargingLabel.Visible = false;
-        statusCard.Controls.Add(_chargingLabel);
+        Label valueLabel = CreateDeviceLabel(
+            L(valueKey), false, new Point(left + descriptionOffset, top + valueTopOffset), 8.8f);
+        valueLabel.MaximumSize = new Size(valueWidth, 0);
+        card.Controls.Add(valueLabel);
 
-        RoundedPanel info = CreateDeviceCard(new Point(20, 215), new Size(500, 108), true);
-        info.BackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251);
-        card.Controls.Add(info);
-        info.Controls.Add(new GlyphControl(Glyph.Info, Accent) { Location = new Point(17, 25), Size = new Size(28, 28) });
-        info.Controls.Add(CreateDeviceLabel(L("DeviceInformation"), true, new Point(56, 14), 9.5f));
-        _deviceInfoTextLabel = CreateDeviceLabel(L("DeviceInformationText"), false, new Point(56, 38), 8.8f);
-        _deviceInfoTextLabel.MaximumSize = new Size(405, 0);
-        info.Controls.Add(_deviceInfoTextLabel);
+        SetDeviceValueLabel(labelKey, valueLabel);
+    }
+
+    private void AddDeviceColumnDivider(RoundedPanel card, int left, int top, int height)
+    {
+        card.Controls.Add(new Panel
+        {
+            Location = new Point(left, top),
+            Size = new Size(1, height),
+            BackColor = EffectiveTheme == AppTheme.Dark ? DarkBorder : LightBorder,
+            Tag = "device-divider"
+        });
+    }
+
+    private void SetDeviceValueLabel(string labelKey, Label valueLabel)
+    {
+        switch (labelKey)
+        {
+            case "WirelessTechnology":
+                _wirelessTechnologyValueLabel = valueLabel;
+                break;
+            case "ConnectionMethod":
+                _connectionMethodValueLabel = valueLabel;
+                break;
+            case "WirelessRange":
+                _wirelessRangeValueLabel = valueLabel;
+                break;
+            case "BatteryLife":
+                _batteryLifeValueLabel = valueLabel;
+                break;
+            case "ChargeTime":
+                _chargeTimeValueLabel = valueLabel;
+                break;
+        }
     }
 
     private void ShowInterfacePage()
@@ -987,19 +1081,35 @@ public sealed class SettingsForm : Form
     {
         bool selected = _deviceSelector.SelectedIndex > 0;
         bool connected = selected && _device?.IsConnected == true && _device.Battery >= 0 && _device.Battery <= 100;
-        _deviceStatusLabel.Text = connected ? L("Connected") : selected ? L("Disconnected") : L("UnknownHeadphones");
-        _deviceStatusDescriptionLabel.Text = connected ? L("ConnectedDescription") : selected ? L("DisconnectedDescription") : L("UnknownDeviceDescription");
-        _deviceStatusLabel.Visible = true;
-        _deviceStatusDescriptionLabel.Visible = true;
-        _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : L("BatteryNA");
-        _chargingLabel.Text = _isCharging ? L("ChargingStatus") : string.Empty;
-        _chargingLabel.Visible = connected && _isCharging;
+
+        // The main Device page no longer displays the legacy status card.
+        // Keep these updates conditional so device selection/status refreshes
+        // continue to update the sidebar and information cards without
+        // dereferencing controls that are not created on the new layout.
+        if (_deviceStatusLabel != null)
+        {
+            _deviceStatusLabel.Text = connected ? L("Connected") : selected ? L("Disconnected") : L("UnknownHeadphones");
+            _deviceStatusLabel.Visible = true;
+        }
+        if (_deviceStatusDescriptionLabel != null)
+        {
+            _deviceStatusDescriptionLabel.Text = connected ? L("ConnectedDescription") : selected ? L("DisconnectedDescription") : L("UnknownDeviceDescription");
+            _deviceStatusDescriptionLabel.Visible = true;
+        }
+        if (_batteryValueLabel != null)
+            _batteryValueLabel.Text = connected ? $"{Math.Clamp(_device!.Battery, 0, 100)}%" : L("BatteryNA");
+        if (_chargingLabel != null)
+        {
+            _chargingLabel.Text = _isCharging ? L("ChargingStatus") : string.Empty;
+            _chargingLabel.Visible = connected && _isCharging;
+        }
+
         Color primaryText = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
         Color secondaryText = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
-        _deviceStatusLabel.ForeColor = primaryText;
-        _deviceStatusDescriptionLabel.ForeColor = secondaryText;
-        _batteryValueLabel.ForeColor = primaryText;
-        _chargingLabel.ForeColor = secondaryText;
+        if (_deviceStatusLabel != null) _deviceStatusLabel.ForeColor = primaryText;
+        if (_deviceStatusDescriptionLabel != null) _deviceStatusDescriptionLabel.ForeColor = secondaryText;
+        if (_batteryValueLabel != null) _batteryValueLabel.ForeColor = primaryText;
+        if (_chargingLabel != null) _chargingLabel.ForeColor = secondaryText;
         if (_batteryIcon != null)
         {
             _batteryIcon.Connected = connected;
@@ -1008,8 +1118,12 @@ public sealed class SettingsForm : Form
             _batteryIcon.Charging = connected && _isCharging;
             _batteryIcon.Invalidate();
         }
-        _deviceStatusDot.Connected = connected;
-        _deviceStatusDot.Invalidate();
+        if (_deviceStatusDot != null)
+        {
+            _deviceStatusDot.Connected = connected;
+            _deviceStatusDot.Invalidate();
+        }
+
         UpdateSidebarDeviceStatus(selected, connected);
         UpdateDeviceInformation();
     }
@@ -1087,27 +1201,77 @@ public sealed class SettingsForm : Form
 
     private void UpdateDeviceInformation()
     {
-        if (_deviceInfoTextLabel == null) return;
+        if (_wirelessTechnologyValueLabel == null) return;
 
         string device = _deviceSelector?.SelectedDeviceName ?? string.Empty;
         string normalized = string.Equals(device, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
             ? "HyperX Cloud III"
             : device;
 
-        string[] keys = normalized switch
+        string[] values = normalized switch
         {
-            "HyperX Cloud III" => new[] { "Cloud3Wireless_Connectivity", "Cloud3Wireless_Range", "Cloud3Wireless_Battery", "Cloud3Wireless_ChargeTime" },
-            "HyperX Cloud III S" => new[] { "Cloud3S_Connectivity", "Cloud3S_Range", "Cloud3S_Battery", "Cloud3S_ChargeTime" },
-            "HyperX Cloud 2 Core" => new[] { "Cloud2Core_Connectivity", "Cloud2Core_Range", "Cloud2Core_Battery", "Cloud2Core_ChargeTime" },
-            "HyperX Cloud Alpha" => new[] { "CloudAlpha_Connectivity", "CloudAlpha_Range", "CloudAlpha_Battery", "CloudAlpha_ChargeTime" },
-            "HyperX Cloud Stinger 2" => new[] { "CloudStinger2_Connectivity", "CloudStinger2_Range", "CloudStinger2_Battery", "CloudStinger2_ChargeTime" },
-            _ => Array.Empty<string>()
+            "HyperX Cloud III" => new[]
+            {
+                L("Cloud3Wireless_WirelessTechnology"),
+                L("Cloud3Wireless_ConnectionMethod"),
+                L("Cloud3Wireless_Range"),
+                L("Cloud3Wireless_Battery"),
+                L("Cloud3Wireless_ChargeTime")
+            },
+            "HyperX Cloud III S" => new[]
+            {
+                L("Cloud3S_WirelessTechnology"),
+                L("Cloud3S_ConnectionMethod"),
+                L("Cloud3S_Range"),
+                L("Cloud3S_Battery"),
+                L("Cloud3S_ChargeTime")
+            },
+            "HyperX Cloud 2 Core" => new[]
+            {
+                L("Cloud2Core_WirelessTechnology"),
+                L("Cloud2Core_ConnectionMethod"),
+                L("Cloud2Core_Range"),
+                L("Cloud2Core_Battery"),
+                L("Cloud2Core_ChargeTime")
+            },
+            "HyperX Cloud Alpha" => new[]
+            {
+                L("CloudAlpha_WirelessTechnology"),
+                L("CloudAlpha_ConnectionMethod"),
+                L("CloudAlpha_Range"),
+                L("CloudAlpha_Battery"),
+                L("CloudAlpha_ChargeTime")
+            },
+            "HyperX Cloud Stinger 2" => new[]
+            {
+                L("CloudStinger2_WirelessTechnology"),
+                L("CloudStinger2_ConnectionMethod"),
+                L("CloudStinger2_Range"),
+                L("CloudStinger2_Battery"),
+                L("CloudStinger2_ChargeTime")
+            },
+            _ => new[]
+            {
+                L("DeviceInformationText"),
+                L("DeviceInformationText"),
+                L("DeviceInformationText"),
+                L("DeviceInformationText"),
+                L("DeviceInformationText")
+            }
         };
 
-        _deviceInfoTextLabel.Text = keys.Length == 0
-            ? L("DeviceInformationText")
-            : string.Join(Environment.NewLine, keys.Select(L));
-        _deviceInfoTextLabel.ForeColor = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
+        _wirelessTechnologyValueLabel.Text = values[0];
+        _connectionMethodValueLabel.Text = values[1];
+        _wirelessRangeValueLabel.Text = values[2];
+        _batteryLifeValueLabel.Text = values[3];
+        _chargeTimeValueLabel.Text = values[4];
+
+        Color valueColor = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
+        _wirelessTechnologyValueLabel.ForeColor = valueColor;
+        _connectionMethodValueLabel.ForeColor = valueColor;
+        _wirelessRangeValueLabel.ForeColor = valueColor;
+        _batteryLifeValueLabel.ForeColor = valueColor;
+        _chargeTimeValueLabel.ForeColor = valueColor;
     }
 
     private void Device_BatteryChanged(object? sender, int battery)
@@ -1303,6 +1467,12 @@ public sealed class SettingsForm : Form
 
             if (c is SidebarItem || c is Button || c is DeviceSelector || c is StatusDotControl || c is BatteryIconControl || c == _footer)
                 continue;
+
+            if (c.Tag is string tag && tag == "device-divider")
+            {
+                c.BackColor = dark ? DarkBorder : LightBorder;
+                continue;
+            }
 
             c.ForeColor = foreground;
 

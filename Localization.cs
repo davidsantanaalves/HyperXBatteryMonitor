@@ -99,9 +99,23 @@ public static class Localization
         ["ContextMenuExit"] = "Exit",
         ["DeviceInformation"] = "Device information",
         ["DeviceInformationText"] = "Select a device to display the information.",
+        ["Connection"] = "Connection",
+        ["ConnectionDescription"] = "Information about the wireless connection of your device.",
+        ["WirelessTechnology"] = "Wireless Technology",
+        ["WirelessTechnologyDescription"] = "Wireless standard used by the device.",
+        ["ConnectionMethod"] = "Connection Method",
+        ["ConnectionMethodDescription"] = "How the device connects to your computer.",
+        ["WirelessRange"] = "Wireless Range",
+        ["WirelessRangeDescription"] = "Maximum wireless operating range.",
+        ["Battery"] = "Battery",
+        ["BatteryDescription"] = "Battery life and charging information.",
+        ["BatteryLife"] = "Battery Life",
+        ["BatteryLifeDescription"] = "Maximum battery runtime.",
+        ["ChargeTime"] = "Charge Time",
+        ["ChargeTimeDescription"] = "Approximate time required for a full charge.",
         ["UnknownDeviceDescription"] = "Select a device to start.",
         ["DeviceLabelShort"] = "Device",
-        ["DeviceDescription"] = "Select your HyperX device and view its current status.",
+        ["DeviceDescription"] = "Select your HyperX device and view its information.",
         ["LocateDevice"] = "Locate your device",
         ["Connected"] = "Connected",
         ["Disconnected"] = "Disconnected",
@@ -138,34 +152,44 @@ public static class Localization
         ["NotificationFullyChargedInstruction"] = "The charging cable can be disconnected.",
 
         // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_WirelessTechnology"] = "2.4 GHz wireless",
+        ["Cloud3Wireless_ConnectionMethod"] = "USB wireless dongle",
         ["Cloud3Wireless_Connectivity"] = "Connectivity: 2.4 GHz wireless via USB dongle",
-        ["Cloud3Wireless_Range"] = "Wireless Range: Up to 20 meters (65.6 feet)",
-        ["Cloud3Wireless_Battery"] = "Battery Life: Up to 120 hours",
-        ["Cloud3Wireless_ChargeTime"] = "Charge Time: Approximately 4.5 hours to full charge",
+        ["Cloud3Wireless_Range"] = "Up to 20 meters (65.6 feet)",
+        ["Cloud3Wireless_Battery"] = "Up to 120 hours",
+        ["Cloud3Wireless_ChargeTime"] = "Approximately 4.5 hours to full charge",
 
         // Devices Information - HyperX Cloud III S
+        ["Cloud3S_WirelessTechnology"] = "2.4 GHz RF and Bluetooth 5.3",
+        ["Cloud3S_ConnectionMethod"] = "USB wireless dongle or Bluetooth",
         ["Cloud3S_Connectivity"] = "Connectivity: 2.4 GHz RF (via USB dongle) and Bluetooth 5.3",
-        ["Cloud3S_Range"] = "Wireless Range: Up to 20 meters (65 feet)",
-        ["Cloud3S_Battery"] = "Battery Life: Up to 120 hours on 2.4 GHz; up to 200 hours in Bluetooth",
-        ["Cloud3S_ChargeTime"] = "Recharge Time: Approximately 5 hours",
+        ["Cloud3S_Range"] = "Up to 20 meters (65 feet)",
+        ["Cloud3S_Battery"] = "Up to 120 hours on 2.4 GHz; up to 200 hours in Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Approximately 5 hours",
 
         // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_WirelessTechnology"] = "2.4 GHz wireless",
+        ["Cloud2Core_ConnectionMethod"] = "USB wireless adapter",
         ["Cloud2Core_Connectivity"] = "Connection Type: 2.4GHz wireless via USB adapter",
-        ["Cloud2Core_Range"] = "Wireless Range: Up to 20 meters",
-        ["Cloud2Core_Battery"] = "Battery Life: Up to 80 hours",
-        ["Cloud2Core_ChargeTime"] = "Recharge Time: 4.5 hours",
+        ["Cloud2Core_Range"] = "Up to 20 meters",
+        ["Cloud2Core_Battery"] = "Up to 80 hours",
+        ["Cloud2Core_ChargeTime"] = "4.5 hours",
 
         // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_WirelessTechnology"] = "2.4 GHz RF",
+        ["CloudAlpha_ConnectionMethod"] = "USB wireless adapter",
         ["CloudAlpha_Connectivity"] = "Connectivity: 2.4 GHz RF via USB adapter",
-        ["CloudAlpha_Range"] = "Wireless Range: Up to 20 meters",
-        ["CloudAlpha_Battery"] = "Battery Life: Up to 300 hours",
-        ["CloudAlpha_ChargeTime"] = "Charge Time: Approx. 4.5 hours",
+        ["CloudAlpha_Range"] = "Up to 20 meters",
+        ["CloudAlpha_Battery"] = "Up to 300 hours",
+        ["CloudAlpha_ChargeTime"] = "Approximately 4.5 hours",
 
         // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_WirelessTechnology"] = "2.4 GHz wireless",
+        ["CloudStinger2_ConnectionMethod"] = "USB wireless adapter",
         ["CloudStinger2_Connectivity"] = "Connectivity: 2.4 GHz wireless via USB wireless adapter",
-        ["CloudStinger2_Range"] = "Wireless Range: Up to 20 meters",
-        ["CloudStinger2_Battery"] = "Battery Life: Up to 20 hours",
-        ["CloudStinger2_ChargeTime"] = "Charge Time: Approx. 3.5 hours"
+        ["CloudStinger2_Range"] = "Up to 20 meters",
+        ["CloudStinger2_Battery"] = "Up to 20 hours",
+        ["CloudStinger2_ChargeTime"] = "Approximately 3.5 hours"
     };
 
     private static readonly Dictionary<string, string> Portuguese = new()
@@ -230,9 +254,23 @@ public static class Localization
         ["ContextMenuExit"] = "Sair",
         ["DeviceInformation"] = "Informações do dispositivo",
         ["DeviceInformationText"] = "Selecione um dispositivo para exibir as informações.",
+        ["Connection"] = "Conexão",
+        ["ConnectionDescription"] = "Informações sobre a conexão sem fio do seu dispositivo.",
+        ["WirelessTechnology"] = "Tecnologia Sem Fio",
+        ["WirelessTechnologyDescription"] = "Padrão sem fio utilizado pelo dispositivo.",
+        ["ConnectionMethod"] = "Método de Conexão",
+        ["ConnectionMethodDescription"] = "Como o dispositivo se conecta ao computador.",
+        ["WirelessRange"] = "Alcance Sem Fio",
+        ["WirelessRangeDescription"] = "Alcance máximo de operação sem fio.",
+        ["Battery"] = "Bateria",
+        ["BatteryDescription"] = "Informações sobre duração e carregamento.",
+        ["BatteryLife"] = "Duração da Bateria",
+        ["BatteryLifeDescription"] = "Autonomia máxima da bateria.",
+        ["ChargeTime"] = "Tempo de Carga",
+        ["ChargeTimeDescription"] = "Tempo aproximado necessário para uma carga completa.",
         ["UnknownDeviceDescription"] = "Selecione um dispositivo para iniciar.",
         ["DeviceLabelShort"] = "Dispositivo",
-        ["DeviceDescription"] = "Selecione seu dispositivo HyperX e veja o status atual.",
+        ["DeviceDescription"] = "Selecione seu dispositivo HyperX e veja suas informações.",
         ["LocateDevice"] = "Localize seu dispositivo",
         ["Connected"] = "Conectado",
         ["Disconnected"] = "Desconectado",
@@ -269,34 +307,44 @@ public static class Localization
         ["NotificationFullyChargedInstruction"] = "O cabo de carregamento pode ser desconectado.",
 
         // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_WirelessTechnology"] = "Sem fio de 2.4 GHz",
+        ["Cloud3Wireless_ConnectionMethod"] = "Adaptador USB sem fio",
         ["Cloud3Wireless_Connectivity"] = "Conectividade: Sem fio de 2.4 GHz via adaptador USB",
-        ["Cloud3Wireless_Range"] = "Alcance Sem Fio: Até 20 metros",
-        ["Cloud3Wireless_Battery"] = "Duração da Bateria: Até 120 horas",
-        ["Cloud3Wireless_ChargeTime"] = "Tempo de Carga: Aproximadamente 4.5 horas para carga completa",
+        ["Cloud3Wireless_Range"] = "Até 20 metros (65,6 pés)",
+        ["Cloud3Wireless_Battery"] = "Até 120 horas",
+        ["Cloud3Wireless_ChargeTime"] = "Aproximadamente 4,5 horas para carga completa",
 
         // Devices Information - HyperX Cloud III S
+        ["Cloud3S_WirelessTechnology"] = "RF de 2.4 GHz e Bluetooth 5.3",
+        ["Cloud3S_ConnectionMethod"] = "Adaptador USB sem fio ou Bluetooth",
         ["Cloud3S_Connectivity"] = "Conectividade: RF de 2.4 GHz (via adaptador USB) e Bluetooth 5.3",
-        ["Cloud3S_Range"] = "Alcance Sem Fio: Até 20 metros",
-        ["Cloud3S_Battery"] = "Duração da Bateria: Até 120 horas em 2.4 GHz; até 200 horas em Bluetooth",
-        ["Cloud3S_ChargeTime"] = "Tempo de Recarga: Aproximadamente 5 horas",
+        ["Cloud3S_Range"] = "Até 20 metros",
+        ["Cloud3S_Battery"] = "Até 120 horas em 2.4 GHz; até 200 horas em Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Aproximadamente 5 horas",
 
         // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_WirelessTechnology"] = "Sem fio de 2.4 GHz",
+        ["Cloud2Core_ConnectionMethod"] = "Adaptador USB sem fio",
         ["Cloud2Core_Connectivity"] = "Tipo de Conexão: Sem fio de 2.4 GHz via adaptador USB",
-        ["Cloud2Core_Range"] = "Alcance Sem Fio: Até 20 metros",
-        ["Cloud2Core_Battery"] = "Duração da Bateria: Até 80 horas",
-        ["Cloud2Core_ChargeTime"] = "Tempo de Recarga: 4.5 horas",
+        ["Cloud2Core_Range"] = "Até 20 metros",
+        ["Cloud2Core_Battery"] = "Até 80 horas",
+        ["Cloud2Core_ChargeTime"] = "4,5 horas",
 
         // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_WirelessTechnology"] = "RF de 2.4 GHz",
+        ["CloudAlpha_ConnectionMethod"] = "Adaptador USB sem fio",
         ["CloudAlpha_Connectivity"] = "Conectividade: RF de 2.4 GHz via adaptador USB",
-        ["CloudAlpha_Range"] = "Alcance Sem Fio: Até 20 metros",
-        ["CloudAlpha_Battery"] = "Duração da Bateria: Até 300 horas",
-        ["CloudAlpha_ChargeTime"] = "Tempo de Carga: Aprox. 4.5 horas",
+        ["CloudAlpha_Range"] = "Até 20 metros",
+        ["CloudAlpha_Battery"] = "Até 300 horas",
+        ["CloudAlpha_ChargeTime"] = "Aproximadamente 4,5 horas",
 
         // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_WirelessTechnology"] = "Sem fio de 2.4 GHz",
+        ["CloudStinger2_ConnectionMethod"] = "Adaptador USB sem fio",
         ["CloudStinger2_Connectivity"] = "Conectividade: Sem fio de 2.4 GHz via adaptador sem fio USB",
-        ["CloudStinger2_Range"] = "Alcance Sem Fio: Até 20 metros",
-        ["CloudStinger2_Battery"] = "Duração da Bateria: Até 20 horas",
-        ["CloudStinger2_ChargeTime"] = "Tempo de Carga: Aprox. 3.5 horas"
+        ["CloudStinger2_Range"] = "Até 20 metros",
+        ["CloudStinger2_Battery"] = "Até 20 horas",
+        ["CloudStinger2_ChargeTime"] = "Aproximadamente 3,5 horas"
     };
 
     private static readonly Dictionary<string, string> Spanish = new()
@@ -361,9 +409,23 @@ public static class Localization
         ["ContextMenuExit"] = "Salir",
         ["DeviceInformation"] = "Información del dispositivo",
         ["DeviceInformationText"] = "Seleccione un dispositivo para visualizar la información.",
+        ["Connection"] = "Conexión",
+        ["ConnectionDescription"] = "Información sobre la conexión inalámbrica de tu dispositivo.",
+        ["WirelessTechnology"] = "Tecnología Inalámbrica",
+        ["WirelessTechnologyDescription"] = "Estándar inalámbrico utilizado por el dispositivo.",
+        ["ConnectionMethod"] = "Método de Conexión",
+        ["ConnectionMethodDescription"] = "Cómo se conecta el dispositivo al ordenador.",
+        ["WirelessRange"] = "Alcance Inalámbrico",
+        ["WirelessRangeDescription"] = "Alcance máximo de funcionamiento inalámbrico.",
+        ["Battery"] = "Batería",
+        ["BatteryDescription"] = "Información sobre duración y carga.",
+        ["BatteryLife"] = "Duración de la Batería",
+        ["BatteryLifeDescription"] = "Autonomía máxima de la batería.",
+        ["ChargeTime"] = "Tiempo de Carga",
+        ["ChargeTimeDescription"] = "Tiempo aproximado necesario para una carga completa.",
         ["UnknownDeviceDescription"] = "Seleccione un dispositivo para comenzar.",
         ["DeviceLabelShort"] = "Dispositivo",
-        ["DeviceDescription"] = "Seleccione su dispositivo HyperX y vea su estado actual.",
+        ["DeviceDescription"] = "Seleccione su dispositivo HyperX y vea su información.",
         ["LocateDevice"] = "Localiza tu dispositivo",
         ["Connected"] = "Conectado",
         ["Disconnected"] = "Desconectado",
@@ -400,33 +462,43 @@ public static class Localization
         ["NotificationFullyChargedInstruction"] = "Puedes desconectar el cable de carga.",
 
         // Devices Information - HyperX Cloud III Wireless
+        ["Cloud3Wireless_WirelessTechnology"] = "Inalámbrica de 2.4 GHz",
+        ["Cloud3Wireless_ConnectionMethod"] = "Adaptador USB inalámbrico",
         ["Cloud3Wireless_Connectivity"] = "Conectividad: Inalámbrica de 2.4 GHz mediante adaptador USB",
-        ["Cloud3Wireless_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
-        ["Cloud3Wireless_Battery"] = "Duración de la Batería: Hasta 120 horas",
-        ["Cloud3Wireless_ChargeTime"] = "Tiempo de Carga: Aproximadamente 4.5 horas para carga completa",
+        ["Cloud3Wireless_Range"] = "Hasta 20 metros (65,6 pies)",
+        ["Cloud3Wireless_Battery"] = "Hasta 120 horas",
+        ["Cloud3Wireless_ChargeTime"] = "Aproximadamente 4,5 horas para una carga completa",
 
         // Devices Information - HyperX Cloud III S
+        ["Cloud3S_WirelessTechnology"] = "RF de 2.4 GHz y Bluetooth 5.3",
+        ["Cloud3S_ConnectionMethod"] = "Adaptador USB inalámbrico o Bluetooth",
         ["Cloud3S_Connectivity"] = "Conectividad: RF de 2.4 GHz (vía adaptador USB) y Bluetooth 5.3",
-        ["Cloud3S_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
-        ["Cloud3S_Battery"] = "Duración de la Batería: Hasta 120 horas en 2.4 GHz; hasta 200 horas en Bluetooth",
-        ["Cloud3S_ChargeTime"] = "Tiempo de Recarga: Aproximadamente 5 horas",
+        ["Cloud3S_Range"] = "Hasta 20 metros",
+        ["Cloud3S_Battery"] = "Hasta 120 horas en 2.4 GHz; hasta 200 horas en Bluetooth",
+        ["Cloud3S_ChargeTime"] = "Aproximadamente 5 horas",
 
         // Devices Information - HyperX Cloud 2 Core
+        ["Cloud2Core_WirelessTechnology"] = "Inalámbrica de 2.4 GHz",
+        ["Cloud2Core_ConnectionMethod"] = "Adaptador USB inalámbrico",
         ["Cloud2Core_Connectivity"] = "Tipo de Conexión: Inalámbrica de 2.4 GHz mediante adaptador USB",
-        ["Cloud2Core_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
-        ["Cloud2Core_Battery"] = "Duración de la Batería: Hasta 80 horas",
-        ["Cloud2Core_ChargeTime"] = "Tiempo de Recarga: 4.5 horas",
+        ["Cloud2Core_Range"] = "Hasta 20 metros",
+        ["Cloud2Core_Battery"] = "Hasta 80 horas",
+        ["Cloud2Core_ChargeTime"] = "4,5 horas",
 
         // Devices Information - HyperX Cloud Alpha
+        ["CloudAlpha_WirelessTechnology"] = "RF de 2.4 GHz",
+        ["CloudAlpha_ConnectionMethod"] = "Adaptador USB inalámbrico",
         ["CloudAlpha_Connectivity"] = "Conectividad: RF de 2.4 GHz mediante adaptador USB",
-        ["CloudAlpha_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
-        ["CloudAlpha_Battery"] = "Duración de la Batería: Hasta 300 horas",
-        ["CloudAlpha_ChargeTime"] = "Tiempo de Carga: Aprox. 4.5 horas",
+        ["CloudAlpha_Range"] = "Hasta 20 metros",
+        ["CloudAlpha_Battery"] = "Hasta 300 horas",
+        ["CloudAlpha_ChargeTime"] = "Aproximadamente 4,5 horas",
 
         // Devices Information - HyperX Cloud Stinger 2
+        ["CloudStinger2_WirelessTechnology"] = "Inalámbrica de 2.4 GHz",
+        ["CloudStinger2_ConnectionMethod"] = "Adaptador USB inalámbrico",
         ["CloudStinger2_Connectivity"] = "Conectividad: Inalámbrica de 2.4 GHz mediante adaptador USB",
-        ["CloudStinger2_Range"] = "Alcance Inalámbrico: Hasta 20 metros",
-        ["CloudStinger2_Battery"] = "Duración de la Batería: Hasta 20 horas",
-        ["CloudStinger2_ChargeTime"] = "Tiempo de Carga: Aprox. 3.5 horas"
+        ["CloudStinger2_Range"] = "Hasta 20 metros",
+        ["CloudStinger2_Battery"] = "Hasta 20 horas",
+        ["CloudStinger2_ChargeTime"] = "Aproximadamente 3,5 horas"
     };
 }
