@@ -1267,6 +1267,80 @@ public sealed class SettingsForm : Form
         };
         licensesLink.LinkClicked += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryMonitor/blob/main/LICENSE");
         _pageHost.Controls.Add(licensesLink);
+
+        RoundedPanel acknowledgementsCard = new RoundedPanel
+        {
+            Location = new Point(20, 307),
+            Size = new Size(528, 135),
+            BorderColor = dark ? DarkBorder : LightBorder,
+            OutsideBackColor = dark ? Color.FromArgb(34, 37, 40) : Color.White,
+            BackColor = dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
+        };
+        _pageHost.Controls.Add(acknowledgementsCard);
+
+        PngIconControl acknowledgementsIcon = new(_iconCache, "code")
+        {
+            Location = new Point(18, 18),
+            Size = new Size(25, 25),
+            DarkMode = dark
+        };
+        acknowledgementsCard.Controls.Add(acknowledgementsIcon);
+
+        acknowledgementsCard.Controls.Add(new Label
+        {
+            Text = L("AboutAcknowledgementsTitle"),
+            AutoSize = true,
+            Font = new Font("Segoe UI Semibold", 9.5f),
+            ForeColor = foreground,
+            Location = new Point(48, 15),
+            BackColor = Color.Transparent
+        });
+
+        Label acknowledgementsText = new Label
+        {
+            Text = L("AboutAcknowledgementsText"),
+            AutoSize = false,
+            Size = new Size(455, 40),
+            Font = new Font("Segoe UI", 8f),
+            ForeColor = secondary,
+            Location = new Point(48, 39),
+            BackColor = Color.Transparent
+        };
+        acknowledgementsCard.Controls.Add(acknowledgementsText);
+
+        acknowledgementsCard.Controls.Add(new Label
+        {
+            Text = L("AboutAcknowledgementsThanks"),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8f),
+            ForeColor = secondary,
+            Location = new Point(48, 80),
+            BackColor = Color.Transparent
+        });
+
+        PngIconControl acknowledgementsGithubIcon = new(_iconCache, "git")
+        {
+            Location = new Point(48, 104),
+            Size = new Size(25, 25),
+            DarkMode = dark
+        };
+        acknowledgementsCard.Controls.Add(acknowledgementsGithubIcon);
+
+        LinkLabel acknowledgementsRepositoryLink = new LinkLabel
+        {
+            Text = L("AboutAcknowledgementsRepository"),
+            AutoSize = false,
+            Size = new Size(430, 24),
+            Font = new Font("Segoe UI", 8f),
+            Location = new Point(78, 104),
+            BackColor = Color.Transparent,
+            LinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
+            ActiveLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
+            VisitedLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
+            AutoEllipsis = true
+        };
+        acknowledgementsRepositoryLink.LinkClicked += (_, _) => OpenExternalUrl(L("AboutAcknowledgementsRepository"));
+        acknowledgementsCard.Controls.Add(acknowledgementsRepositoryLink);
     }
 
     private AboutActionButton CreateAboutActionButton(string text, AboutActionIcon icon, bool dark, int x, int y, int width)

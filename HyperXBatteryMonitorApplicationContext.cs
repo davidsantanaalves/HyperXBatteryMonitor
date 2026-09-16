@@ -392,7 +392,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             status = L("TrayConnected");
         }
 
-        _notifyIcon.Text = $"{deviceName}\n{battery}\n{status}";
+        _notifyIcon.Text = $"{deviceName}\n{status}\n{battery}";
     }
 
     private static string NormalizeDeviceName(string value) =>
