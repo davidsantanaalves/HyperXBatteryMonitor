@@ -63,6 +63,9 @@ public sealed class SettingsForm : Form
     private int _pendingCriticalBatteryPercent;
     private BatteryDisplayMode _pendingDisplayMode;
     private AdvancedDisplayMode _pendingAdvancedDisplayMode;
+    private List<BatteryColorSettings> _pendingBatteryColors;
+    private bool _pendingUseGradient;
+    private int _pendingGradientPercent;
     private readonly List<(RoundedPanel Card, BatteryModeCard Radio)> _batteryModeCards = new();
     private ToggleSwitchControl _notifyOnLowBatteryToggle = null!;
     private ToggleSwitchControl _notifyWhenFullyChargedToggle = null!;
@@ -138,6 +141,9 @@ public sealed class SettingsForm : Form
         _pendingCriticalBatteryPercent = Math.Clamp(settings.CriticalBatteryPercent, 1, 100);
         _pendingDisplayMode = settings.DisplayMode;
         _pendingAdvancedDisplayMode = settings.AdvancedDisplayMode;
+        _pendingBatteryColors = CloneBatteryColors(settings.BatteryColors);
+        _pendingUseGradient = settings.UseGradient;
+        _pendingGradientPercent = Math.Clamp(settings.GradientPercent, 0, 50);
 
         Text = L("WindowTitle");
         StartPosition = FormStartPosition.Manual;
@@ -1007,7 +1013,26 @@ public sealed class SettingsForm : Form
                 OutsideBackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251),
                 Cursor = Cursors.Hand
             };
-            customizeButton.Click += (_, _) => SelectBatteryDisplayMode(mode);
+            customizeButton.Click += (_, _) =>
+            {
+                SelectBatteryDisplayMode(mode);
+
+                using CustomizeDynamicIconColorsDialog dialog = new(
+                    _iconCache,
+                    EffectiveTheme == AppTheme.Dark,
+                    _selectedLanguage,
+                    _pendingBatteryColors,
+                    _pendingUseGradient,
+                    _pendingGradientPercent);
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                _pendingBatteryColors = CloneBatteryColors(dialog.BatteryColors);
+                _pendingUseGradient = dialog.UseGradient;
+                _pendingGradientPercent = dialog.GradientPercent;
+                ShowPage(_currentPage);
+            };
             card.Controls.Add(customizeButton);
         }
     }
@@ -1790,6 +1815,9 @@ public sealed class SettingsForm : Form
         _pendingCriticalBatteryPercent = defaults.CriticalBatteryPercent;
         _pendingDisplayMode = defaults.DisplayMode;
         _pendingAdvancedDisplayMode = defaults.AdvancedDisplayMode;
+        _pendingBatteryColors = CloneBatteryColors(defaults.BatteryColors);
+        _pendingUseGradient = defaults.UseGradient;
+        _pendingGradientPercent = defaults.GradientPercent;
         _selectedLanguage = defaults.Language;
         _selectedTheme = defaults.Theme;
 
@@ -1812,11 +1840,27 @@ public sealed class SettingsForm : Form
 
     private void ApplyButton_Click(object? sender, EventArgs e) => ApplySettings();
 
+    private static List<BatteryColorSettings> CloneBatteryColors(IEnumerable<BatteryColorSettings>? colors)
+    {
+        return (colors ?? Enumerable.Empty<BatteryColorSettings>())
+            .Where(c => c != null)
+            .Select(c => new BatteryColorSettings
+            {
+                Name = c.Name,
+                MinimumPercent = Math.Clamp(c.MinimumPercent, 0, 100),
+                Argb = c.Argb
+            })
+            .ToList();
+    }
+
     private bool ApplySettings()
     {
         _settings.SelectedDevice = _pendingSelectedDevice;
         _settings.DisplayMode = _pendingDisplayMode;
         _settings.AdvancedDisplayMode = _pendingAdvancedDisplayMode;
+        _settings.BatteryColors = CloneBatteryColors(_pendingBatteryColors);
+        _settings.UseGradient = _pendingUseGradient;
+        _settings.GradientPercent = Math.Clamp(_pendingGradientPercent, 0, 50);
         _settings.NotifyOnLowBattery = _pendingNotifyOnLowBattery;
         _settings.NotifyWhenFullyCharged = _pendingNotifyWhenFullyCharged;
         _settings.BlinkOnCriticalBattery = _pendingBlinkOnCriticalBattery;
@@ -4599,6 +4643,766 @@ public sealed class SettingsForm : Form
     }
 
     private enum AboutActionIcon { GitHub, Support, Documentation, External }
+
+
+    private sealed class CustomizeDynamicIconColorsDialog : Form
+    {
+        private readonly PngIconCache _iconCache;
+        private readonly bool _dark;
+        private readonly AppLanguage _language;
+        private readonly List<BatteryColorSettings> _colors;
+        private readonly List<ColorSwatchControl> _swatches = new();
+        private readonly List<CriticalBatteryNumericControl> _levels = new();
+        private ToggleSwitchControl _gradientToggle = null!;
+        private CriticalBatteryNumericControl _gradientStepInput = null!;
+        private DynamicColorPreviewControl _preview = null!;
+        private Label _highDescription = null!;
+        private Label _mediumDescription = null!;
+        private Label _lowDescription = null!;
+
+        public IReadOnlyList<BatteryColorSettings> BatteryColors =>
+            _colors.Select(c => new BatteryColorSettings
+            {
+                Name = c.Name,
+                MinimumPercent = c.MinimumPercent,
+                Argb = c.Argb
+            }).ToList();
+
+        public bool UseGradient => _gradientToggle.Checked;
+        public int GradientPercent => _gradientStepInput.Value;
+
+        public CustomizeDynamicIconColorsDialog(
+            PngIconCache iconCache,
+            bool dark,
+            AppLanguage language,
+            IEnumerable<BatteryColorSettings>? colors,
+            bool useGradient,
+            int gradientPercent)
+        {
+            _iconCache = iconCache;
+            _dark = dark;
+            _language = language;
+            _colors = (colors ?? Enumerable.Empty<BatteryColorSettings>())
+                .OrderByDescending(c => c.MinimumPercent)
+                .Select(c => new BatteryColorSettings
+                {
+                    Name = c.Name,
+                    MinimumPercent = Math.Clamp(c.MinimumPercent, 0, 100),
+                    Argb = c.Argb
+                })
+                .ToList();
+
+            if (_colors.Count != 3)
+                _colors.Clear();
+
+            if (_colors.Count == 0)
+            {
+                _colors.Add(new BatteryColorSettings { Name = "Green", MinimumPercent = 60, Color = Color.LimeGreen });
+                _colors.Add(new BatteryColorSettings { Name = "Yellow", MinimumPercent = 30, Color = Color.Gold });
+                _colors.Add(new BatteryColorSettings { Name = "Red", MinimumPercent = 0, Color = Color.Red });
+            }
+
+            Text = L("CustomizeDynamicIconColors");
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.None;
+            ClientSize = new Size(460, 510);
+            MinimizeBox = false;
+            MaximizeBox = false;
+            ShowInTaskbar = false;
+            ShowIcon = false;
+            TopMost = true;
+            DoubleBuffered = true;
+            AutoScaleMode = AutoScaleMode.None;
+            BackColor = _dark ? DarkBackground : LightBackground;
+            ForeColor = _dark ? Color.WhiteSmoke : LightText;
+            Font = new Font("Segoe UI", 9f);
+
+            Paint += (_, e) =>
+            {
+                using Pen separator = new(
+                    _dark ? Color.FromArgb(53, 58, 63) : Color.FromArgb(220, 225, 232), 1f);
+                e.Graphics.DrawLine(separator, 0, 45, ClientSize.Width, 45);
+                e.Graphics.DrawLine(separator, 0, 454, ClientSize.Width, 454);
+            };
+
+            BuildHeader();
+            BuildContent(useGradient, gradientPercent);
+            BuildFooter();
+            UpdateDescriptions();
+            _preview!.RefreshPreview();
+        }
+
+        private string L(string key) => Localization.Get(key, _language);
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+
+            if (Width <= 0 || Height <= 0)
+                return;
+
+            Region?.Dispose();
+            using GraphicsPath path = GraphicsExtensions.CreateRoundedPath(
+                new RectangleF(0.5f, 0.5f, Math.Max(1f, Width - 1f), Math.Max(1f, Height - 1f)),
+                10);
+            Region = new Region(path);
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using Pen border = new(
+                _dark ? Color.FromArgb(66, 71, 76) : Color.FromArgb(210, 216, 224),
+                1f);
+            RectangleF rect = new(0.5f, 0.5f, Math.Max(1f, Width - 1f), Math.Max(1f, Height - 1f));
+            using GraphicsPath path = GraphicsExtensions.CreateRoundedPath(rect, 10);
+            e.Graphics.DrawPath(border, path);
+        }
+
+        private void BuildHeader()
+        {
+            PngIconControl icon = new(_iconCache, "theme")
+            {
+                Location = new Point(16, 9),
+                Size = new Size(27, 27),
+                DarkMode = _dark
+            };
+            Controls.Add(icon);
+
+            Label title = new()
+            {
+                Text = L("CustomizeDynamicIconColors"),
+                Location = new Point(54, 11),
+                AutoSize = true,
+                Font = new Font("Segoe UI Semibold", 12.2f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            Controls.Add(title);
+
+            Button close = new()
+            {
+                Text = "×",
+                FlatStyle = FlatStyle.Flat,
+                FlatAppearance = { BorderSize = 0 },
+                BackColor = Color.Transparent,
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                Font = new Font("Segoe UI", 16f),
+                Location = new Point(422, 5),
+                Size = new Size(28, 32),
+                Cursor = Cursors.Hand,
+                TabStop = false
+            };
+            close.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+            Controls.Add(close);
+        }
+
+        private void BuildContent(bool useGradient, int gradientPercent)
+        {
+            Label introTitle = new()
+            {
+                Text = L("CustomizeDynamicIconColorsDescription"),
+                Location = new Point(22, 57),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9.7f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            Controls.Add(introTitle);
+
+            Label introDescription = new()
+            {
+                Text = L("CustomizeDynamicIconColorsDescription2"),
+                Location = new Point(22, 79),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.5f),
+                ForeColor = _dark ? DarkSecondary : LightSecondary,
+                BackColor = Color.Transparent
+            };
+            Controls.Add(introDescription);
+
+            RoundedPanel settingsCard = new()
+            {
+                Location = new Point(18, 101),
+                Size = new Size(424, 259),
+                BorderColor = _dark ? DarkBorder : LightBorder,
+                OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
+                BackColor = _dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
+            };
+            Controls.Add(settingsCard);
+
+            string[] titles =
+            {
+                L("HighBatteryColor"),
+                L("MediumBatteryColor"),
+                L("LowBatteryColor")
+            };
+
+            for (int i = 0; i < 3; i++)
+            {
+                int y = 9 + i * 50;
+                int index = i;
+
+                ColorSwatchControl swatch = new(_colors[i].Color, _dark)
+                {
+                    Location = new Point(12, y),
+                    Size = new Size(48, 48)
+                };
+                swatch.ColorChanged += (_, _) =>
+                {
+                    _colors[index].Color = swatch.Color;
+                    _preview.RefreshPreview();
+                };
+                settingsCard.Controls.Add(swatch);
+                _swatches.Add(swatch);
+
+                Label title = new()
+                {
+                    Text = titles[i],
+                    Location = new Point(70, y + 5),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI Semibold", 9.1f),
+                    ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                    BackColor = Color.Transparent
+                };
+                settingsCard.Controls.Add(title);
+
+                Label description = new()
+                {
+                    Text = i == 2 ? L("UsedBelowThisLevel") : L("UsedFromThisLevelAndAbove"),
+                    Location = new Point(70, y + 26),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 7.8f),
+                    ForeColor = _dark ? DarkSecondary : LightSecondary,
+                    BackColor = Color.Transparent
+                };
+                if (i == 0) _highDescription = description;
+                else if (i == 1) _mediumDescription = description;
+                else _lowDescription = description;
+                settingsCard.Controls.Add(description);
+
+                Label levelTitle = new()
+                {
+                    Text = L("BatteryLevel"),
+                    Location = new Point(274, y + 1),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 7.8f),
+                    ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                    BackColor = Color.Transparent
+                };
+                settingsCard.Controls.Add(levelTitle);
+
+                CriticalBatteryNumericControl levelInput = new()
+                {
+                    Location = new Point(273, y + 23),
+                    Size = new Size(72, 28),
+                    Minimum = 0,
+                    Maximum = 100,
+                    Value = _colors[i].MinimumPercent,
+                    DarkMode = _dark
+                };
+                levelInput.ValueChanged += (_, _) =>
+                {
+                    _colors[index].MinimumPercent = levelInput.Value;
+                    _preview.RefreshPreview();
+                };
+                settingsCard.Controls.Add(levelInput);
+                _levels.Add(levelInput);
+
+                Label percent = new()
+                {
+                    Text = "%",
+                    Location = new Point(350, y + 25),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 8.2f),
+                    ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                    BackColor = Color.Transparent
+                };
+                settingsCard.Controls.Add(percent);
+            }
+
+            settingsCard.Paint += (_, e) =>
+            {
+                using Pen pen = new(_dark ? DarkBorder : LightBorder, 1f);
+                e.Graphics.DrawLine(pen, 12, 163, settingsCard.Width - 12, 163);
+            };
+
+            Label gradientLabel = new()
+            {
+                Text = L("UseGradient"),
+                Location = new Point(12, 169),
+                AutoSize = true,
+                Font = new Font("Segoe UI Semibold", 8.9f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            settingsCard.Controls.Add(gradientLabel);
+
+            Label gradientDescription = new()
+            {
+                Text = L("UseGradientDescription"),
+                Location = new Point(12, 188),
+                Size = new Size(300, 30),
+                Font = new Font("Segoe UI", 7.8f),
+                ForeColor = _dark ? DarkSecondary : LightSecondary,
+                BackColor = Color.Transparent
+            };
+            settingsCard.Controls.Add(gradientDescription);
+
+            _gradientToggle = new ToggleSwitchControl
+            {
+                Location = new Point(357, 172),
+                Size = new Size(54, 28),
+                Checked = useGradient,
+                DarkMode = _dark
+            };
+            settingsCard.Controls.Add(_gradientToggle);
+
+            Label transitionLabel = new()
+            {
+                Text = L("GradientTransitionStep"),
+                Location = new Point(12, 222),
+                AutoSize = true,
+                Font = new Font("Segoe UI Semibold", 8.9f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            settingsCard.Controls.Add(transitionLabel);
+
+            Label transitionDescription = new()
+            {
+                Text = L("GradientTransitionStepDescription"),
+                Location = new Point(12, 241),
+                Size = new Size(285, 28),
+                Font = new Font("Segoe UI", 7.7f),
+                ForeColor = _dark ? DarkSecondary : LightSecondary,
+                BackColor = Color.Transparent
+            };
+            settingsCard.Controls.Add(transitionDescription);
+
+            _gradientStepInput = new CriticalBatteryNumericControl
+            {
+                Location = new Point(309, 220),
+                Size = new Size(72, 28),
+                Minimum = 0,
+                Maximum = 50,
+                Value = Math.Clamp(gradientPercent, 0, 50),
+                DarkMode = _dark
+            };
+            settingsCard.Controls.Add(_gradientStepInput);
+
+            Label stepPercent = new()
+            {
+                Text = "%",
+                Location = new Point(386, 225),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.2f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            settingsCard.Controls.Add(stepPercent);
+
+            RoundedPanel previewCard = new()
+            {
+                Location = new Point(18, 369),
+                Size = new Size(424, 76),
+                BorderColor = _dark ? DarkBorder : LightBorder,
+                OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
+                BackColor = _dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
+            };
+            Controls.Add(previewCard);
+
+            Label previewTitle = new()
+            {
+                Text = L("Preview"),
+                Location = new Point(12, 8),
+                AutoSize = true,
+                Font = new Font("Segoe UI Semibold", 8.9f),
+                ForeColor = _dark ? Color.WhiteSmoke : LightText,
+                BackColor = Color.Transparent
+            };
+            previewCard.Controls.Add(previewTitle);
+
+            _preview = new DynamicColorPreviewControl(_dark, _language, _colors, _gradientToggle, _gradientStepInput)
+            {
+                Location = new Point(8, 28),
+                Size = new Size(408, 43)
+            };
+            previewCard.Controls.Add(_preview);
+
+            _gradientToggle.CheckedChanged += (_, _) => _preview.RefreshPreview();
+            _gradientStepInput.ValueChanged += (_, _) => _preview.RefreshPreview();
+        }
+
+        private void BuildFooter()
+        {
+            ActionButton reset = new(_iconCache)
+            {
+                Text = L("ResetToDefaults"),
+                Location = new Point(16, 463),
+                Size = new Size(178, 36),
+                Font = new Font("Segoe UI", 8.7f),
+                Primary = false,
+                ShowResetIcon = true,
+                DarkMode = _dark,
+                OutsideBackColor = _dark ? DarkBackground : LightBackground
+            };
+            reset.Click += (_, _) =>
+            {
+                AppSettings defaults = AppSettings.CreateDefault();
+                for (int i = 0; i < 3; i++)
+                {
+                    _colors[i].Name = defaults.BatteryColors[i].Name;
+                    _colors[i].MinimumPercent = defaults.BatteryColors[i].MinimumPercent;
+                    _colors[i].Argb = defaults.BatteryColors[i].Argb;
+                    _swatches[i].Color = _colors[i].Color;
+                    _levels[i].Value = _colors[i].MinimumPercent;
+                }
+
+                _gradientToggle.Checked = defaults.UseGradient;
+                _gradientStepInput.Value = defaults.GradientPercent;
+                _preview.RefreshPreview();
+            };
+            Controls.Add(reset);
+
+            ActionButton ok = new(_iconCache)
+            {
+                Text = L("Ok"),
+                Location = new Point(244, 463),
+                Size = new Size(92, 36),
+                Font = new Font("Segoe UI", 8.7f),
+                Primary = true,
+                DarkMode = _dark,
+                OutsideBackColor = _dark ? DarkBackground : LightBackground
+            };
+            ok.Click += (_, _) =>
+            {
+                if (_colors[0].MinimumPercent <= _colors[1].MinimumPercent ||
+                    _colors[1].MinimumPercent <= _colors[2].MinimumPercent)
+                {
+                    MessageBox.Show(
+                        this,
+                        L("ColorOrderError"),
+                        L("InvalidSettings"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            Controls.Add(ok);
+
+            ActionButton cancel = new(_iconCache)
+            {
+                Text = L("Cancel"),
+                Location = new Point(346, 463),
+                Size = new Size(98, 36),
+                Font = new Font("Segoe UI", 8.7f),
+                Primary = false,
+                DarkMode = _dark,
+                OutsideBackColor = _dark ? DarkBackground : LightBackground
+            };
+            cancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+            Controls.Add(cancel);
+        }
+
+        private void UpdateDescriptions()
+        {
+            if (_levels.Count < 3)
+                return;
+
+            _highDescription.Text = L("UsedFromThisLevelAndAbove");
+            _mediumDescription.Text = L("UsedFromThisLevelAndAbove");
+            _lowDescription.Text = L("UsedBelowThisLevel");
+        }
+    }
+
+    private sealed class ColorSwatchControl : Control
+    {
+        private Color _color;
+        private readonly bool _dark;
+
+        public event EventHandler? ColorChanged;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color Color
+        {
+            get => _color;
+            set
+            {
+                if (_color == value)
+                    return;
+
+                _color = value;
+                Invalidate();
+                ColorChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public ColorSwatchControl(Color color, bool dark)
+        {
+            _color = color;
+            _dark = dark;
+
+            SetStyle(
+                ControlStyles.UserPaint |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.SupportsTransparentBackColor |
+                ControlStyles.ResizeRedraw,
+                true);
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            RectangleF outer = new(1, 1, Width - 2, Height - 2);
+            using Brush background = new SolidBrush(
+                _dark ? Color.FromArgb(38, 41, 44) : Color.FromArgb(248, 249, 251));
+            using Pen border = new(
+                _dark ? Color.FromArgb(91, 96, 102) : Color.FromArgb(170, 176, 185), 1f);
+
+            e.Graphics.FillRoundedRectangle(background, outer, 7);
+            e.Graphics.DrawRoundedRectangle(border, outer, 7);
+
+            RectangleF swatch = new(8, 8, Width - 16, Height - 16);
+            using Brush colorBrush = new SolidBrush(_color);
+            e.Graphics.FillRoundedRectangle(colorBrush, swatch, 5);
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            base.OnClick(e);
+
+            using ColorDialog dialog = new()
+            {
+                Color = _color,
+                FullOpen = true,
+                AnyColor = true
+            };
+
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
+                Color = dialog.Color;
+        }
+    }
+
+    private sealed class DynamicColorPreviewControl : Control
+    {
+        private readonly bool _dark;
+        private readonly AppLanguage _language;
+        private readonly List<BatteryColorSettings> _colors;
+        private readonly ToggleSwitchControl _gradientToggle;
+        private readonly CriticalBatteryNumericControl _gradientStep;
+        private Bitmap? _darkIcon;
+        private Bitmap? _lightIcon;
+        private Bitmap? _darkCharging;
+        private Bitmap? _lightCharging;
+
+        public DynamicColorPreviewControl(
+            bool dark,
+            AppLanguage language,
+            IEnumerable<BatteryColorSettings> colors,
+            ToggleSwitchControl gradientToggle,
+            CriticalBatteryNumericControl gradientStep)
+        {
+            _dark = dark;
+            _language = language;
+            _colors = colors.ToList();
+            _gradientToggle = gradientToggle;
+            _gradientStep = gradientStep;
+
+            SetStyle(
+                ControlStyles.UserPaint |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.SupportsTransparentBackColor |
+                ControlStyles.ResizeRedraw,
+                true);
+            BackColor = Color.Transparent;
+            LoadBitmaps();
+        }
+
+        public void RefreshPreview() => Invalidate();
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
+            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+            List<BatteryColorSettings> sorted = _colors
+                .OrderByDescending(c => c.MinimumPercent)
+                .ToList();
+
+            int high = Math.Clamp(sorted[0].MinimumPercent, 0, 100);
+            int medium = Math.Clamp(sorted[1].MinimumPercent, 0, 100);
+            int low = Math.Clamp(sorted[2].MinimumPercent, 0, 100);
+
+            int[] samples =
+            {
+                high,
+                Math.Clamp(medium + Math.Max(1, (high - medium) / 2), 0, 100),
+                Math.Max(0, low - 1),
+                -1
+            };
+
+            string[] labels =
+            {
+                $">= {high}%",
+                $"{medium} – {Math.Max(medium, high - 1)}%",
+                $"< {low}%",
+                Localization.Get("BatteryPreviewCharging", _language)
+            };
+
+            Bitmap? charging = _dark ? _darkCharging : _lightCharging;
+            Bitmap? normal = _dark ? _darkIcon : _lightIcon;
+
+            float slotWidth = Math.Max(1f, Width / (float)samples.Length);
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float x = i * slotWidth;
+                RectangleF iconRect = new(x + (slotWidth - 30f) / 2f, 0, 30, 30);
+
+                if (i == samples.Length - 1)
+                {
+                    if (charging != null)
+                        e.Graphics.DrawImage(charging, iconRect);
+                }
+                else if (normal != null)
+                {
+                    Color color = GetBatteryColor(samples[i], sorted);
+                    using Bitmap tinted = Colorize(normal, color);
+                    e.Graphics.DrawImage(tinted, iconRect);
+                }
+
+                Rectangle labelRect = new((int)x, 30, (int)Math.Ceiling(slotWidth), 13);
+                using Font font = new("Segoe UI", 7.2f);
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    labels[i],
+                    font,
+                    labelRect,
+                    _dark ? Color.WhiteSmoke : LightText,
+                    TextFormatFlags.HorizontalCenter |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoPrefix |
+                    TextFormatFlags.EndEllipsis);
+            }
+        }
+
+        private Color GetBatteryColor(int battery, List<BatteryColorSettings> colors)
+        {
+            battery = Math.Clamp(battery, 0, 100);
+
+            int activeIndex = -1;
+            for (int i = 0; i < colors.Count; i++)
+            {
+                if (battery >= colors[i].MinimumPercent)
+                {
+                    activeIndex = i;
+                    break;
+                }
+            }
+
+            if (activeIndex < 0)
+                activeIndex = colors.Count - 1;
+
+            Color active = colors[activeIndex].Color;
+
+            if (!_gradientToggle.Checked ||
+                _gradientStep.Value <= 0 ||
+                activeIndex >= colors.Count - 1)
+                return active;
+
+            Color lower = colors[activeIndex + 1].Color;
+            int transition = Math.Clamp(_gradientStep.Value, 0, 50);
+            int start = colors[activeIndex].MinimumPercent;
+            int end = Math.Max(colors[activeIndex + 1].MinimumPercent, start - transition);
+
+            if (battery >= end && battery < start)
+            {
+                double t = (start - battery) /
+                           (double)Math.Max(1, start - end);
+                return Blend(active, lower, t);
+            }
+
+            return active;
+        }
+
+        private static Color Blend(Color first, Color second, double t)
+        {
+            t = Math.Clamp(t, 0d, 1d);
+            int r = (int)Math.Round(first.R + (second.R - first.R) * t);
+            int g = (int)Math.Round(first.G + (second.G - first.G) * t);
+            int b = (int)Math.Round(first.B + (second.B - first.B) * t);
+            return Color.FromArgb(255, r, g, b);
+        }
+
+        private static Bitmap Colorize(Bitmap source, Color color)
+        {
+            Bitmap result = new(source.Width, source.Height, PixelFormat.Format32bppArgb);
+            for (int y = 0; y < source.Height; y++)
+            {
+                for (int x = 0; x < source.Width; x++)
+                {
+                    Color pixel = source.GetPixel(x, y);
+                    result.SetPixel(x, y, Color.FromArgb(pixel.A, color.R, color.G, color.B));
+                }
+            }
+            return result;
+        }
+
+        private void LoadBitmaps()
+        {
+            _darkIcon = LoadIcon("Dark", "dark.ico");
+            _lightIcon = LoadIcon("Light", "light.ico");
+            _darkCharging = LoadIcon("Dark", "dark_charging.ico");
+            _lightCharging = LoadIcon("Light", "light_charging.ico");
+        }
+
+        private static Bitmap? LoadIcon(string folder, string file)
+        {
+            try
+            {
+                string path = Path.Combine(AppContext.BaseDirectory, "Icons", folder, file);
+                if (!File.Exists(path))
+                    return null;
+
+                using Icon icon = new(path);
+                using Bitmap bitmap = icon.ToBitmap();
+                return new Bitmap(bitmap);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _darkIcon?.Dispose();
+                _lightIcon?.Dispose();
+                _darkCharging?.Dispose();
+                _lightCharging?.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+    }
 
     private sealed class AboutActionButton : Button
     {
