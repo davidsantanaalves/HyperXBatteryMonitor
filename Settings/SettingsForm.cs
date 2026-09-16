@@ -900,7 +900,7 @@ public sealed class SettingsForm : Form
 
         const int cardLeft = 20;
         const int cardWidth = 528;
-        const int cardGap = 10;
+        const int cardGap = 9;
 
         RoundedPanel staticCard = CreateCard(new Point(cardLeft, 74), new Size(cardWidth, 104), true);
         staticCard.Tag = "battery-monitor-card";
@@ -1012,7 +1012,7 @@ public sealed class SettingsForm : Form
         card.Controls.Add(descriptionLabel);
 
         int previewStartX = showCustomizeButton ? 58 : (previews.Count <= 2 ? 318 : 58);
-        int previewY = showCustomizeButton ? 64 : (previews.Count <= 2 ? 10 : 55);
+        int previewY = showCustomizeButton ? 60 : (previews.Count <= 2 ? 10 : 55);
         int previewWidth = previews.Count <= 2 ? 94 : (showCustomizeButton ? 80 : 82);
         int previewGap = previews.Count <= 2 ? 10 : (showCustomizeButton ? 4 : 2);
 
