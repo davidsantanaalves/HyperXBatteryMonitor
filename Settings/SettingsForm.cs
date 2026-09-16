@@ -4738,7 +4738,7 @@ public sealed class SettingsForm : Form
             Text = L("CustomizeDynamicIconColors");
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
-            ClientSize = new Size(460, 510);
+            ClientSize = new Size(460, 522);
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
@@ -4755,7 +4755,7 @@ public sealed class SettingsForm : Form
                 using Pen separator = new(
                     _dark ? Color.FromArgb(53, 58, 63) : Color.FromArgb(220, 225, 232), 1f);
                 e.Graphics.DrawLine(separator, 0, 45, ClientSize.Width, 45);
-                e.Graphics.DrawLine(separator, 0, 454, ClientSize.Width, 454);
+                e.Graphics.DrawLine(separator, 0, 466, ClientSize.Width, 466);
             };
 
             BuildHeader();
@@ -4860,7 +4860,7 @@ public sealed class SettingsForm : Form
             RoundedPanel settingsCard = new()
             {
                 Location = new Point(18, 101),
-                Size = new Size(424, 259),
+                Size = new Size(424, 271),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
                 BackColor = _dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
@@ -4930,7 +4930,7 @@ public sealed class SettingsForm : Form
 
                 CriticalBatteryNumericControl levelInput = new()
                 {
-                    Location = new Point(273, y + 24),
+                    Location = new Point(273, y + 18),
                     Size = new Size(72, 26),
                     Minimum = 0,
                     Maximum = 100,
@@ -4948,7 +4948,7 @@ public sealed class SettingsForm : Form
                 Label percent = new()
                 {
                     Text = "%",
-                    Location = new Point(350, y + 29),
+                    Location = new Point(350, y + 23),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 8.2f),
                     ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -5042,7 +5042,7 @@ public sealed class SettingsForm : Form
 
             RoundedPanel previewCard = new()
             {
-                Location = new Point(18, 369),
+                Location = new Point(18, 381),
                 Size = new Size(424, 76),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
@@ -5077,7 +5077,7 @@ public sealed class SettingsForm : Form
             ActionButton reset = new(_iconCache)
             {
                 Text = L("ResetToDefaults"),
-                Location = new Point(16, 463),
+                Location = new Point(16, 475),
                 Size = new Size(178, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
@@ -5106,7 +5106,7 @@ public sealed class SettingsForm : Form
             ActionButton ok = new(_iconCache)
             {
                 Text = L("Ok"),
-                Location = new Point(244, 463),
+                Location = new Point(244, 475),
                 Size = new Size(92, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = true,
@@ -5135,7 +5135,7 @@ public sealed class SettingsForm : Form
             ActionButton cancel = new(_iconCache)
             {
                 Text = L("Cancel"),
-                Location = new Point(346, 463),
+                Location = new Point(346, 475),
                 Size = new Size(98, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
