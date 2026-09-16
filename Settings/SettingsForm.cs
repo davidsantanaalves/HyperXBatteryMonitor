@@ -2807,17 +2807,24 @@ public sealed class SettingsForm : Form
                 LineJoin = LineJoin.Round
             };
 
-            Point[] up =
+            // Compact 26px control: keep both chevrons fully inside the field.
+            // The previous fixed coordinates placed the lower chevron outside the
+            // control, making the spinner appear vertically displaced.
+            float upY = Math.Max(5f, Height * 0.31f);
+            float downY = Math.Min(Height - 5f, Height * 0.69f);
+            float chevronHalfHeight = Math.Max(2f, Math.Min(2.6f, Height * 0.10f));
+
+            PointF[] up =
             {
-                new(centerX - 3, 16),
-                new(centerX, 13),
-                new(centerX + 3, 16)
+                new(centerX - 3, upY + chevronHalfHeight),
+                new(centerX, upY),
+                new(centerX + 3, upY + chevronHalfHeight)
             };
-            Point[] down =
+            PointF[] down =
             {
-                new(centerX - 3, 25),
-                new(centerX, 28),
-                new(centerX + 3, 25)
+                new(centerX - 3, downY - chevronHalfHeight),
+                new(centerX, downY),
+                new(centerX + 3, downY - chevronHalfHeight)
             };
             e.Graphics.DrawLines(chevronPen, up);
             e.Graphics.DrawLines(chevronPen, down);
@@ -4705,7 +4712,7 @@ public sealed class SettingsForm : Form
             Text = L("CustomizeDynamicIconColors");
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
-            ClientSize = new Size(460, 510);
+            ClientSize = new Size(460, 535);
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
@@ -4722,7 +4729,7 @@ public sealed class SettingsForm : Form
                 using Pen separator = new(
                     _dark ? Color.FromArgb(53, 58, 63) : Color.FromArgb(220, 225, 232), 1f);
                 e.Graphics.DrawLine(separator, 0, 45, ClientSize.Width, 45);
-                e.Graphics.DrawLine(separator, 0, 454, ClientSize.Width, 454);
+                e.Graphics.DrawLine(separator, 0, 480, ClientSize.Width, 480);
             };
 
             BuildHeader();
@@ -4827,7 +4834,7 @@ public sealed class SettingsForm : Form
             RoundedPanel settingsCard = new()
             {
                 Location = new Point(18, 101),
-                Size = new Size(424, 259),
+                Size = new Size(424, 285),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
                 BackColor = _dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
@@ -4887,7 +4894,7 @@ public sealed class SettingsForm : Form
                 Label levelTitle = new()
                 {
                     Text = L("BatteryLevel"),
-                    Location = new Point(274, y + 1),
+                    Location = new Point(274, y),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 7.8f),
                     ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4897,8 +4904,8 @@ public sealed class SettingsForm : Form
 
                 CriticalBatteryNumericControl levelInput = new()
                 {
-                    Location = new Point(273, y + 23),
-                    Size = new Size(72, 28),
+                    Location = new Point(273, y + 24),
+                    Size = new Size(72, 26),
                     Minimum = 0,
                     Maximum = 100,
                     Value = _colors[i].MinimumPercent,
@@ -4915,7 +4922,7 @@ public sealed class SettingsForm : Form
                 Label percent = new()
                 {
                     Text = "%",
-                    Location = new Point(350, y + 25),
+                    Location = new Point(350, y + 29),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 8.2f),
                     ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4924,16 +4931,18 @@ public sealed class SettingsForm : Form
                 settingsCard.Controls.Add(percent);
             }
 
-            settingsCard.Paint += (_, e) =>
+            Panel colorSectionSeparator = new()
             {
-                using Pen pen = new(_dark ? DarkBorder : LightBorder, 1f);
-                e.Graphics.DrawLine(pen, 12, 163, settingsCard.Width - 12, 163);
+                Location = new Point(12, 168),
+                Size = new Size(settingsCard.Width - 24, 1),
+                BackColor = _dark ? Color.FromArgb(68, 73, 79) : Color.FromArgb(220, 225, 232)
             };
+            settingsCard.Controls.Add(colorSectionSeparator);
 
             Label gradientLabel = new()
             {
                 Text = L("UseGradient"),
-                Location = new Point(12, 169),
+                Location = new Point(12, 177),
                 AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 8.9f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4944,8 +4953,8 @@ public sealed class SettingsForm : Form
             Label gradientDescription = new()
             {
                 Text = L("UseGradientDescription"),
-                Location = new Point(12, 188),
-                Size = new Size(300, 30),
+                Location = new Point(12, 196),
+                Size = new Size(300, 28),
                 Font = new Font("Segoe UI", 7.8f),
                 ForeColor = _dark ? DarkSecondary : LightSecondary,
                 BackColor = Color.Transparent
@@ -4954,7 +4963,7 @@ public sealed class SettingsForm : Form
 
             _gradientToggle = new ToggleSwitchControl
             {
-                Location = new Point(357, 172),
+                Location = new Point(357, 186),
                 Size = new Size(54, 28),
                 Checked = useGradient,
                 DarkMode = _dark
@@ -4964,7 +4973,7 @@ public sealed class SettingsForm : Form
             Label transitionLabel = new()
             {
                 Text = L("GradientTransitionStep"),
-                Location = new Point(12, 222),
+                Location = new Point(12, 235),
                 AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 8.9f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4975,8 +4984,8 @@ public sealed class SettingsForm : Form
             Label transitionDescription = new()
             {
                 Text = L("GradientTransitionStepDescription"),
-                Location = new Point(12, 241),
-                Size = new Size(285, 28),
+                Location = new Point(12, 254),
+                Size = new Size(285, 22),
                 Font = new Font("Segoe UI", 7.7f),
                 ForeColor = _dark ? DarkSecondary : LightSecondary,
                 BackColor = Color.Transparent
@@ -4985,8 +4994,8 @@ public sealed class SettingsForm : Form
 
             _gradientStepInput = new CriticalBatteryNumericControl
             {
-                Location = new Point(309, 220),
-                Size = new Size(72, 28),
+                Location = new Point(309, 233),
+                Size = new Size(72, 26),
                 Minimum = 0,
                 Maximum = 50,
                 Value = Math.Clamp(gradientPercent, 0, 50),
@@ -4997,7 +5006,7 @@ public sealed class SettingsForm : Form
             Label stepPercent = new()
             {
                 Text = "%",
-                Location = new Point(386, 225),
+                Location = new Point(386, 239),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 8.2f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -5007,7 +5016,7 @@ public sealed class SettingsForm : Form
 
             RoundedPanel previewCard = new()
             {
-                Location = new Point(18, 369),
+                Location = new Point(18, 395),
                 Size = new Size(424, 76),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
@@ -5042,7 +5051,7 @@ public sealed class SettingsForm : Form
             ActionButton reset = new(_iconCache)
             {
                 Text = L("ResetToDefaults"),
-                Location = new Point(16, 463),
+                Location = new Point(16, 489),
                 Size = new Size(178, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
@@ -5071,7 +5080,7 @@ public sealed class SettingsForm : Form
             ActionButton ok = new(_iconCache)
             {
                 Text = L("Ok"),
-                Location = new Point(244, 463),
+                Location = new Point(244, 489),
                 Size = new Size(92, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = true,
@@ -5100,7 +5109,7 @@ public sealed class SettingsForm : Form
             ActionButton cancel = new(_iconCache)
             {
                 Text = L("Cancel"),
-                Location = new Point(346, 463),
+                Location = new Point(346, 489),
                 Size = new Size(98, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
