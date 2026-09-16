@@ -4,15 +4,16 @@ namespace HyperXBatteryTray.Devices;
 
 public sealed class Cloud3WirelessDevice : IHyperXDevice
 {
-    private static readonly HyperXDeviceDefinition Definition = new()
+    internal static readonly HyperXDeviceDefinition Definition = new()
     {
         Name = "HyperX Cloud III Wireless",
         VendorId = 0x03F0,
         ProductId = 0x05B7,
         InterfacePattern = "VID_03F0&PID_05B7&MI_03&Col01",
         ReportLength = 62,
+        ResponseLength = 62,
         ReportId = 0x66,
-        BatteryCommand = 0x89,
+        BatteryCommandBytes = new byte[] { 0x66, 0x89 },
         BatteryByteIndex = 4
     };
 
@@ -52,8 +53,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         if (_isConnected)
             return true;
 
-        string? devicePath = HidConnection.FindDevice(
-            Definition.InterfacePattern);
+        string? devicePath = HidConnection.FindDevice(Definition);
 
         if (string.IsNullOrWhiteSpace(devicePath))
             return false;
@@ -136,7 +136,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
             byte[] command = new byte[Definition.ReportLength];
 
             command[0] = Definition.ReportId;
-            command[1] = Definition.BatteryCommand;
+            command[1] = Definition.BatteryCommandBytes[1];
 
             _connection.Write(command);
 

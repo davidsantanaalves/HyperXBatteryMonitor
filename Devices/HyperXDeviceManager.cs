@@ -12,21 +12,28 @@ public sealed class HyperXDeviceManager : IDisposable
         {
             new()
             {
-                Definition = new HyperXDeviceDefinition
-                {
-                    Name = "HyperX Cloud III Wireless",
-                    VendorId = 0x03F0,
-                    ProductId = 0x05B7,
-                    InterfacePattern =
-                        "VID_03F0&PID_05B7&MI_03&Col01",
-                    ReportLength = 62,
-                    ReportId = 0x66,
-                    BatteryCommand = 0x89,
-                    BatteryByteIndex = 4
-                },
-
-                Factory = () =>
-                    new Cloud3WirelessDevice()
+                Definition = Cloud3WirelessDevice.Definition,
+                Factory = () => new Cloud3WirelessDevice()
+            },
+            new()
+            {
+                Definition = Cloud3SWirelessDevice.DeviceDefinition,
+                Factory = () => new Cloud3SWirelessDevice()
+            },
+            new()
+            {
+                Definition = Cloud2CoreWirelessDevice.DeviceDefinition,
+                Factory = () => new Cloud2CoreWirelessDevice()
+            },
+            new()
+            {
+                Definition = CloudAlphaWirelessDevice.DeviceDefinition,
+                Factory = () => new CloudAlphaWirelessDevice()
+            },
+            new()
+            {
+                Definition = CloudStinger2WirelessDevice.DeviceDefinition,
+                Factory = () => new CloudStinger2WirelessDevice()
             }
         };
 
@@ -36,20 +43,14 @@ public sealed class HyperXDeviceManager : IDisposable
     {
         DisposeDevices();
 
-        foreach (HyperXDeviceRegistration registration
-                 in SupportedDevices)
+        foreach (HyperXDeviceRegistration registration in SupportedDevices)
         {
-            string? devicePath =
-                HidConnection.FindDevice(
-                    registration.Definition.InterfacePattern);
+            string? devicePath = HidConnection.FindDevice(registration.Definition);
 
             if (string.IsNullOrWhiteSpace(devicePath))
                 continue;
 
-            IHyperXDevice device =
-                registration.Factory();
-
-            _devices.Add(device);
+            _devices.Add(registration.Factory());
         }
 
         return _devices;
@@ -64,12 +65,35 @@ public sealed class HyperXDeviceManager : IDisposable
             : null;
     }
 
+    public IHyperXDevice? GetAvailableDevice(string? selectedDeviceName)
+    {
+        if (string.IsNullOrWhiteSpace(selectedDeviceName))
+            return null;
+
+        string normalized = NormalizeDeviceName(selectedDeviceName);
+
+        HyperXDeviceRegistration? registration =
+            SupportedDevices.FirstOrDefault(item =>
+                string.Equals(
+                    NormalizeDeviceName(item.Definition.Name),
+                    normalized,
+                    StringComparison.OrdinalIgnoreCase));
+
+        return registration?.Factory();
+    }
+
+    private static string NormalizeDeviceName(string value) =>
+        string.Equals(
+            value.Trim(),
+            "HyperX Cloud III Wireless",
+            StringComparison.OrdinalIgnoreCase)
+                ? "HyperX Cloud III"
+                : value.Trim();
+
     private void DisposeDevices()
     {
         foreach (IHyperXDevice device in _devices)
-        {
             device.Dispose();
-        }
 
         _devices.Clear();
     }

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using HyperXBatteryTray.Devices;
 
 namespace HyperXBatteryTray.Hid;
 
@@ -176,8 +177,7 @@ public sealed class HidConnection : IDisposable
         }
     }
 
-    public static string? FindDevice(
-        string interfacePattern)
+    public static string? FindDevice(HyperXDeviceDefinition definition)
     {
         Guid hidGuid = HidClassGuid;
 
@@ -189,11 +189,14 @@ public sealed class HidConnection : IDisposable
                 DIGCF_PRESENT |
                 DIGCF_DEVICEINTERFACE);
 
-        if (deviceInfoSet ==
-            INVALID_HANDLE_VALUE)
-        {
+        if (deviceInfoSet == INVALID_HANDLE_VALUE)
             return null;
-        }
+
+        string? firstMatch = null;
+        string? bestMatch = null;
+        ushort bestUsage = 0;
+        ushort bestUsagePage = 0;
+        bool hasUsageCandidate = false;
 
         try
         {
@@ -204,9 +207,7 @@ public sealed class HidConnection : IDisposable
                 SP_DEVICE_INTERFACE_DATA interfaceData =
                     new()
                     {
-                        cbSize =
-                            Marshal.SizeOf<
-                                SP_DEVICE_INTERFACE_DATA>()
+                        cbSize = Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>()
                     };
 
                 bool result =
@@ -219,29 +220,63 @@ public sealed class HidConnection : IDisposable
 
                 if (!result)
                 {
-                    int error =
-                        Marshal.GetLastWin32Error();
+                    int error = Marshal.GetLastWin32Error();
 
-                    if (error ==
-                        ERROR_NO_MORE_ITEMS)
-                    {
+                    if (error == ERROR_NO_MORE_ITEMS)
                         break;
-                    }
 
                     break;
                 }
 
-                string? path =
-                    GetDevicePath(
-                        deviceInfoSet,
-                        ref interfaceData);
+                string? path = GetDevicePath(
+                    deviceInfoSet,
+                    ref interfaceData);
 
-                if (path != null &&
-                    path.Contains(
-                        interfacePattern,
-                        StringComparison.OrdinalIgnoreCase))
+                if (path == null || !definition.Matches(path))
+                {
+                    index++;
+                    continue;
+                }
+
+                firstMatch ??= path;
+
+                HidCapabilities? capabilities = GetHidCapabilities(path);
+
+                if (definition.RequiredUsagePage.HasValue &&
+                    (!capabilities.HasValue ||
+                     capabilities.Value.UsagePage != definition.RequiredUsagePage.Value))
+                {
+                    index++;
+                    continue;
+                }
+
+                if (definition.RequiredUsage.HasValue &&
+                    (!capabilities.HasValue ||
+                     capabilities.Value.Usage != definition.RequiredUsage.Value))
+                {
+                    index++;
+                    continue;
+                }
+
+                if (definition.RequiredUsagePage.HasValue ||
+                    definition.RequiredUsage.HasValue)
                 {
                     return path;
+                }
+
+                if (!definition.PreferHighestUsage)
+                    return path;
+
+                if (capabilities.HasValue &&
+                    (!hasUsageCandidate ||
+                     capabilities.Value.Usage > bestUsage ||
+                     (capabilities.Value.Usage == bestUsage &&
+                      capabilities.Value.UsagePage >= bestUsagePage)))
+                {
+                    hasUsageCandidate = true;
+                    bestUsage = capabilities.Value.Usage;
+                    bestUsagePage = capabilities.Value.UsagePage;
+                    bestMatch = path;
                 }
 
                 index++;
@@ -249,12 +284,76 @@ public sealed class HidConnection : IDisposable
         }
         finally
         {
-            SetupDiDestroyDeviceInfoList(
-                deviceInfoSet);
+            SetupDiDestroyDeviceInfoList(deviceInfoSet);
         }
 
-        return null;
+        if (definition.RequiredUsagePage.HasValue ||
+            definition.RequiredUsage.HasValue)
+        {
+            return bestMatch;
+        }
+
+        return bestMatch ?? firstMatch;
     }
+
+    private static HidCapabilities? GetHidCapabilities(string devicePath)
+    {
+        try
+        {
+            using SafeFileHandle handle = CreateFile(
+                devicePath,
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                IntPtr.Zero,
+                OPEN_EXISTING,
+                0,
+                IntPtr.Zero);
+
+            if (handle.IsInvalid)
+                return null;
+
+            if (!HidD_GetPreparsedData(
+                    handle,
+                    out IntPtr preparsedData) ||
+                preparsedData == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            try
+            {
+                HIDP_CAPS capabilities = new()
+                {
+                    Reserved = new ushort[17]
+                };
+
+                int status = HidP_GetCaps(
+                    preparsedData,
+                    ref capabilities);
+
+                if (status != HIDP_STATUS_SUCCESS)
+                    return null;
+
+                return new HidCapabilities(
+                    capabilities.UsagePage,
+                    capabilities.Usage);
+            }
+            finally
+            {
+                _ = HidD_FreePreparsedData(preparsedData);
+            }
+        }
+        catch
+        {
+            // Interface capability discovery is optional for generic devices.
+            // A failure must never terminate the application.
+            return null;
+        }
+    }
+
+    private readonly record struct HidCapabilities(
+        ushort UsagePage,
+        ushort Usage);
 
     private static string? GetDevicePath(
         IntPtr deviceInfoSet,
@@ -366,6 +465,31 @@ public sealed class HidConnection : IDisposable
     private static readonly IntPtr
         INVALID_HANDLE_VALUE = new(-1);
 
+    private const int HIDP_STATUS_SUCCESS = 0x00110000;
+
+    [DllImport(
+        "hid.dll",
+        SetLastError = true)]
+    private static extern bool
+        HidD_GetPreparsedData(
+            SafeFileHandle HidDeviceObject,
+            out IntPtr PreparsedData);
+
+    [DllImport(
+        "hid.dll",
+        SetLastError = true)]
+    private static extern bool
+        HidD_FreePreparsedData(
+            IntPtr PreparsedData);
+
+    [DllImport(
+        "hidparse.dll",
+        SetLastError = false)]
+    private static extern int
+        HidP_GetCaps(
+            IntPtr PreparsedData,
+            ref HIDP_CAPS Capabilities);
+
     [DllImport(
         "setupapi.dll",
         SetLastError = true,
@@ -423,6 +547,30 @@ public sealed class HidConnection : IDisposable
             uint dwCreationDisposition,
             uint dwFlagsAndAttributes,
             IntPtr hTemplateFile);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct HIDP_CAPS
+    {
+        public ushort Usage;
+        public ushort UsagePage;
+        public ushort InputReportByteLength;
+        public ushort OutputReportByteLength;
+        public ushort FeatureReportByteLength;
+
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 17)]
+        public ushort[] Reserved;
+
+        public ushort NumberLinkCollectionNodes;
+        public ushort NumberInputButtonCaps;
+        public ushort NumberInputValueCaps;
+        public ushort NumberInputDataIndices;
+        public ushort NumberOutputButtonCaps;
+        public ushort NumberOutputValueCaps;
+        public ushort NumberOutputDataIndices;
+        public ushort NumberFeatureButtonCaps;
+        public ushort NumberFeatureValueCaps;
+        public ushort NumberFeatureDataIndices;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SP_DEVICE_INTERFACE_DATA

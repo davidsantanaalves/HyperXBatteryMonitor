@@ -12,11 +12,19 @@ public sealed class HyperXDeviceDefinition
 
     public required int ReportLength { get; init; }
 
+    public required int ResponseLength { get; init; }
+
     public required byte ReportId { get; init; }
 
-    public required byte BatteryCommand { get; init; }
+    public required byte[] BatteryCommandBytes { get; init; }
 
     public required int BatteryByteIndex { get; init; }
+
+    public ushort? RequiredUsagePage { get; init; }
+
+    public ushort? RequiredUsage { get; init; }
+
+    public bool PreferHighestUsage { get; init; }
 
     public bool Matches(string devicePath)
     {

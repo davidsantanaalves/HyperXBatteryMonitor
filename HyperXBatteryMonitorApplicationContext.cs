@@ -618,12 +618,53 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 		{
 			DrawChargingBoltAfterPercentage(graphics);
 		}
+		else if (_settings.DisplayMode == BatteryDisplayMode.Advanced &&
+			_settings.AdvancedDisplayMode == AdvancedDisplayMode.BatteryGradient)
+		{
+			DrawChargingBoltCentered(graphics);
+		}
 		else
 		{
 			DrawChargingBoltOnRight(graphics);
 		}
 
 		return BitmapToIcon(bitmap);
+	}
+
+	private void DrawChargingBoltCentered(Graphics graphics)
+	{
+		using var path = new GraphicsPath();
+
+		path.AddPolygon(new[]
+		{
+			new PointF(10.0f, 1.5f),
+			new PointF(5.4f, 7.3f),
+			new PointF(7.8f, 7.3f),
+			new PointF(6.1f, 14.5f),
+			new PointF(11.1f, 6.2f),
+			new PointF(8.7f, 6.2f)
+		});
+
+		using var outlineBrush = new SolidBrush(
+			Color.FromArgb(235, 0, 0, 0));
+
+		graphics.FillPath(outlineBrush, path);
+
+		using var innerPath = new GraphicsPath();
+
+		innerPath.AddPolygon(new[]
+		{
+			new PointF(9.4f, 2.8f),
+			new PointF(6.8f, 6.6f),
+			new PointF(8.5f, 6.6f),
+			new PointF(7.3f, 11.8f),
+			new PointF(10.0f, 6.8f),
+			new PointF(8.4f, 6.8f)
+		});
+
+		using var chargingBrush = new SolidBrush(Color.LimeGreen);
+
+		graphics.FillPath(chargingBrush, innerPath);
 	}
 
 	private void DrawChargingBoltOnRight(Graphics graphics)
