@@ -927,8 +927,8 @@ public sealed class SettingsForm : Form
             new[]
             {
                 new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "≥ 50%", "green"),
-                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "30 – 49%", "yellow"),
-                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "15 – 29%", "orange"),
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "49 – 30%", "yellow"),
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "29 – 15%", "orange"),
                 new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "< 15%", "red"),
                 new BatteryPreviewItem(BatteryPreviewKind.Charging, Color.WhiteSmoke, L("BatteryPreviewCharging"))
             });
@@ -936,19 +936,45 @@ public sealed class SettingsForm : Form
         RoundedPanel customCard = CreateCard(new Point(cardLeft, 74 + 104 + cardGap + 124 + cardGap), new Size(cardWidth, 124), true);
         customCard.Tag = "battery-monitor-card";
         _pageHost.Controls.Add(customCard);
+        List<BatteryColorSettings> customColors = _pendingBatteryColors
+            .OrderByDescending(c => c.MinimumPercent)
+            .Take(3)
+            .ToList();
+
+        IReadOnlyList<BatteryPreviewItem> customPreviews = customColors.Count >= 3
+            ? new BatteryPreviewItem[]
+            {
+                new BatteryPreviewItem(
+                    BatteryPreviewKind.Solid,
+                    customColors[0].Color,
+                    $">= {customColors[0].MinimumPercent}%"),
+                new BatteryPreviewItem(
+                    BatteryPreviewKind.Solid,
+                    customColors[1].Color,
+                    $"{Math.Max(customColors[0].MinimumPercent - 1, customColors[1].MinimumPercent)} – {customColors[1].MinimumPercent}%"),
+                new BatteryPreviewItem(
+                    BatteryPreviewKind.Solid,
+                    customColors[2].Color,
+                    $"{Math.Max(customColors[1].MinimumPercent - 1, customColors[2].MinimumPercent)} – {customColors[2].MinimumPercent}%"),
+                new BatteryPreviewItem(
+                    BatteryPreviewKind.Charging,
+                    Color.WhiteSmoke,
+                    L("BatteryPreviewCharging"))
+            }
+            : new BatteryPreviewItem[]
+            {
+                new BatteryPreviewItem(
+                    BatteryPreviewKind.Charging,
+                    Color.WhiteSmoke,
+                    L("BatteryPreviewCharging"))
+            };
+
         BuildBatteryModeCard(
             customCard,
             BatteryDisplayMode.Advanced,
             L("BatteryMonitorCustomTitle"),
             L("BatteryMonitorCustomDescription"),
-            new[]
-            {
-                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(52, 211, 85), "≥ 50%"),
-                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(250, 204, 21), "30 – 49%"),
-                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(249, 115, 22), "15 – 29%"),
-                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(239, 68, 68), "< 15%"),
-                new BatteryPreviewItem(BatteryPreviewKind.Charging, Color.WhiteSmoke, L("BatteryPreviewCharging"))
-            },
+            customPreviews,
             showCustomizeButton: true);
 
         UpdateBatteryMonitorModeCards();
@@ -987,8 +1013,8 @@ public sealed class SettingsForm : Form
 
         int previewStartX = showCustomizeButton ? 58 : (previews.Count <= 2 ? 318 : 58);
         int previewY = showCustomizeButton ? 64 : (previews.Count <= 2 ? 10 : 55);
-        int previewWidth = previews.Count <= 2 ? 94 : (showCustomizeButton ? 66 : 82);
-        int previewGap = previews.Count <= 2 ? 10 : (showCustomizeButton ? 1 : 2);
+        int previewWidth = previews.Count <= 2 ? 94 : (showCustomizeButton ? 80 : 82);
+        int previewGap = previews.Count <= 2 ? 10 : (showCustomizeButton ? 4 : 2);
 
         for (int i = 0; i < previews.Count; i++)
         {
@@ -4712,7 +4738,7 @@ public sealed class SettingsForm : Form
             Text = L("CustomizeDynamicIconColors");
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
-            ClientSize = new Size(460, 535);
+            ClientSize = new Size(460, 510);
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
@@ -4729,7 +4755,7 @@ public sealed class SettingsForm : Form
                 using Pen separator = new(
                     _dark ? Color.FromArgb(53, 58, 63) : Color.FromArgb(220, 225, 232), 1f);
                 e.Graphics.DrawLine(separator, 0, 45, ClientSize.Width, 45);
-                e.Graphics.DrawLine(separator, 0, 480, ClientSize.Width, 480);
+                e.Graphics.DrawLine(separator, 0, 454, ClientSize.Width, 454);
             };
 
             BuildHeader();
@@ -4834,7 +4860,7 @@ public sealed class SettingsForm : Form
             RoundedPanel settingsCard = new()
             {
                 Location = new Point(18, 101),
-                Size = new Size(424, 285),
+                Size = new Size(424, 259),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
                 BackColor = _dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251)
@@ -4933,7 +4959,7 @@ public sealed class SettingsForm : Form
 
             Panel colorSectionSeparator = new()
             {
-                Location = new Point(12, 168),
+                Location = new Point(12, 164),
                 Size = new Size(settingsCard.Width - 24, 1),
                 BackColor = _dark ? Color.FromArgb(68, 73, 79) : Color.FromArgb(220, 225, 232)
             };
@@ -4942,7 +4968,7 @@ public sealed class SettingsForm : Form
             Label gradientLabel = new()
             {
                 Text = L("UseGradient"),
-                Location = new Point(12, 177),
+                Location = new Point(12, 172),
                 AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 8.9f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4953,7 +4979,7 @@ public sealed class SettingsForm : Form
             Label gradientDescription = new()
             {
                 Text = L("UseGradientDescription"),
-                Location = new Point(12, 196),
+                Location = new Point(12, 191),
                 Size = new Size(300, 28),
                 Font = new Font("Segoe UI", 7.8f),
                 ForeColor = _dark ? DarkSecondary : LightSecondary,
@@ -4963,7 +4989,7 @@ public sealed class SettingsForm : Form
 
             _gradientToggle = new ToggleSwitchControl
             {
-                Location = new Point(357, 186),
+                Location = new Point(357, 169),
                 Size = new Size(54, 28),
                 Checked = useGradient,
                 DarkMode = _dark
@@ -4973,7 +4999,7 @@ public sealed class SettingsForm : Form
             Label transitionLabel = new()
             {
                 Text = L("GradientTransitionStep"),
-                Location = new Point(12, 235),
+                Location = new Point(12, 225),
                 AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 8.9f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -4984,7 +5010,7 @@ public sealed class SettingsForm : Form
             Label transitionDescription = new()
             {
                 Text = L("GradientTransitionStepDescription"),
-                Location = new Point(12, 254),
+                Location = new Point(12, 244),
                 Size = new Size(285, 22),
                 Font = new Font("Segoe UI", 7.7f),
                 ForeColor = _dark ? DarkSecondary : LightSecondary,
@@ -4994,7 +5020,7 @@ public sealed class SettingsForm : Form
 
             _gradientStepInput = new CriticalBatteryNumericControl
             {
-                Location = new Point(309, 233),
+                Location = new Point(309, 223),
                 Size = new Size(72, 26),
                 Minimum = 0,
                 Maximum = 50,
@@ -5006,7 +5032,7 @@ public sealed class SettingsForm : Form
             Label stepPercent = new()
             {
                 Text = "%",
-                Location = new Point(386, 239),
+                Location = new Point(386, 229),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 8.2f),
                 ForeColor = _dark ? Color.WhiteSmoke : LightText,
@@ -5016,7 +5042,7 @@ public sealed class SettingsForm : Form
 
             RoundedPanel previewCard = new()
             {
-                Location = new Point(18, 395),
+                Location = new Point(18, 369),
                 Size = new Size(424, 76),
                 BorderColor = _dark ? DarkBorder : LightBorder,
                 OutsideBackColor = _dark ? Color.FromArgb(34, 37, 40) : Color.White,
@@ -5051,7 +5077,7 @@ public sealed class SettingsForm : Form
             ActionButton reset = new(_iconCache)
             {
                 Text = L("ResetToDefaults"),
-                Location = new Point(16, 489),
+                Location = new Point(16, 463),
                 Size = new Size(178, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
@@ -5080,7 +5106,7 @@ public sealed class SettingsForm : Form
             ActionButton ok = new(_iconCache)
             {
                 Text = L("Ok"),
-                Location = new Point(244, 489),
+                Location = new Point(244, 463),
                 Size = new Size(92, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = true,
@@ -5109,7 +5135,7 @@ public sealed class SettingsForm : Form
             ActionButton cancel = new(_iconCache)
             {
                 Text = L("Cancel"),
-                Location = new Point(346, 489),
+                Location = new Point(346, 463),
                 Size = new Size(98, 36),
                 Font = new Font("Segoe UI", 8.7f),
                 Primary = false,
@@ -5262,16 +5288,16 @@ public sealed class SettingsForm : Form
             int[] samples =
             {
                 high,
-                Math.Clamp(medium + Math.Max(1, (high - medium) / 2), 0, 100),
-                Math.Max(0, low - 1),
+                medium,
+                low,
                 -1
             };
 
             string[] labels =
             {
                 $">= {high}%",
-                $"{medium} – {Math.Max(medium, high - 1)}%",
-                $"< {low}%",
+                $"{Math.Max(medium, high - 1)} – {medium}%",
+                $"{Math.Max(low, medium - 1)} – {low}%",
                 Localization.Get("BatteryPreviewCharging", _language)
             };
 
