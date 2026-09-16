@@ -61,6 +61,9 @@ public sealed class SettingsForm : Form
     private bool _pendingNotifyWhenFullyCharged;
     private bool _pendingBlinkOnCriticalBattery;
     private int _pendingCriticalBatteryPercent;
+    private BatteryDisplayMode _pendingDisplayMode;
+    private AdvancedDisplayMode _pendingAdvancedDisplayMode;
+    private readonly List<(RoundedPanel Card, BatteryModeCard Radio)> _batteryModeCards = new();
     private ToggleSwitchControl _notifyOnLowBatteryToggle = null!;
     private ToggleSwitchControl _notifyWhenFullyChargedToggle = null!;
     private ToggleSwitchControl _blinkOnCriticalBatteryToggle = null!;
@@ -133,6 +136,8 @@ public sealed class SettingsForm : Form
         _pendingNotifyWhenFullyCharged = settings.NotifyWhenFullyCharged;
         _pendingBlinkOnCriticalBattery = settings.BlinkOnCriticalBattery;
         _pendingCriticalBatteryPercent = Math.Clamp(settings.CriticalBatteryPercent, 1, 100);
+        _pendingDisplayMode = settings.DisplayMode;
+        _pendingAdvancedDisplayMode = settings.AdvancedDisplayMode;
 
         Text = L("WindowTitle");
         StartPosition = FormStartPosition.Manual;
@@ -833,6 +838,11 @@ public sealed class SettingsForm : Form
                 ShowInterfacePage();
                 return;
             }
+            if (key == "BatteryMonitor")
+            {
+                ShowBatteryMonitorPage();
+                return;
+            }
             if (key == "Notifications")
             {
                 ShowNotificationsPage();
@@ -874,6 +884,189 @@ public sealed class SettingsForm : Form
         _pageHost.Controls.Clear();
         BuildDevicePage();
         RefreshDeviceStatus();
+    }
+
+    private void ShowBatteryMonitorPage()
+    {
+        _pageHost.Controls.Clear();
+        _batteryModeCards.Clear();
+        AddPageHeader("battery_monitor", Glyph.Battery, "BatteryMonitorTitle", "BatteryMonitorDescription", 42);
+
+        const int cardLeft = 20;
+        const int cardWidth = 528;
+        const int cardGap = 10;
+
+        RoundedPanel staticCard = CreateCard(new Point(cardLeft, 74), new Size(cardWidth, 104), true);
+        staticCard.Tag = "battery-monitor-card";
+        _pageHost.Controls.Add(staticCard);
+        BuildBatteryModeCard(
+            staticCard,
+            BatteryDisplayMode.StaticIcon,
+            L("BatteryMonitorStaticTitle"),
+            L("BatteryMonitorStaticDescription"),
+            new[]
+            {
+                new BatteryPreviewItem(BatteryPreviewKind.Normal, Color.WhiteSmoke, L("BatteryPreviewNormal"), showTile: true),
+                new BatteryPreviewItem(BatteryPreviewKind.Charging, Color.WhiteSmoke, L("BatteryPreviewCharging"), showTile: true)
+            });
+
+        RoundedPanel dynamicCard = CreateCard(new Point(cardLeft, 74 + 104 + cardGap), new Size(cardWidth, 124), true);
+        dynamicCard.Tag = "battery-monitor-card";
+        _pageHost.Controls.Add(dynamicCard);
+        BuildBatteryModeCard(
+            dynamicCard,
+            BatteryDisplayMode.BatteryIndicator,
+            L("BatteryMonitorDynamicTitle"),
+            L("BatteryMonitorDynamicDescription"),
+            new[]
+            {
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "≥ 50%", "green"),
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "30 – 49%", "yellow"),
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "15 – 29%", "orange"),
+                new BatteryPreviewItem(BatteryPreviewKind.Level, Color.Empty, "< 15%", "red"),
+                new BatteryPreviewItem(BatteryPreviewKind.Charging, Color.WhiteSmoke, L("BatteryPreviewCharging"))
+            });
+
+        RoundedPanel customCard = CreateCard(new Point(cardLeft, 74 + 104 + cardGap + 124 + cardGap), new Size(cardWidth, 124), true);
+        customCard.Tag = "battery-monitor-card";
+        _pageHost.Controls.Add(customCard);
+        BuildBatteryModeCard(
+            customCard,
+            BatteryDisplayMode.Advanced,
+            L("BatteryMonitorCustomTitle"),
+            L("BatteryMonitorCustomDescription"),
+            new[]
+            {
+                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(52, 211, 85), "≥ 50%"),
+                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(250, 204, 21), "30 – 49%"),
+                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(249, 115, 22), "15 – 29%"),
+                new BatteryPreviewItem(BatteryPreviewKind.Solid, Color.FromArgb(239, 68, 68), "< 15%"),
+                new BatteryPreviewItem(BatteryPreviewKind.Charging, Color.WhiteSmoke, L("BatteryPreviewCharging"))
+            },
+            showCustomizeButton: true);
+
+        UpdateBatteryMonitorModeCards();
+    }
+
+    private void BuildBatteryModeCard(
+        RoundedPanel card,
+        BatteryDisplayMode mode,
+        string title,
+        string description,
+        IReadOnlyList<BatteryPreviewItem> previews,
+        bool showCustomizeButton = false)
+    {
+        BatteryModeCard modeSelector = new BatteryModeCard
+        {
+            Location = new Point(16, Math.Max(0, (card.Height - 30) / 2)),
+            Size = new Size(30, 30),
+            Selected = IsBatteryModeSelected(mode),
+            DarkMode = EffectiveTheme == AppTheme.Dark,
+            Cursor = Cursors.Hand
+        };
+        modeSelector.Click += (_, _) => SelectBatteryDisplayMode(mode);
+        card.Controls.Add(modeSelector);
+        _batteryModeCards.Add((card, modeSelector));
+
+        Label titleLabel = CreateLabel(title, true, new Point(68, 12), 10.5f);
+        titleLabel.Cursor = Cursors.Hand;
+        titleLabel.Click += (_, _) => SelectBatteryDisplayMode(mode);
+        card.Controls.Add(titleLabel);
+
+        Label descriptionLabel = CreateLabel(description, false, new Point(68, 36), 8.8f);
+        descriptionLabel.MaximumSize = new Size(showCustomizeButton || previews.Count > 2 ? 444 : 235, 0);
+        descriptionLabel.Cursor = Cursors.Hand;
+        descriptionLabel.Click += (_, _) => SelectBatteryDisplayMode(mode);
+        card.Controls.Add(descriptionLabel);
+
+        int previewStartX = showCustomizeButton ? 58 : (previews.Count <= 2 ? 318 : 58);
+        int previewY = showCustomizeButton ? 64 : (previews.Count <= 2 ? 10 : 55);
+        int previewWidth = previews.Count <= 2 ? 94 : (showCustomizeButton ? 66 : 82);
+        int previewGap = previews.Count <= 2 ? 10 : (showCustomizeButton ? 1 : 2);
+
+        for (int i = 0; i < previews.Count; i++)
+        {
+            BatteryPreviewItem preview = previews[i];
+            preview.DarkMode = EffectiveTheme == AppTheme.Dark;
+            preview.Location = new Point(previewStartX + i * (previewWidth + previewGap), previewY);
+            preview.Size = new Size(previewWidth, previews.Count <= 2 ? 84 : (showCustomizeButton ? 60 : 64));
+            preview.Click += (_, _) => SelectBatteryDisplayMode(mode);
+            card.Controls.Add(preview);
+        }
+
+        if (showCustomizeButton)
+        {
+            AboutActionButton customizeButton = new AboutActionButton(_iconCache)
+            {
+                Text = L("BatteryMonitorCustomize"),
+                Location = new Point(407, 65),
+                Size = new Size(113, 36),
+                Font = new Font("Segoe UI", 9f),
+                DarkMode = EffectiveTheme == AppTheme.Dark,
+                CustomIconPath = GetBatteryMonitorThemeIconPath(EffectiveTheme == AppTheme.Dark),
+                OutsideBackColor = EffectiveTheme == AppTheme.Dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251),
+                Cursor = Cursors.Hand
+            };
+            customizeButton.Click += (_, _) => SelectBatteryDisplayMode(mode);
+            card.Controls.Add(customizeButton);
+        }
+    }
+
+    private bool IsBatteryModeSelected(BatteryDisplayMode mode) => _pendingDisplayMode == mode;
+
+    private static string GetBatteryMonitorThemeIconPath(bool dark)
+    {
+        string themeFolder = dark ? "Dark" : "Light";
+        string themeName = dark ? "dark" : "light";
+        return Path.Combine(
+            AppContext.BaseDirectory,
+            "Icons",
+            themeFolder,
+            $"theme-{themeName}-25x25.png");
+    }
+
+    private void SelectBatteryDisplayMode(BatteryDisplayMode mode)
+    {
+        _pendingDisplayMode = mode;
+        if (mode == BatteryDisplayMode.Advanced)
+            _pendingAdvancedDisplayMode = AdvancedDisplayMode.BatteryGradient;
+
+        // Selecting a card changes only the existing persisted display mode.
+        // The tray icon rendering/threshold logic remains untouched.
+
+        UpdateBatteryMonitorModeCards();
+    }
+
+    private void UpdateBatteryMonitorModeCards()
+    {
+        if (_batteryModeCards.Count == 0)
+            return;
+
+        bool dark = EffectiveTheme == AppTheme.Dark;
+        foreach ((RoundedPanel card, BatteryModeCard radio) in _batteryModeCards)
+        {
+            radio.DarkMode = dark;
+            radio.Selected = false;
+            card.BorderColor = dark ? DarkBorder : LightBorder;
+            card.BackColor = dark ? Color.FromArgb(42, 45, 48) : Color.FromArgb(248, 249, 251);
+            card.OutsideBackColor = dark ? Color.FromArgb(34, 37, 40) : Color.White;
+            card.Invalidate();
+        }
+
+        BatteryDisplayMode[] modes =
+        {
+            BatteryDisplayMode.StaticIcon,
+            BatteryDisplayMode.BatteryIndicator,
+            BatteryDisplayMode.Advanced
+        };
+
+        for (int i = 0; i < Math.Min(modes.Length, _batteryModeCards.Count); i++)
+        {
+            bool selected = _pendingDisplayMode == modes[i];
+            _batteryModeCards[i].Radio.Selected = selected;
+            _batteryModeCards[i].Card.BorderColor = selected ? Accent : (dark ? DarkBorder : LightBorder);
+            _batteryModeCards[i].Card.Invalidate();
+        }
     }
 
     private void ShowAboutPage()
@@ -1384,6 +1577,7 @@ public sealed class SettingsForm : Form
         if (_blinkOnCriticalBatteryToggle != null) _blinkOnCriticalBatteryToggle.DarkMode = dark;
         if (_criticalBatteryPercentInput != null)
             _criticalBatteryPercentInput.DarkMode = dark;
+        UpdateBatteryMonitorModeCards();
 
         foreach (SidebarItem item in _navButtons.Values)
         {
@@ -1488,6 +1682,18 @@ public sealed class SettingsForm : Form
                 continue;
             }
 
+            if (c is BatteryPreviewItem previewItem)
+            {
+                previewItem.DarkMode = dark;
+                continue;
+            }
+
+            if (c is BatteryModeCard modeCard)
+            {
+                modeCard.DarkMode = dark;
+                continue;
+            }
+
             if (c is SidebarItem || c is Button || c is DeviceSelector || c is StatusDotControl || c is BatteryIconControl || c == _footer)
                 continue;
 
@@ -1582,6 +1788,8 @@ public sealed class SettingsForm : Form
         _pendingNotifyWhenFullyCharged = defaults.NotifyWhenFullyCharged;
         _pendingBlinkOnCriticalBattery = defaults.BlinkOnCriticalBattery;
         _pendingCriticalBatteryPercent = defaults.CriticalBatteryPercent;
+        _pendingDisplayMode = defaults.DisplayMode;
+        _pendingAdvancedDisplayMode = defaults.AdvancedDisplayMode;
         _selectedLanguage = defaults.Language;
         _selectedTheme = defaults.Theme;
 
@@ -1607,6 +1815,8 @@ public sealed class SettingsForm : Form
     private bool ApplySettings()
     {
         _settings.SelectedDevice = _pendingSelectedDevice;
+        _settings.DisplayMode = _pendingDisplayMode;
+        _settings.AdvancedDisplayMode = _pendingAdvancedDisplayMode;
         _settings.NotifyOnLowBattery = _pendingNotifyOnLowBattery;
         _settings.NotifyWhenFullyCharged = _pendingNotifyWhenFullyCharged;
         _settings.BlinkOnCriticalBattery = _pendingBlinkOnCriticalBattery;
@@ -4030,6 +4240,311 @@ public sealed class SettingsForm : Form
         }
     }
 
+    private enum BatteryPreviewKind
+    {
+        Normal,
+        Charging,
+        Glow,
+        Level,
+        Solid
+    }
+
+    private sealed class BatteryModeCard : Control
+    {
+        private bool _selected;
+        private bool _dark;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool Selected
+        {
+            get => _selected;
+            set
+            {
+                if (_selected == value)
+                    return;
+                _selected = value;
+                Invalidate();
+            }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode
+        {
+            get => _dark;
+            set
+            {
+                if (_dark == value)
+                    return;
+                _dark = value;
+                Invalidate();
+            }
+        }
+
+        public BatteryModeCard()
+        {
+            SetStyle(
+                ControlStyles.UserPaint |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.SupportsTransparentBackColor |
+                ControlStyles.ResizeRedraw,
+                true);
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            float inset = 2f;
+            float diameter = Math.Min(Width, Height) - inset * 2f;
+            RectangleF outer = new(inset, inset, diameter, diameter);
+            Color border = _selected ? Accent : (_dark ? Color.FromArgb(188, 197, 207) : Color.FromArgb(94, 103, 115));
+
+            using Pen pen = new(border, _selected ? 2.2f : 1.8f);
+            e.Graphics.DrawEllipse(pen, outer);
+
+            if (_selected)
+            {
+                float dot = diameter * 0.43f;
+                using Brush brush = new SolidBrush(Accent);
+                e.Graphics.FillEllipse(
+                    brush,
+                    outer.X + (diameter - dot) / 2f,
+                    outer.Y + (diameter - dot) / 2f,
+                    dot,
+                    dot);
+            }
+        }
+    }
+
+    private sealed class BatteryPreviewItem : Control
+    {
+        private readonly BatteryPreviewKind _kind;
+        private readonly Color _accentColor;
+        private readonly string _label;
+        private readonly bool _showTile;
+        private readonly string? _levelIconStem;
+        private Bitmap? _darkIcon;
+        private Bitmap? _lightIcon;
+        private Bitmap? _darkChargingIcon;
+        private Bitmap? _lightChargingIcon;
+        private Bitmap? _darkLevelIcon;
+        private Bitmap? _lightLevelIcon;
+        private bool _dark;
+
+        public BatteryPreviewItem(
+            BatteryPreviewKind kind,
+            Color accentColor,
+            string label,
+            string? levelIconStem = null,
+            bool showTile = false)
+        {
+            _kind = kind;
+            _accentColor = accentColor;
+            _label = label;
+            _levelIconStem = levelIconStem;
+            _showTile = showTile;
+
+            SetStyle(
+                ControlStyles.UserPaint |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.SupportsTransparentBackColor |
+                ControlStyles.ResizeRedraw,
+                true);
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+            LoadBitmaps();
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool DarkMode
+        {
+            get => _dark;
+            set
+            {
+                if (_dark == value)
+                    return;
+                _dark = value;
+                Invalidate();
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
+            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+            if (_showTile)
+            {
+                RectangleF tile = new(1, 1, Math.Max(1, Width - 2), Math.Max(1, Height - 2));
+                Color tileBackground = _dark ? Color.FromArgb(23, 27, 30) : Color.FromArgb(245, 247, 250);
+                Color tileBorder = _dark ? Color.FromArgb(57, 63, 69) : Color.FromArgb(211, 216, 224);
+                using Brush tileBrush = new SolidBrush(tileBackground);
+                using Pen tilePen = new(tileBorder, 1f);
+                e.Graphics.FillRoundedRectangle(tileBrush, tile, 8);
+                e.Graphics.DrawRoundedRectangle(tilePen, tile, 8);
+            }
+
+            int labelHeight = Math.Max(16, Math.Min(20, Height / 3));
+            int iconAreaHeight = Math.Max(20, Height - labelHeight - 2);
+            int iconSize = _showTile
+                ? Math.Min(42, Math.Max(28, Math.Min(Width - 12, iconAreaHeight - 2)))
+                : Math.Min(58, Math.Max(28, Math.Min(Width - 12, iconAreaHeight - 2)));
+
+            float contentHeight = iconSize + labelHeight;
+            float contentTop = _showTile
+                ? Math.Max(0f, (Height - contentHeight) / 2f)
+                : 1f;
+
+            RectangleF iconRect = new(
+                (Width - iconSize) / 2f,
+                contentTop,
+                iconSize,
+                iconSize);
+
+            Bitmap? source = _kind == BatteryPreviewKind.Charging
+                ? (_dark ? _darkChargingIcon : _lightChargingIcon)
+                : _kind == BatteryPreviewKind.Level
+                    ? (_dark ? _darkLevelIcon : _lightLevelIcon)
+                    : (_dark ? _darkIcon : _lightIcon);
+
+            if (source != null)
+            {
+                switch (_kind)
+                {
+                    case BatteryPreviewKind.Glow:
+                        DrawGlow(e.Graphics, source, iconRect, _accentColor);
+                        e.Graphics.DrawImage(source, iconRect);
+                        break;
+                    case BatteryPreviewKind.Level:
+                        // Use the exact tray assets already used by the application
+                        // (dark_green/light_green, etc.). Do not alter tray rendering.
+                        e.Graphics.DrawImage(source, iconRect);
+                        break;
+                    case BatteryPreviewKind.Solid:
+                        using (Bitmap solid = Colorize(source, _accentColor))
+                            e.Graphics.DrawImage(solid, iconRect);
+                        break;
+                    default:
+                        e.Graphics.DrawImage(source, iconRect);
+                        break;
+                }
+            }
+
+            using Font labelFont = new("Segoe UI", 8.2f);
+            Color text = _dark ? Color.WhiteSmoke : LightText;
+            Rectangle labelRect = _showTile
+                ? new Rectangle(0, (int)Math.Round(contentTop + iconSize), Width, labelHeight)
+                : new Rectangle(0, Height - labelHeight, Width, labelHeight);
+            TextRenderer.DrawText(
+                e.Graphics,
+                _label,
+                labelFont,
+                labelRect,
+                text,
+                TextFormatFlags.HorizontalCenter |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.NoPrefix |
+                TextFormatFlags.EndEllipsis);
+        }
+
+        private void LoadBitmaps()
+        {
+            _darkIcon = LoadIconBitmap("Dark", "dark.ico");
+            _lightIcon = LoadIconBitmap("Light", "light.ico");
+            _darkChargingIcon = LoadIconBitmap("Dark", "dark_charging.ico");
+            _lightChargingIcon = LoadIconBitmap("Light", "light_charging.ico");
+
+            if (!string.IsNullOrWhiteSpace(_levelIconStem))
+            {
+                _darkLevelIcon = LoadIconBitmap("Dark", $"dark_{_levelIconStem}.ico");
+                _lightLevelIcon = LoadIconBitmap("Light", $"light_{_levelIconStem}.ico");
+            }
+        }
+
+        private static Bitmap? LoadIconBitmap(string themeFolder, string fileName)
+        {
+            try
+            {
+                string path = Path.Combine(AppContext.BaseDirectory, "Icons", themeFolder, fileName);
+                if (!File.Exists(path))
+                    return null;
+
+                using Icon icon = new(path);
+                using Bitmap source = icon.ToBitmap();
+                return new Bitmap(source);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Bitmap Colorize(Bitmap source, Color color)
+        {
+            Bitmap result = new(source.Width, source.Height, PixelFormat.Format32bppArgb);
+            for (int y = 0; y < source.Height; y++)
+            {
+                for (int x = 0; x < source.Width; x++)
+                {
+                    Color pixel = source.GetPixel(x, y);
+                    result.SetPixel(x, y, Color.FromArgb(pixel.A, color.R, color.G, color.B));
+                }
+            }
+            return result;
+        }
+
+        private static void DrawGlow(Graphics graphics, Bitmap source, RectangleF bounds, Color glowColor)
+        {
+            using Bitmap tinted = Colorize(source, glowColor);
+            ColorMatrix alphaMatrix = new();
+            alphaMatrix.Matrix33 = 0.12f;
+            using ImageAttributes attributes = new();
+            attributes.SetColorMatrix(alphaMatrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
+
+            for (int radius = 3; radius >= 1; radius--)
+            {
+                float alpha = 0.12f + (3 - radius) * 0.05f;
+                alphaMatrix.Matrix33 = alpha;
+                attributes.SetColorMatrix(alphaMatrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
+                graphics.DrawImage(
+                    tinted,
+                    Rectangle.Round(new RectangleF(bounds.X - radius, bounds.Y - radius, bounds.Width + radius * 2, bounds.Height + radius * 2)),
+                    0,
+                    0,
+                    tinted.Width,
+                    tinted.Height,
+                    GraphicsUnit.Pixel,
+                    attributes);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _darkIcon?.Dispose();
+                _lightIcon?.Dispose();
+                _darkChargingIcon?.Dispose();
+                _lightChargingIcon?.Dispose();
+                _darkLevelIcon?.Dispose();
+                _lightLevelIcon?.Dispose();
+                _darkIcon = null;
+                _lightIcon = null;
+                _darkChargingIcon = null;
+                _lightChargingIcon = null;
+            }
+            base.Dispose(disposing);
+        }
+    }
+
     private sealed class RoundedPanel : Panel
     {
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -4092,15 +4607,44 @@ public sealed class SettingsForm : Form
         private bool _pressed;
         private bool _dark;
         private AboutActionIcon _icon;
+        private string? _customIconPath;
+        private Bitmap? _customIcon;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
+        public bool DarkMode
+        {
+            get => _dark;
+            set
+            {
+                if (_dark == value)
+                    return;
+
+                _dark = value;
+                LoadCustomIcon();
+                Invalidate();
+            }
+        }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color OutsideBackColor { get; set; } = LightBackground;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public AboutActionIcon Icon { get => _icon; set { _icon = value; Invalidate(); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string? CustomIconPath
+        {
+            get => _customIconPath;
+            set
+            {
+                if (string.Equals(_customIconPath, value, StringComparison.Ordinal))
+                    return;
+
+                _customIconPath = value;
+                LoadCustomIcon();
+                Invalidate();
+            }
+        }
 
         public AboutActionButton(PngIconCache iconCache)
         {
@@ -4168,17 +4712,24 @@ public sealed class SettingsForm : Form
             e.Graphics.FillPath(brush, path);
             e.Graphics.DrawPath(pen, path);
 
-            string iconKey = _icon switch
-            {
-                AboutActionIcon.GitHub => "git",
-                AboutActionIcon.Support => "support",
-                AboutActionIcon.Documentation => "documentation",
-                AboutActionIcon.External => "external",
-                _ => "git"
-            };
-
             Rectangle iconRect = new((int)rect.X + 8, (Height - 25) / 2, 25, 25);
-            _iconCache.Draw(e.Graphics, iconKey, iconRect, _dark, DeviceDpi);
+            if (_customIcon != null)
+            {
+                e.Graphics.DrawImage(_customIcon, iconRect);
+            }
+            else
+            {
+                string iconKey = _icon switch
+                {
+                    AboutActionIcon.GitHub => "git",
+                    AboutActionIcon.Support => "support",
+                    AboutActionIcon.Documentation => "documentation",
+                    AboutActionIcon.External => "external",
+                    _ => "git"
+                };
+
+                _iconCache.Draw(e.Graphics, iconKey, iconRect, _dark, DeviceDpi);
+            }
 
             Rectangle textRect = Rectangle.Round(rect);
             textRect.X += 32;
@@ -4187,8 +4738,40 @@ public sealed class SettingsForm : Form
                 _dark ? Color.WhiteSmoke : LightText,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
-    }
 
+        private void LoadCustomIcon()
+        {
+            _customIcon?.Dispose();
+            _customIcon = null;
+
+            if (string.IsNullOrWhiteSpace(_customIconPath))
+                return;
+
+            try
+            {
+                if (!File.Exists(_customIconPath))
+                    return;
+
+                using Bitmap source = new(_customIconPath);
+                _customIcon = new Bitmap(source);
+            }
+            catch
+            {
+                _customIcon = null;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _customIcon?.Dispose();
+                _customIcon = null;
+            }
+
+            base.Dispose(disposing);
+        }
+    }
     private sealed class ActionButton : Button
     {
         private readonly PngIconCache _iconCache;
