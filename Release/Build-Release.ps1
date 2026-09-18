@@ -49,13 +49,22 @@ if ($BuildStorePackage) {
         $vswhere = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe'
     }
 
-    if (Test-Path $vswhere) {
-        $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
-    } else {
-        $msbuild = $null
+    $msbuildCandidates = @(
+        "$env:ProgramFiles\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$env:ProgramFiles\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe",
+        "$env:ProgramFiles\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$env:ProgramFiles\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    $msbuild = $msbuildCandidates | Select-Object -First 1
+
+    if (-not $msbuild -and (Test-Path $vswhere)) {
+        $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe |
+            Where-Object { $_ -and (Test-Path $_) } |
+            Select-Object -First 1
     }
 
-    if (-not $msbuild -or -not (Test-Path $msbuild)) {
+    if (-not $msbuild) {
         $msbuildCommand = Get-Command msbuild.exe -ErrorAction SilentlyContinue
         if ($msbuildCommand) {
             $msbuild = $msbuildCommand.Source

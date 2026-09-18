@@ -376,7 +376,7 @@ public sealed class SettingsForm : Form
         {
             SidebarItem item = new SidebarItem(glyphs[i], iconKeys[i], _iconCache)
             {
-                Text = L(keys[i]),
+                Text = L(GetSidebarLocalizationKey(keys[i])),
                 Tag = keys[i],
                 Location = new Point(6, y),
                 Size = new Size(168, 40),
@@ -813,6 +813,15 @@ public sealed class SettingsForm : Form
             Font = new Font("Segoe UI", 9f),
             Primary = primary,
             ShowResetIcon = !primary && text == L("RestoreDefaults")
+        };
+    }
+
+    private static string GetSidebarLocalizationKey(string navigationKey)
+    {
+        return navigationKey switch
+        {
+            "BatteryMonitor" => "BatteryMonitorTitle",
+            _ => navigationKey
         };
     }
 
@@ -1639,7 +1648,7 @@ public sealed class SettingsForm : Form
         _cancelButton.Text = L("Cancel");
         _applyButton.Text = L("Apply");
         foreach ((string key, SidebarItem item) in _navButtons)
-            item.Text = L(key);
+            item.Text = L(GetSidebarLocalizationKey(key));
         if (_sidebarStatusTitleLabel != null)
             _sidebarStatusTitleLabel.Text = L("SidebarStatus");
         if (_sidebarBatteryTitleLabel != null)
