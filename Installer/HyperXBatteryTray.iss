@@ -1,8 +1,8 @@
-#define MyAppName "HyperX Battery Tray"
-#define MyAppVersion "1.1.1"
-#define MyAppPublisher "David Santana Alves"
-#define MyAppExeName "HyperXBatteryTray.exe"
-#define MyAppUserModelId "DavidSantanaAlves.HyperXBatteryMonitor"
+#define MyAppName "HyperX Battery Monitor"
+#define MyAppVersion "2.0.0"
+#define MyAppPublisher "Dave Santana"
+#define MyAppExeName "HyperX Battery Monitor.exe"
+#define MyAppUserModelId "DaveSantana.HyperXBatteryMonitor"
 
 [Setup]
 AppId={{8D7E0A6C-9D5B-4F0B-9C3E-5F5E9C2A1B71}
@@ -14,7 +14,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=..\Releases
-OutputBaseFilename=HyperXBatteryTray-Setup-v{#MyAppVersion}
+OutputBaseFilename=HyperXBatteryMonitor-Setup-v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -23,7 +23,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=admin
 
 [Files]
-Source: "..\bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "{#MyAppUserModelId}"

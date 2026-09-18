@@ -1278,15 +1278,7 @@ public sealed class SettingsForm : Form
         };
         _pageHost.Controls.Add(acknowledgementsCard);
 
-        PngIconControl acknowledgementsIcon = new(_iconCache, "code")
-        {
-            Location = new Point(18, 18),
-            Size = new Size(25, 25),
-            DarkMode = dark
-        };
-        acknowledgementsCard.Controls.Add(acknowledgementsIcon);
-
-        acknowledgementsCard.Controls.Add(new Label
+        Label acknowledgementsTitle = new Label
         {
             Text = L("AboutAcknowledgementsTitle"),
             AutoSize = true,
@@ -1294,7 +1286,18 @@ public sealed class SettingsForm : Form
             ForeColor = foreground,
             Location = new Point(48, 15),
             BackColor = Color.Transparent
-        });
+        };
+        acknowledgementsCard.Controls.Add(acknowledgementsTitle);
+
+        PngIconControl acknowledgementsIcon = new(_iconCache, "code")
+        {
+            Size = new Size(25, 25),
+            DarkMode = dark
+        };
+        acknowledgementsIcon.Location = new Point(
+            18,
+            acknowledgementsTitle.Top + (acknowledgementsTitle.Height - acknowledgementsIcon.Height) / 2);
+        acknowledgementsCard.Controls.Add(acknowledgementsIcon);
 
         Label acknowledgementsText = new Label
         {
@@ -1320,11 +1323,9 @@ public sealed class SettingsForm : Form
 
         PngIconControl acknowledgementsGithubIcon = new(_iconCache, "git")
         {
-            Location = new Point(48, 104),
             Size = new Size(25, 25),
             DarkMode = dark
         };
-        acknowledgementsCard.Controls.Add(acknowledgementsGithubIcon);
 
         LinkLabel acknowledgementsRepositoryLink = new LinkLabel
         {
@@ -1339,6 +1340,11 @@ public sealed class SettingsForm : Form
             VisitedLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204),
             AutoEllipsis = true
         };
+        acknowledgementsGithubIcon.Location = new Point(
+            48,
+            acknowledgementsRepositoryLink.Top + (acknowledgementsRepositoryLink.Height - acknowledgementsGithubIcon.Height) / 2);
+        acknowledgementsCard.Controls.Add(acknowledgementsGithubIcon);
+
         acknowledgementsRepositoryLink.LinkClicked += (_, _) => OpenExternalUrl(L("AboutAcknowledgementsRepository"));
         acknowledgementsCard.Controls.Add(acknowledgementsRepositoryLink);
     }
