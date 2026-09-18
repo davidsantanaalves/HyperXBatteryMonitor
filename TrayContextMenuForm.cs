@@ -68,12 +68,12 @@ internal sealed class TrayContextMenuForm : Form
         };
 
         _deviceName = CreateLabel(8.5f, FontStyle.Bold, ContentAlignment.MiddleCenter, new Rectangle(8, 69, 152, 21));
-        _statusTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 97, 44, 20));
-        _statusDot = new TrayStatusDotControl { Size = new Size(18, 18), Location = new Point(65, 98) };
-        _statusText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(88, 97, 68, 20));
-        _batteryTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 123, 50, 20));
-        _batteryIcon = new TrayBatteryIconControl { Size = new Size(30, 30), Location = new Point(60, 118) };
-        _batteryText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(98, 123, 58, 20));
+        _statusTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 97, 48, 20));
+        _statusDot = new TrayStatusDotControl { Size = new Size(18, 18), Location = new Point(57, 98) };
+        _statusText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(76, 99, 84, 18));
+        _batteryTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 123, 48, 20));
+        _batteryIcon = new TrayBatteryIconControl { Size = new Size(30, 30), Location = new Point(54, 118) };
+        _batteryText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(90, 123, 66, 20));
         _chargingText = CreateLabel(7.8f, FontStyle.Regular, ContentAlignment.MiddleCenter, new Rectangle(52, 146, 64, 18));
         _chargingText.Visible = false;
 
@@ -390,6 +390,9 @@ internal sealed class TrayBatteryIconControl : Control
         Color frame = _dark ? Color.WhiteSmoke : Color.FromArgb(55, 65, 75);
         using Pen pen = new(frame, Math.Max(1f, 2f * scale));
         e.Graphics.DrawRectangle(pen, body.X, body.Y, body.Width, body.Height);
+        // Explicitly redraw the left edge so it remains visually continuous at
+        // the small tray-menu scale, including on different DPI/scaling modes.
+        e.Graphics.DrawLine(pen, body.X, body.Y, body.X, body.Bottom);
         using Brush terminal = new SolidBrush(frame);
         e.Graphics.FillRectangle(terminal, x + 36f * scale, y + 21f * scale, 3f * scale, 6f * scale);
         if (_connected)
