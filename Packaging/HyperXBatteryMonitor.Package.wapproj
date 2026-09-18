@@ -11,10 +11,13 @@
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
     <AppxPackageDir>$(SolutionDir)Releases\MSIX\</AppxPackageDir>
+    <EntryPointProjectUniqueName>..\HyperXBatteryMonitor.csproj</EntryPointProjectUniqueName>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HyperXBatteryMonitor.csproj" />
+    <ProjectReference Include="..\HyperXBatteryMonitor.csproj">
+      <SkipGetTargetFrameworkProperties>True</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
