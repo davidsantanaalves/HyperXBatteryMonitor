@@ -12,6 +12,8 @@ namespace HyperXBatteryTray;
 
 public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 {
+    private const string DisconnectedIconFileSuffix = "_disconnected.ico";
+
     private readonly NotifyIcon _notifyIcon;
     private readonly HyperXDeviceManager _deviceManager;
     private BatteryMonitor? _batteryMonitor;
@@ -775,62 +777,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 		graphics.FillPath(chargingBrush, innerPath);
 	}
 
-    private Icon CreateDisconnectedIcon()
-    {
-        using Bitmap bitmap =
-            new Bitmap(
-                16,
-                16,
-                PixelFormat.Format32bppArgb);
-
-        using Graphics graphics =
-            Graphics.FromImage(bitmap);
-
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        graphics.Clear(Color.Transparent);
-
-        using Icon source = CreateThemeIcon();
-
-        using Bitmap iconBitmap =
-            RenderIcon(
-                source,
-                18,
-                18,
-                replacementColor: null);
-
-        graphics.DrawImage(
-            iconBitmap,
-            -1,
-            -1,
-            18,
-            18);
-
-        using var pen =
-            new Pen(
-                Color.Red,
-                1.8f);
-
-        pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
-        pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
-
-        graphics.DrawLine(
-            pen,
-            10,
-            10,
-            15,
-            15);
-
-        graphics.DrawLine(
-            pen,
-            15,
-            10,
-            10,
-            15);
-
-        return BitmapToIcon(bitmap);
-    }
+    private Icon CreateDisconnectedIcon() =>
+        LoadIconFile($"{GetThemePrefix()}{DisconnectedIconFileSuffix}");
 
     private Icon CreateThemeIcon() =>
         LoadIconFile($"{GetThemePrefix()}.ico");

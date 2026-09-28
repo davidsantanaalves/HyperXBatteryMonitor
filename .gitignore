@@ -30,3 +30,5 @@ Thumbs.db
 *.temp
 # Release artifacts
 Releases/
+
+temp-msix-validation/

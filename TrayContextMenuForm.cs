@@ -7,6 +7,13 @@ namespace HyperXBatteryTray;
 
 internal sealed class TrayContextMenuForm : Form
 {
+    private const int MenuLogicalWidth = 168;
+    private const int MenuLogicalHeight = 225;
+    private const int CursorGapLogical = 8;
+    private const int WorkAreaMarginLogical = 4;
+    private const float CornerRadiusLogical = 10f;
+    private const float BorderLogicalWidth = 1f;
+
     private readonly AppSettings _settings;
     private readonly PngIconCache _iconCache;
     private readonly Action<object?, EventArgs> _settingsAction;
@@ -29,6 +36,7 @@ internal sealed class TrayContextMenuForm : Form
     private Bitmap? _deviceBitmap;
     private string? _deviceImageFileName;
     private ToolTip? _toolTip;
+    private bool _closeOnDeactivateEnabled;
 
     public TrayContextMenuForm(
         AppSettings settings,
@@ -49,14 +57,18 @@ internal sealed class TrayContextMenuForm : Form
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
-        ClientSize = new Size(168, 225);
+        ClientSize = new Size(MenuLogicalWidth, MenuLogicalHeight);
         TopMost = true;
         DoubleBuffered = true;
         Padding = new Padding(0);
         BackColor = Color.FromArgb(45, 48, 51);
-        Deactivate += (_, _) => Close();
+        Deactivate += (_, _) =>
+        {
+            if (_closeOnDeactivateEnabled && !IsDisposed && !Disposing)
+                Hide();
+        };
         KeyPreview = true;
-        KeyDown += (_, e) => { if (e.KeyCode == Keys.Escape) Close(); };
+        KeyDown += (_, e) => { if (e.KeyCode == Keys.Escape) Hide(); };
         SetRoundedRegion();
 
         _deviceImage = new PictureBox
@@ -74,7 +86,11 @@ internal sealed class TrayContextMenuForm : Form
         _batteryTitle = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(12, 123, 48, 20));
         _batteryIcon = new TrayBatteryIconControl { Size = new Size(30, 30), Location = new Point(54, 118) };
         _batteryText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(90, 123, 66, 20));
-        _chargingText = CreateLabel(7.8f, FontStyle.Regular, ContentAlignment.MiddleCenter, new Rectangle(52, 146, 64, 18));
+        _chargingText = CreateLabel(
+            7.8f,
+            FontStyle.Regular,
+            ContentAlignment.MiddleCenter,
+            new Rectangle(_deviceName.Left, 146, _deviceName.Width, 18));
         _chargingText.Visible = false;
 
         Controls.AddRange(new Control[]
@@ -104,8 +120,8 @@ internal sealed class TrayContextMenuForm : Form
             OutsideBackColor = Color.Transparent,
             DrawTopSeparator = true
         };
-        _settingsButton.Click += (_, _) => { Close(); _settingsAction(null, EventArgs.Empty); };
-        _exitButton.Click += (_, _) => { Close(); _exitAction(null, EventArgs.Empty); };
+        _settingsButton.Click += (_, _) => { Hide(); _settingsAction(null, EventArgs.Empty); };
+        _exitButton.Click += (_, _) => { Hide(); _exitAction(null, EventArgs.Empty); };
         _buttonBar.Controls.Add(_settingsButton);
         _buttonBar.Controls.Add(_exitButton);
         Controls.Add(_buttonBar);
@@ -113,6 +129,11 @@ internal sealed class TrayContextMenuForm : Form
         _toolTip = new ToolTip { AutomaticDelay = 350, InitialDelay = 350, ReshowDelay = 100, AutoPopDelay = 5000 };
         _settingsButton.MouseEnter += (_, _) => _toolTip?.SetToolTip(_settingsButton, Localization.Get("ContextMenuSettings", _settings.Language));
         _exitButton.MouseEnter += (_, _) => _toolTip?.SetToolTip(_exitButton, Localization.Get("ContextMenuExit", _settings.Language));
+
+        // Build the complete menu in 96-DPI logical coordinates first, then let
+        // WinForms scale the full control tree for the monitor that owns the handle.
+        AutoScaleDimensions = new SizeF(PngIconCache.LogicalDpi, PngIconCache.LogicalDpi);
+        AutoScaleMode = AutoScaleMode.Dpi;
 
         UpdateDevice(device, charging);
         ApplyLocalization();
@@ -130,6 +151,15 @@ internal sealed class TrayContextMenuForm : Form
 
     public void UpdateDevice(IHyperXDevice? device, bool charging)
     {
+        if (IsDisposed || Disposing)
+            return;
+
+        if (IsHandleCreated && InvokeRequired)
+        {
+            BeginInvoke((MethodInvoker)(() => UpdateDevice(device, charging)));
+            return;
+        }
+
         _device = device;
         _charging = charging;
         bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
@@ -154,9 +184,24 @@ internal sealed class TrayContextMenuForm : Form
     {
         _statusTitle.Text = Localization.Get("SidebarStatus", _settings.Language);
         _batteryTitle.Text = Localization.Get("SidebarBattery", _settings.Language);
+        LayoutStatusRow();
         _toolTip?.SetToolTip(_settingsButton, Localization.Get("ContextMenuSettings", _settings.Language));
         _toolTip?.SetToolTip(_exitButton, Localization.Get("ContextMenuExit", _settings.Language));
         UpdateDevice(_device, _charging);
+    }
+
+    private void LayoutStatusRow()
+    {
+        int preferredTitleWidth = _statusTitle.GetPreferredSize(Size.Empty).Width;
+        _statusTitle.Width = preferredTitleWidth;
+
+        int titleToDotGap = _statusDot.Margin.Left;
+        int dotToTextGap = _statusText.Margin.Left;
+        _statusDot.Left = _statusTitle.Right + titleToDotGap;
+        _statusText.Left = _statusDot.Right + dotToTextGap;
+
+        int rightInset = _statusText.Margin.Right;
+        _statusText.Width = Math.Max(0, ClientSize.Width - _statusText.Left - rightInset);
     }
 
     public void ApplyTheme(bool dark)
@@ -187,15 +232,51 @@ internal sealed class TrayContextMenuForm : Form
 
     public void ShowAt(Point requested)
     {
-        int x = requested.X - Width / 2;
-        int y = requested.Y - Height - 8;
         Rectangle work = Screen.FromPoint(requested).WorkingArea;
-        x = Math.Clamp(x, work.Left + 4, work.Right - Width - 4);
-        y = Math.Clamp(y, work.Top + 4, work.Bottom - Height - 4);
+
+        // Do not force Handle creation directly. A Deactivate/Close transition during
+        // CreateHandle can dispose the Form while WinForms is still creating its native
+        // window. Showing the Form normally lets WinForms finish handle creation first.
+        _closeOnDeactivateEnabled = false;
+        if (!Visible)
+        {
+            Location = requested;
+            Show();
+        }
+
+        NormalizeClientSizeForCurrentDpi();
+        LayoutStatusRow();
+
+        int cursorGap = PngIconCache.ScaleLogicalToInt(CursorGapLogical, DeviceDpi);
+        int workAreaMargin = PngIconCache.ScaleLogicalToInt(WorkAreaMarginLogical, DeviceDpi);
+        int x = requested.X - Width / 2;
+        int y = requested.Y - Height - cursorGap;
+        x = Math.Clamp(x, work.Left + workAreaMargin, work.Right - Width - workAreaMargin);
+        y = Math.Clamp(y, work.Top + workAreaMargin, work.Bottom - Height - workAreaMargin);
         Location = new Point(x, y);
-        if (!Visible) Show();
         BringToFront();
         Activate();
+        _closeOnDeactivateEnabled = true;
+    }
+
+    private void NormalizeClientSizeForCurrentDpi()
+    {
+        Size expectedClientSize = new(
+            PngIconCache.ScaleLogicalToInt(MenuLogicalWidth, DeviceDpi),
+            PngIconCache.ScaleLogicalToInt(MenuLogicalHeight, DeviceDpi));
+
+        if (ClientSize != expectedClientSize)
+            ClientSize = expectedClientSize;
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        NormalizeClientSizeForCurrentDpi();
+        LayoutStatusRow();
+        _iconCache.ClearBitmaps();
+        SetRoundedRegion();
+        Invalidate(true);
     }
 
     protected override void OnSizeChanged(EventArgs e)
@@ -210,8 +291,9 @@ internal sealed class TrayContextMenuForm : Form
             return;
 
         Region?.Dispose();
+        float radius = PngIconCache.ScaleLogical(CornerRadiusLogical, DeviceDpi);
         using GraphicsPath path = CreateRoundedPath(
-            new RectangleF(0, 0, Math.Max(1, Width), Math.Max(1, Height)), 10);
+            new RectangleF(0, 0, Math.Max(1, Width), Math.Max(1, Height)), radius);
         Region = new Region(path);
     }
 
@@ -225,8 +307,13 @@ internal sealed class TrayContextMenuForm : Form
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        using GraphicsPath path = CreateRoundedPath(new RectangleF(0.5f, 0.5f, Width - 1f, Height - 1f), 10);
-        using Pen border = new(_dark ? Color.FromArgb(70, 74, 78) : Color.FromArgb(205, 211, 218), 1f);
+        float radius = PngIconCache.ScaleLogical(CornerRadiusLogical, DeviceDpi);
+        float borderWidth = Math.Max(1f, PngIconCache.ScaleLogical(BorderLogicalWidth, DeviceDpi));
+        float inset = borderWidth / 2f;
+        using GraphicsPath path = CreateRoundedPath(
+            new RectangleF(inset, inset, Math.Max(1f, Width - borderWidth), Math.Max(1f, Height - borderWidth)),
+            radius);
+        using Pen border = new(_dark ? Color.FromArgb(70, 74, 78) : Color.FromArgb(205, 211, 218), borderWidth);
         e.Graphics.DrawPath(border, path);
     }
 
@@ -300,6 +387,9 @@ internal sealed class TrayContextMenuForm : Form
 
 internal sealed class TrayMenuButton : Control
 {
+    private const float IconLogicalSize = 25f;
+    private const float SeparatorLogicalWidth = 1f;
+
     private readonly PngIconCache _iconCache;
     private readonly string _iconKey;
     private bool _hover;
@@ -339,13 +429,20 @@ internal sealed class TrayMenuButton : Control
                 : (_dark ? Color.FromArgb(35, 47, 70) : Color.FromArgb(238, 238, 238));
         using (Brush brush = new SolidBrush(fill))
             e.Graphics.FillRectangle(brush, ClientRectangle);
-        using Pen separatorPen = new(_dark ? Color.FromArgb(70, 74, 78) : Color.FromArgb(215, 220, 226), 1f);
+        float separatorWidth = Math.Max(1f, PngIconCache.ScaleLogical(SeparatorLogicalWidth, DeviceDpi));
+        using Pen separatorPen = new(_dark ? Color.FromArgb(70, 74, 78) : Color.FromArgb(215, 220, 226), separatorWidth);
         if (DrawTopSeparator)
-            e.Graphics.DrawLine(separatorPen, 0, 0, Width - 1, 0);
+            e.Graphics.DrawLine(separatorPen, 0, separatorWidth / 2f, Width - 1, separatorWidth / 2f);
         if (DrawRightSeparator)
-            e.Graphics.DrawLine(separatorPen, Width - 1, 0, Width - 1, Height);
+            e.Graphics.DrawLine(separatorPen, Width - separatorWidth / 2f, 0, Width - separatorWidth / 2f, Height);
 
-        _iconCache.Draw(e.Graphics, _iconKey, new RectangleF((Width - 25) / 2f, (Height - 25) / 2f, 25, 25), _dark, DeviceDpi);
+        float iconSize = PngIconCache.ScaleLogical(IconLogicalSize, DeviceDpi);
+        _iconCache.Draw(
+            e.Graphics,
+            _iconKey,
+            new RectangleF((Width - iconSize) / 2f, (Height - iconSize) / 2f, iconSize, iconSize),
+            _dark,
+            DeviceDpi);
     }
 }
 
@@ -357,11 +454,22 @@ internal sealed class TrayStatusDotControl : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        Color c = Connected ? Color.FromArgb(52, 211, 85) : Color.FromArgb(239, 68, 68);
-        using Brush b = new SolidBrush(c);
-        using Pen p = new(Color.FromArgb(90, c.R, c.G, c.B), 1.5f);
-        e.Graphics.FillEllipse(b, 2.5f, 2.5f, 13f, 13f);
-        e.Graphics.DrawEllipse(p, 1f, 1f, 16f, 16f);
+        GraphicsState state = e.Graphics.Save();
+        try
+        {
+            float dpiScale = Math.Max(1, DeviceDpi) / (float)PngIconCache.LogicalDpi;
+            e.Graphics.ScaleTransform(dpiScale, dpiScale);
+
+            Color c = Connected ? Color.FromArgb(52, 211, 85) : Color.FromArgb(239, 68, 68);
+            using Brush b = new SolidBrush(c);
+            using Pen p = new(Color.FromArgb(90, c.R, c.G, c.B), 1.5f);
+            e.Graphics.FillEllipse(b, 2.5f, 2.5f, 13f, 13f);
+            e.Graphics.DrawEllipse(p, 1f, 1f, 16f, 16f);
+        }
+        finally
+        {
+            e.Graphics.Restore(state);
+        }
     }
 }
 
