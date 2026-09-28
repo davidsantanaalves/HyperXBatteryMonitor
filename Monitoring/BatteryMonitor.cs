@@ -9,11 +9,18 @@ public sealed class BatteryMonitor : IDisposable
     private CancellationTokenSource? _cancellation;
     private Task? _monitorTask;
 
+    private int? _lastBattery;
+    private bool? _lastChargingState;
+    private bool? _lastMicrophoneMuteState;
     private bool _lastConnectionState;
+    private bool _microphoneStateInitialized;
 
     public BatteryMonitor(IHyperXDevice device)
     {
         _device = device;
+        _device.BatteryChanged += Device_BatteryChanged;
+        _device.ChargingChanged += Device_ChargingChanged;
+        _device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
     }
 
     public int IntervalMilliseconds { get; set; } = 5000;
@@ -22,7 +29,9 @@ public sealed class BatteryMonitor : IDisposable
 
     public event EventHandler<bool>? ConnectionChanged;
 
-	public event EventHandler<bool>? ChargingChanged;
+    public event EventHandler<bool>? ChargingChanged;
+
+    public event EventHandler<bool>? MicrophoneMuteChanged;
 
     public void Start()
     {
@@ -30,9 +39,7 @@ public sealed class BatteryMonitor : IDisposable
             return;
 
         _cancellation = new CancellationTokenSource();
-
-        _monitorTask = MonitorLoopAsync(
-            _cancellation.Token);
+        _monitorTask = MonitorLoopAsync(_cancellation.Token);
     }
 
     private async Task MonitorLoopAsync(
@@ -56,36 +63,48 @@ public sealed class BatteryMonitor : IDisposable
 
                         continue;
                     }
+
+                    _microphoneStateInitialized = false;
                 }
 
                 int? battery = await _device.QueryBatteryAsync(
                     cancellationToken);
 
-                if (battery.HasValue)
-                {
-                    bool? chargeStatus = await _device.QueryChargeStatusAsync(
-                        cancellationToken);
-
-                    if (chargeStatus.HasValue)
-                    {
-                        ChargingChanged?.Invoke(
-                            this,
-                            chargeStatus.Value);
-                    }
-
-                    BatteryChanged?.Invoke(
-                        this,
-                        battery.Value);
-                }
-
-                else
+                if (!battery.HasValue)
                 {
                     _device.Disconnect();
-
+                    ResetDisconnectedState();
                     UpdateConnectionState(false);
+
+                    await Task.Delay(
+                        IntervalMilliseconds,
+                        cancellationToken);
+
+                    continue;
                 }
 
-				await Task.Delay(
+                UpdateBatteryState(battery.Value);
+
+                bool? chargeStatus = await _device.QueryChargeStatusAsync(
+                    cancellationToken);
+
+                if (chargeStatus.HasValue)
+                    UpdateChargingState(chargeStatus.Value);
+
+                if (!_microphoneStateInitialized)
+                {
+                    bool? microphoneMuted =
+                        await _device.QueryMicrophoneMuteStatusAsync(
+                            cancellationToken);
+
+                    if (microphoneMuted.HasValue)
+                    {
+                        _microphoneStateInitialized = true;
+                        UpdateMicrophoneMuteState(microphoneMuted.Value);
+                    }
+                }
+
+                await Task.Delay(
                     IntervalMilliseconds,
                     cancellationToken);
             }
@@ -98,6 +117,7 @@ public sealed class BatteryMonitor : IDisposable
                 if (_device.IsConnected)
                     _device.Disconnect();
 
+                ResetDisconnectedState();
                 UpdateConnectionState(false);
 
                 try
@@ -114,24 +134,76 @@ public sealed class BatteryMonitor : IDisposable
         }
     }
 
+    private void Device_BatteryChanged(object? sender, int battery)
+    {
+        if (battery >= 0)
+            UpdateBatteryState(battery);
+    }
+
+    private void Device_ChargingChanged(object? sender, bool charging)
+    {
+        UpdateChargingState(charging);
+    }
+
+    private void Device_MicrophoneMuteChanged(object? sender, bool muted)
+    {
+        _microphoneStateInitialized = true;
+        UpdateMicrophoneMuteState(muted);
+    }
+
+    private void UpdateBatteryState(int battery)
+    {
+        if (_lastBattery == battery)
+            return;
+
+        _lastBattery = battery;
+        BatteryChanged?.Invoke(this, battery);
+    }
+
+    private void UpdateChargingState(bool charging)
+    {
+        if (_lastChargingState == charging)
+            return;
+
+        _lastChargingState = charging;
+        ChargingChanged?.Invoke(this, charging);
+    }
+
+    private void UpdateMicrophoneMuteState(bool muted)
+    {
+        if (_lastMicrophoneMuteState == muted)
+            return;
+
+        _lastMicrophoneMuteState = muted;
+        MicrophoneMuteChanged?.Invoke(this, muted);
+    }
+
     private void UpdateConnectionState(bool connected)
     {
         if (_lastConnectionState == connected)
             return;
 
         _lastConnectionState = connected;
+        ConnectionChanged?.Invoke(this, connected);
+    }
 
-        ConnectionChanged?.Invoke(
-            this,
-            connected);
+    private void ResetDisconnectedState()
+    {
+        _lastBattery = null;
+        _lastChargingState = null;
+        _lastMicrophoneMuteState = null;
+        _microphoneStateInitialized = false;
     }
 
     public void Dispose()
     {
         _cancellation?.Cancel();
 
-        _device.Disconnect();
+        _device.BatteryChanged -= Device_BatteryChanged;
+        _device.ChargingChanged -= Device_ChargingChanged;
+        _device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
 
+        _device.Disconnect();
         _cancellation?.Dispose();
 
         _cancellation = null;

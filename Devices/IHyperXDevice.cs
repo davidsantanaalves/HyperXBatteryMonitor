@@ -12,7 +12,15 @@ public interface IHyperXDevice : IDisposable
 
     int Battery { get; }
 
+    bool IsCharging { get; }
+
+    bool IsMicrophoneMuted { get; }
+
     event EventHandler<int>? BatteryChanged;
+
+    event EventHandler<bool>? ChargingChanged;
+
+    event EventHandler<bool>? MicrophoneMuteChanged;
 
     bool Connect();
 
@@ -21,6 +29,9 @@ public interface IHyperXDevice : IDisposable
     Task<int?> QueryBatteryAsync(
         CancellationToken cancellationToken = default);
 
-	Task<bool?> QueryChargeStatusAsync(
-    CancellationToken cancellationToken = default);
+    Task<bool?> QueryChargeStatusAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<bool?> QueryMicrophoneMuteStatusAsync(
+        CancellationToken cancellationToken = default);
 }
