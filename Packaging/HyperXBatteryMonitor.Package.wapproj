@@ -10,7 +10,9 @@
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
-    <AppxPackageDir>$(SolutionDir)Releases\MSIX\</AppxPackageDir>
+    <UapAppxPackageBuildMode>StoreUpload</UapAppxPackageBuildMode>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxPackageDir>$(MSBuildProjectDirectory)\..\Releases\MSIX\</AppxPackageDir>
     <EntryPointProjectUniqueName>..\HyperXBatteryMonitor.csproj</EntryPointProjectUniqueName>
   </PropertyGroup>
 
