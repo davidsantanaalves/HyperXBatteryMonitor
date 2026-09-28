@@ -1,14 +1,18 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Globalization;
 
 namespace HyperXBatteryTray.Settings;
 
 internal sealed class PngIconCache : IDisposable
 {
+    internal const int LogicalDpi = 96;
+
     private readonly Dictionary<BitmapCacheKey, Bitmap> _bitmaps = new();
+    private readonly Dictionary<AssetSizeCacheKey, int[]> _assetSizes = new();
     private bool _disposed;
 
-    public Bitmap Get(string iconKey, bool darkMode, int sizePx, int dpi = 96)
+    public Bitmap Get(string iconKey, bool darkMode, int sizePx, int dpi = LogicalDpi)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -40,16 +44,15 @@ internal sealed class PngIconCache : IDisposable
         if (bounds.Width <= 0 || bounds.Height <= 0)
             return;
 
-        int logicalSize = Math.Max(1, (int)Math.Round(
-            Math.Max(bounds.Width, bounds.Height),
-            MidpointRounding.AwayFromZero));
-        int assetSize = ResolveAssetSize(iconKey, logicalSize);
+        int targetSize = Math.Max(1, (int)Math.Ceiling(Math.Max(bounds.Width, bounds.Height)));
+        int assetSize = ResolveAssetSize(iconKey, darkMode, targetSize);
         Bitmap bitmap = Get(iconKey, darkMode, assetSize, dpi);
 
         GraphicsState state = graphics.Save();
         try
         {
             graphics.CompositingMode = CompositingMode.SourceOver;
+            graphics.CompositingQuality = CompositingQuality.HighQuality;
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
             graphics.DrawImage(bitmap, bounds);
@@ -60,10 +63,19 @@ internal sealed class PngIconCache : IDisposable
         }
     }
 
+    public void DrawLogical(Graphics graphics, string iconKey, RectangleF logicalBounds, bool darkMode, int dpi)
+    {
+        Draw(graphics, iconKey, ScaleLogical(logicalBounds, dpi), darkMode, dpi);
+    }
+
     public void Prewarm(IEnumerable<PngIconRequest> requests, bool darkMode, int dpi)
     {
         foreach (PngIconRequest request in requests)
-            _ = Get(request.IconKey, darkMode, request.LogicalSize, dpi);
+        {
+            int targetSize = ScaleLogicalToInt(request.LogicalSize, dpi);
+            int assetSize = ResolveAssetSize(request.IconKey, darkMode, targetSize);
+            _ = Get(request.IconKey, darkMode, assetSize, dpi);
+        }
     }
 
     public void ClearBitmaps()
@@ -79,7 +91,29 @@ internal sealed class PngIconCache : IDisposable
             return;
 
         ClearBitmaps();
+        _assetSizes.Clear();
         _disposed = true;
+    }
+
+    internal static float ScaleLogical(float logicalValue, int dpi)
+    {
+        int effectiveDpi = Math.Max(1, dpi);
+        return logicalValue * effectiveDpi / LogicalDpi;
+    }
+
+    internal static int ScaleLogicalToInt(int logicalValue, int dpi)
+    {
+        return Math.Max(1, (int)Math.Round(ScaleLogical(logicalValue, dpi), MidpointRounding.AwayFromZero));
+    }
+
+    internal static RectangleF ScaleLogical(RectangleF logicalBounds, int dpi)
+    {
+        float scale = Math.Max(1, dpi) / (float)LogicalDpi;
+        return new RectangleF(
+            logicalBounds.X * scale,
+            logicalBounds.Y * scale,
+            logicalBounds.Width * scale,
+            logicalBounds.Height * scale);
     }
 
     private static string GetIconPath(string iconKey, bool darkMode, int sizePx)
@@ -93,16 +127,67 @@ internal sealed class PngIconCache : IDisposable
             $"{iconKey}-{suffix}-{sizePx}x{sizePx}.png");
     }
 
-    private static int ResolveAssetSize(string iconKey, int requestedSize)
+    private int ResolveAssetSize(string iconKey, bool darkMode, int requestedSize)
     {
-        if (string.Equals(iconKey, "reset", StringComparison.OrdinalIgnoreCase))
-            return 20;
-        if (requestedSize <= 25)
-            return 25;
-        return 36;
+        int[] availableSizes = GetAvailableAssetSizes(iconKey, darkMode);
+        if (availableSizes.Length == 0)
+        {
+            string theme = darkMode ? "Dark" : "Light";
+            throw new FileNotFoundException(
+                $"No PNG assets were found for icon '{iconKey}' in theme '{theme}'.");
+        }
+
+        foreach (int size in availableSizes)
+        {
+            if (size >= requestedSize)
+                return size;
+        }
+
+        return availableSizes[^1];
+    }
+
+    private int[] GetAvailableAssetSizes(string iconKey, bool darkMode)
+    {
+        AssetSizeCacheKey cacheKey = new(iconKey, darkMode);
+        if (_assetSizes.TryGetValue(cacheKey, out int[]? cached))
+            return cached;
+
+        string theme = darkMode ? "Dark" : "Light";
+        string suffix = darkMode ? "dark" : "light";
+        string directory = Path.Combine(AppContext.BaseDirectory, "Icons", theme);
+        string prefix = $"{iconKey}-{suffix}-";
+
+        List<int> sizes = new();
+        if (Directory.Exists(directory))
+        {
+            foreach (string filePath in Directory.EnumerateFiles(directory, $"{prefix}*x*.png", SearchOption.TopDirectoryOnly))
+            {
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string dimensions = fileName[prefix.Length..];
+                int separator = dimensions.IndexOf('x');
+                if (separator <= 0)
+                    continue;
+
+                if (!int.TryParse(dimensions[..separator], NumberStyles.None, CultureInfo.InvariantCulture, out int width) || width <= 0)
+                    continue;
+
+                if (!int.TryParse(dimensions[(separator + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int height) || height != width)
+                    continue;
+
+                sizes.Add(width);
+            }
+        }
+
+        int[] resolved = sizes.Distinct().OrderBy(size => size).ToArray();
+        _assetSizes.Add(cacheKey, resolved);
+        return resolved;
     }
 
     private readonly record struct BitmapCacheKey(string IconKey, bool DarkMode, int SizePx, int Dpi);
+    private readonly record struct AssetSizeCacheKey(string IconKey, bool DarkMode);
 }
 
 internal readonly record struct PngIconRequest(string IconKey, int LogicalSize);
