@@ -67,19 +67,34 @@ public sealed class HyperXDeviceManager : IDisposable
 
     public IHyperXDevice? GetAvailableDevice(string? selectedDeviceName)
     {
+        HyperXDeviceRegistration? registration =
+            FindRegistration(selectedDeviceName);
+
+        return registration?.Factory();
+    }
+
+    public static bool SupportsMicrophoneMuteMonitoring(
+        string? selectedDeviceName)
+    {
+        HyperXDeviceRegistration? registration =
+            FindRegistration(selectedDeviceName);
+
+        return registration?.Definition.SupportsMicrophoneMuteMonitoring == true;
+    }
+
+    private static HyperXDeviceRegistration? FindRegistration(
+        string? selectedDeviceName)
+    {
         if (string.IsNullOrWhiteSpace(selectedDeviceName))
             return null;
 
         string normalized = NormalizeDeviceName(selectedDeviceName);
 
-        HyperXDeviceRegistration? registration =
-            SupportedDevices.FirstOrDefault(item =>
-                string.Equals(
-                    NormalizeDeviceName(item.Definition.Name),
-                    normalized,
-                    StringComparison.OrdinalIgnoreCase));
-
-        return registration?.Factory();
+        return SupportedDevices.FirstOrDefault(item =>
+            string.Equals(
+                NormalizeDeviceName(item.Definition.Name),
+                normalized,
+                StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizeDeviceName(string value) =>

@@ -13,6 +13,7 @@ namespace HyperXBatteryTray;
 public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 {
     private const string DisconnectedIconFileSuffix = "_disconnected.ico";
+    private const string MicrophoneMuteIconFileSuffix = "_mute.ico";
 
     private readonly NotifyIcon _notifyIcon;
     private readonly HyperXDeviceManager _deviceManager;
@@ -26,7 +27,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private SettingsForm? _settingsForm;
     private TrayContextMenuForm? _trayMenu;
     private bool _blinkState;
-	private bool _isCharging;
+    private bool _isCharging;
+    private bool _isMicrophoneMuted;
     private System.Windows.Forms.Timer? _blinkTimer;
     private System.Windows.Forms.Timer? _leftClickTimer;
     private bool _leftClickPending;
@@ -95,6 +97,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _batteryMonitor.BatteryChanged += BatteryMonitor_BatteryChanged;
         _batteryMonitor.ConnectionChanged += BatteryMonitor_ConnectionChanged;
         _batteryMonitor.ChargingChanged += BatteryMonitor_ChargingChanged;
+        _batteryMonitor.MicrophoneMuteChanged += BatteryMonitor_MicrophoneMuteChanged;
     }
 
     private void DisposeDeviceMonitor()
@@ -104,12 +107,14 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             _batteryMonitor.BatteryChanged -= BatteryMonitor_BatteryChanged;
             _batteryMonitor.ConnectionChanged -= BatteryMonitor_ConnectionChanged;
             _batteryMonitor.ChargingChanged -= BatteryMonitor_ChargingChanged;
+            _batteryMonitor.MicrophoneMuteChanged -= BatteryMonitor_MicrophoneMuteChanged;
             _batteryMonitor.Dispose();
             _batteryMonitor = null;
         }
 
         _device = null;
         _isCharging = false;
+        _isMicrophoneMuted = false;
     }
 
     private void Application_Idle(object? sender, EventArgs e)
@@ -287,8 +292,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             _settingsForm?.SetDevice(_device);
             ApplyLocalization();
             ApplyTheme();
-            UpdateTrayIcon();
             RestartBlinkTimer();
+            UpdateTrayIcon();
             UpdateTray();
 
             if (_batteryMonitor != null)
@@ -327,6 +332,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         if (!connected)
         {
             _isCharging = false;
+            _isMicrophoneMuted = false;
             _notificationService.ResetState();
         }
 
@@ -368,6 +374,19 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _trayMenu?.UpdateDevice(_device, _isCharging);
     }
 
+    private void BatteryMonitor_MicrophoneMuteChanged(
+        object? sender,
+        bool muted)
+    {
+        _isMicrophoneMuted = muted;
+
+        if (!muted)
+            _blinkState = false;
+
+        UpdateTrayIcon();
+        UpdateTray();
+    }
+
     private void UpdateTray()
     {
         UpdateNotifyIconTooltip();
@@ -394,7 +413,15 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             status = L("TrayConnected");
         }
 
-        _notifyIcon.Text = $"{deviceName}\n{status}\n{battery}";
+        string microphoneStatus =
+            selected &&
+            _device?.IsConnected == true &&
+            _device.SupportsMicrophoneMuteMonitoring
+                ? (_device.IsMicrophoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
+                : L("MicrophoneNA");
+        string microphone = string.Format(L("TrayMicrophone"), microphoneStatus);
+
+        _notifyIcon.Text = $"{deviceName}\n{status}\n{battery}\n{microphone}";
     }
 
     private static string NormalizeDeviceName(string value) =>
@@ -406,18 +433,33 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _blinkTimer?.Stop();
         _blinkTimer?.Dispose();
         _blinkTimer = null;
+        _blinkState = false;
 
-        if (!_settings.BlinkOnCriticalBattery)
+        bool microphoneMuteBlinkSupported =
+            _settings.ShowMicrophoneMuteInSystray &&
+            _device?.SupportsMicrophoneMuteMonitoring == true;
+
+        if (!_settings.BlinkOnCriticalBattery &&
+            !microphoneMuteBlinkSupported)
             return;
 
         _blinkTimer = new System.Windows.Forms.Timer { Interval = 600 };
         _blinkTimer.Tick += (_, _) =>
         {
-            if (_device == null || !_device.IsConnected || _device.Battery < 0 ||
-                _device.Battery > _settings.CriticalBatteryPercent)
+            bool microphoneMuteBlink = ShouldShowMicrophoneMuteIcon();
+            bool criticalBatteryBlink =
+                !microphoneMuteBlink &&
+                _settings.BlinkOnCriticalBattery &&
+                IsCriticalBattery();
+
+            if (!microphoneMuteBlink && !criticalBatteryBlink)
             {
-                _blinkState = false;
-                UpdateTrayIcon();
+                if (_blinkState)
+                {
+                    _blinkState = false;
+                    UpdateTrayIcon();
+                }
+
                 return;
             }
 
@@ -426,63 +468,73 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         };
         _blinkTimer.Start();
     }
-
     private void UpdateTrayIcon()
-	{
-		Icon? baseIcon = null;
-		Icon? newIcon = null;
+    {
+        Icon? baseIcon = null;
+        Icon? newIcon = null;
 
-		try
-		{
-			if (_blinkState && IsCriticalBattery())
-			{
-				baseIcon = CreateThemeIcon();
-			}
-			else
-			{
-				baseIcon = CreateTrayIcon();
-			}
+        try
+        {
+            bool microphoneMuteBlink = ShouldShowMicrophoneMuteIcon();
+            bool microphoneMutePhase = microphoneMuteBlink && _blinkState;
+            bool criticalBlinkPhase =
+                !microphoneMuteBlink &&
+                _settings.BlinkOnCriticalBattery &&
+                _blinkState &&
+                IsCriticalBattery();
 
-			if (_isCharging &&
-				_device?.IsConnected == true &&
-				_device.Battery >= 0)
-			{
-				if (_settings.DisplayMode == BatteryDisplayMode.BatteryIndicator)
-				{
-					baseIcon.Dispose();
-					baseIcon = null;
-					newIcon = CreateChargingIcon();
-				}
-				else
-				{
-					newIcon = CreateChargingOverlayIcon(baseIcon);
+            if (microphoneMutePhase)
+            {
+                newIcon = CreateMicrophoneMuteIcon();
+            }
+            else
+            {
+                baseIcon = criticalBlinkPhase
+                    ? CreateThemeIcon()
+                    : CreateTrayIcon();
+            }
 
-					baseIcon.Dispose();
-					baseIcon = null;
-				}
-			}
-			else
-			{
-				newIcon = baseIcon;
-				baseIcon = null;
-			}
+            if (newIcon == null &&
+                _isCharging &&
+                _device?.IsConnected == true &&
+                _device.Battery >= 0)
+            {
+                if (_settings.DisplayMode == BatteryDisplayMode.BatteryIndicator)
+                {
+                    baseIcon!.Dispose();
+                    baseIcon = null;
+                    newIcon = CreateChargingIcon();
+                }
+                else
+                {
+                    newIcon = CreateChargingOverlayIcon(baseIcon!);
+                    baseIcon!.Dispose();
+                    baseIcon = null;
+                }
+            }
 
-			Icon? oldIcon = _currentApplicationIcon;
+            if (newIcon == null)
+            {
+                newIcon = baseIcon;
+                baseIcon = null;
+            }
 
-			_currentApplicationIcon = newIcon;
-			_notifyIcon.Icon = newIcon;
+            Icon? oldIcon = _currentApplicationIcon;
 
-			oldIcon?.Dispose();
-		}
-		catch
-		{
-			newIcon?.Dispose();
-		}
-		finally
-		{
-			baseIcon?.Dispose();
-		}
-	}
+            _currentApplicationIcon = newIcon;
+            _notifyIcon.Icon = newIcon;
+
+            oldIcon?.Dispose();
+        }
+        catch
+        {
+            newIcon?.Dispose();
+        }
+        finally
+        {
+            baseIcon?.Dispose();
+        }
+    }
 
     private bool IsCriticalBattery() =>
         _device != null &&
@@ -549,6 +601,15 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private Icon CreateChargingIcon() =>
         LoadIconFile($"{GetThemePrefix()}_charging.ico");
+
+    private bool ShouldShowMicrophoneMuteIcon() =>
+        _settings.ShowMicrophoneMuteInSystray &&
+        _isMicrophoneMuted &&
+        _device?.IsConnected == true &&
+        _device.SupportsMicrophoneMuteMonitoring;
+
+    private Icon CreateMicrophoneMuteIcon() =>
+        LoadIconFile($"{GetThemePrefix()}{MicrophoneMuteIconFileSuffix}");
 
     private string GetThemePrefix() =>
         GetEffectiveTheme() == AppTheme.Dark ? "dark" : "light";

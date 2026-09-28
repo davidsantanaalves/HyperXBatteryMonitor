@@ -105,8 +105,16 @@ public sealed partial class SettingsForm : Form
         _sidebarBatteryLabel.Text = connected
             ? $"{Math.Clamp(_device!.Battery, 0, 100)}%"
             : L("BatteryNA");
-        _sidebarChargingLabel.Text = _isCharging && connected ? L("ChargingStatus") : string.Empty;
-        _sidebarChargingLabel.Visible = connected && _isCharging;
+        UpdateSidebarChargingIcon(
+            EffectiveTheme == AppTheme.Dark,
+            connected && _isCharging);
+        bool microphoneStatusAvailable =
+            connected && _device?.SupportsMicrophoneMuteMonitoring == true;
+        bool microphoneMuted = microphoneStatusAvailable && _device!.IsMicrophoneMuted;
+        _sidebarMicrophoneLabel.Text = microphoneStatusAvailable
+            ? (microphoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
+            : L("MicrophoneNA");
+        UpdateSidebarMicrophoneIcon(EffectiveTheme == AppTheme.Dark, microphoneMuted);
 
         Color foreground = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
         Color secondary = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
@@ -114,8 +122,9 @@ public sealed partial class SettingsForm : Form
         _sidebarStatusTitleLabel.ForeColor = secondary;
         _sidebarStatusLabel.ForeColor = secondary;
         _sidebarBatteryTitleLabel.ForeColor = secondary;
-        _sidebarBatteryLabel.ForeColor = foreground;
-        _sidebarChargingLabel.ForeColor = secondary;
+        _sidebarBatteryLabel.ForeColor = secondary;
+        _sidebarMicrophoneTitleLabel.ForeColor = secondary;
+        _sidebarMicrophoneLabel.ForeColor = secondary;
 
         _sidebarDeviceImage.Image?.Dispose();
         _sidebarDeviceImage.Image = null;
@@ -138,6 +147,111 @@ public sealed partial class SettingsForm : Form
         }
 
         _sidebarDeviceImage.Visible = _sidebarDeviceImage.Image != null;
+    }
+
+    private void UpdateSidebarChargingIcon(bool dark, bool visible)
+    {
+        if (_sidebarChargingIcon == null || _sidebarBatteryLabel == null)
+            return;
+
+        if (!visible)
+        {
+            _sidebarChargingIcon.Visible = false;
+            return;
+        }
+
+        if (_sidebarChargingIconDark != dark || _sidebarChargingIcon.Image == null)
+        {
+            Image? previous = _sidebarChargingIcon.Image;
+            _sidebarChargingIcon.Image = null;
+            previous?.Dispose();
+
+            string themeDirectory = dark ? "Dark" : "Light";
+            string themePrefix = dark ? "dark" : "light";
+            string path = Path.Combine(
+                AppContext.BaseDirectory,
+                "Icons",
+                themeDirectory,
+                $"{themePrefix}_{ChargingIconAssetName}-{SidebarChargingIconLogicalSize}x{SidebarChargingIconLogicalSize}.png");
+
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using Image source = Image.FromFile(path);
+                    _sidebarChargingIcon.Image = new Bitmap(source);
+                    _sidebarChargingIconDark = dark;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Could not load charging icon '{path}': {ex.Message}");
+                    _sidebarChargingIconDark = null;
+                }
+            }
+            else
+            {
+                _sidebarChargingIconDark = null;
+            }
+        }
+
+        if (_sidebarChargingIcon.Image == null)
+        {
+            _sidebarChargingIcon.Visible = false;
+            return;
+        }
+
+        int batteryTextWidth = TextRenderer.MeasureText(
+            _sidebarBatteryLabel.Text,
+            _sidebarBatteryLabel.Font,
+            Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
+        int iconGap = ScaleUi(SidebarInlineIconGapLogical);
+        int rightInset = ScaleUi(SidebarContentRightInsetLogical);
+        int desiredLeft = _sidebarBatteryLabel.Left + batteryTextWidth + iconGap;
+        int maximumLeft = _sidebarDeviceCard.ClientSize.Width - _sidebarChargingIcon.Width - rightInset;
+        _sidebarChargingIcon.Left = Math.Min(desiredLeft, maximumLeft);
+        _sidebarChargingIcon.Visible = true;
+    }
+
+    private void UpdateSidebarMicrophoneIcon(bool dark, bool muted)
+    {
+        if (_sidebarMicrophoneIcon == null ||
+            (_sidebarMicrophoneIconDark == dark && _sidebarMicrophoneIconMuted == muted))
+        {
+            return;
+        }
+
+        Image? previous = _sidebarMicrophoneIcon.Image;
+        _sidebarMicrophoneIcon.Image = null;
+        previous?.Dispose();
+
+        string themeDirectory = dark ? "Dark" : "Light";
+        string themePrefix = dark ? "dark" : "light";
+        string iconName = muted ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            "Icons",
+            themeDirectory,
+            $"{themePrefix}_{iconName}-{SidebarMicrophoneIconLogicalSize}x{SidebarMicrophoneIconLogicalSize}.png");
+
+        if (File.Exists(path))
+        {
+            try
+            {
+                using Image source = Image.FromFile(path);
+                _sidebarMicrophoneIcon.Image = new Bitmap(source);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Could not load microphone icon '{path}': {ex.Message}");
+                _sidebarMicrophoneIcon.Image = null;
+            }
+        }
+
+        _sidebarMicrophoneIconDark = dark;
+        _sidebarMicrophoneIconMuted = muted;
     }
 
     private void UpdateDeviceInformation()
@@ -216,6 +330,17 @@ public sealed partial class SettingsForm : Form
     }
 
     private void Device_BatteryChanged(object? sender, int battery)
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(RefreshDeviceStatus));
+            return;
+        }
+        RefreshDeviceStatus();
+    }
+
+    private void Device_MicrophoneMuteChanged(object? sender, bool muted)
     {
         if (IsDisposed || !IsHandleCreated) return;
         if (InvokeRequired)

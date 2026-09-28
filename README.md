@@ -71,9 +71,9 @@ Additional HyperX devices may be supported in future versions.
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.0.0, download:
+For version 2.1.0, download:
 
-`HyperXBatteryMonitor-Setup-v2.0.0.exe`
+`HyperXBatteryMonitor-Setup-v2.1.0.exe`
 
 Run the installer and follow the installation instructions.
 
@@ -136,7 +136,7 @@ Notifications can be enabled or disabled independently through the Settings wind
 
 ## Project Status
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 
 **Status:** Stable release
 

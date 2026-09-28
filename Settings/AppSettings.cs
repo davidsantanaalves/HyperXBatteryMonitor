@@ -33,6 +33,10 @@ public sealed class BatteryColorSettings
 
 public sealed class AppSettings
 {
+    public const bool DefaultStartWithWindows = true;
+
+    internal bool IsNewSettingsProfile { get; set; }
+
     public string SelectedDevice { get; set; } = string.Empty;
     public BatteryDisplayMode DisplayMode { get; set; } = BatteryDisplayMode.StaticIcon;
     public AdvancedDisplayMode AdvancedDisplayMode { get; set; } = AdvancedDisplayMode.BatteryGradient;
@@ -41,6 +45,7 @@ public sealed class AppSettings
     public bool NotifyOnLowBattery { get; set; } = true;
     public bool NotifyWhenFullyCharged { get; set; } = true;
     public bool BlinkOnCriticalBattery { get; set; } = true;
+    public bool ShowMicrophoneMuteInSystray { get; set; } = true;
     public int CriticalBatteryPercent { get; set; } = 10;
     public List<BatteryColorSettings> BatteryColors { get; set; } = CreateDefaultColors();
     public AppLanguage Language { get; set; } = AppLanguage.English;
@@ -59,6 +64,7 @@ public sealed class AppSettings
             NotifyOnLowBattery = true,
             NotifyWhenFullyCharged = true,
             BlinkOnCriticalBattery = true,
+            ShowMicrophoneMuteInSystray = true,
             CriticalBatteryPercent = 10,
             BatteryColors = CreateDefaultColors(),
             Language = AppLanguage.English,

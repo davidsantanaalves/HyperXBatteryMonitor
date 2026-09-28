@@ -44,6 +44,8 @@ public sealed partial class SettingsForm : Form
             _sidebarStatusTitleLabel.Text = L("SidebarStatus");
         if (_sidebarBatteryTitleLabel != null)
             _sidebarBatteryTitleLabel.Text = L("SidebarBattery");
+        if (_sidebarMicrophoneTitleLabel != null)
+            _sidebarMicrophoneTitleLabel.Text = L("SidebarMicrophone");
         if (_deviceSelector != null)
             _deviceSelector.SetPlaceholder(L("LocateDevice"));
         UpdateDeviceInformation();
@@ -131,12 +133,16 @@ public sealed partial class SettingsForm : Form
         if (_sidebarBatteryTitleLabel != null)
             _sidebarBatteryTitleLabel.ForeColor = secondary;
         if (_sidebarBatteryLabel != null)
-            _sidebarBatteryLabel.ForeColor = foreground;
+            _sidebarBatteryLabel.ForeColor = secondary;
         if (_sidebarBatteryIcon != null)
         {
             _sidebarBatteryIcon.DarkMode = dark;
             _sidebarBatteryIcon.Invalidate();
         }
+        if (_sidebarMicrophoneTitleLabel != null)
+            _sidebarMicrophoneTitleLabel.ForeColor = secondary;
+        if (_sidebarMicrophoneLabel != null)
+            _sidebarMicrophoneLabel.ForeColor = secondary;
         UpdateSidebarDeviceStatus(
             _deviceSelector != null && _deviceSelector.SelectedIndex > 0,
             _device != null && _device.IsConnected && _device.Battery >= 0 && _device.Battery <= 100);
@@ -315,10 +321,11 @@ public sealed partial class SettingsForm : Form
 
         AppSettings defaults = AppSettings.CreateDefault();
         _pendingSelectedDevice = defaults.SelectedDevice;
-        _pendingStartupEnabled = _startupManager.IsEnabled();
+        _pendingStartupEnabled = AppSettings.DefaultStartWithWindows;
         _pendingNotifyOnLowBattery = defaults.NotifyOnLowBattery;
         _pendingNotifyWhenFullyCharged = defaults.NotifyWhenFullyCharged;
         _pendingBlinkOnCriticalBattery = defaults.BlinkOnCriticalBattery;
+        _pendingShowMicrophoneMuteInSystray = defaults.ShowMicrophoneMuteInSystray;
         _pendingCriticalBatteryPercent = defaults.CriticalBatteryPercent;
         _pendingDisplayMode = defaults.DisplayMode;
         _pendingAdvancedDisplayMode = defaults.AdvancedDisplayMode;
@@ -371,6 +378,7 @@ public sealed partial class SettingsForm : Form
         _settings.NotifyOnLowBattery = _pendingNotifyOnLowBattery;
         _settings.NotifyWhenFullyCharged = _pendingNotifyWhenFullyCharged;
         _settings.BlinkOnCriticalBattery = _pendingBlinkOnCriticalBattery;
+        _settings.ShowMicrophoneMuteInSystray = _pendingShowMicrophoneMuteInSystray;
         _settings.CriticalBatteryPercent = Math.Clamp(_pendingCriticalBatteryPercent, 1, 100);
         _settings.Language = _selectedLanguage;
         _settings.Theme = _selectedTheme;
@@ -379,6 +387,8 @@ public sealed partial class SettingsForm : Form
         {
             if (_pendingStartupEnabled) _startupManager.Enable();
             else _startupManager.Disable();
+
+            _settings.IsNewSettingsProfile = false;
         }
         catch (Exception ex)
         {
@@ -391,7 +401,29 @@ public sealed partial class SettingsForm : Form
 
     private void SettingsForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
-        if (_device != null) _device.BatteryChanged -= Device_BatteryChanged;
+        if (_device != null)
+        {
+            _device.BatteryChanged -= Device_BatteryChanged;
+            _device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
+        }
+
+        if (_sidebarChargingIcon != null)
+        {
+            Image? chargingIcon = _sidebarChargingIcon.Image;
+            _sidebarChargingIcon.Image = null;
+            chargingIcon?.Dispose();
+            _sidebarChargingIconDark = null;
+        }
+
+        if (_sidebarMicrophoneIcon != null)
+        {
+            Image? microphoneIcon = _sidebarMicrophoneIcon.Image;
+            _sidebarMicrophoneIcon.Image = null;
+            microphoneIcon?.Dispose();
+            _sidebarMicrophoneIconDark = null;
+            _sidebarMicrophoneIconMuted = null;
+        }
+
         _iconCache.Dispose();
     }
 

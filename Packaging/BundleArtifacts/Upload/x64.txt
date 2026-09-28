@@ -1,0 +1,2 @@
+MainPackage=C:\Projetos\HyperX Battery Monitor\Source Code\Packaging\bin\x64\Release\Upload\HyperXBatteryMonitor.Package_2.1.0.0_x64.msix
+SymbolPackage=C:\Projetos\HyperX Battery Monitor\Source Code\Packaging\bin\x64\Release\Upload\HyperXBatteryMonitor.Package_2.1.0.0\HyperXBatteryMonitor.Package_2.1.0.0_x64.appxsym

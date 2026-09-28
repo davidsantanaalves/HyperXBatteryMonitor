@@ -26,6 +26,8 @@ public sealed class HyperXDeviceDefinition
 
     public bool PreferHighestUsage { get; init; }
 
+    public bool SupportsMicrophoneMuteMonitoring { get; init; }
+
     public bool Matches(string devicePath)
     {
         return devicePath.Contains(

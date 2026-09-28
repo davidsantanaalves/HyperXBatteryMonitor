@@ -14,8 +14,11 @@ $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host 'Publishing HyperX Battery Monitor 2.0.1...' -ForegroundColor Cyan
+Write-Host 'Publishing HyperX Battery Monitor 2.1.0...' -ForegroundColor Cyan
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
+if ($LASTEXITCODE -ne 0) {
+    throw "Application publish failed with exit code $LASTEXITCODE."
+}
 
 $exe = Join-Path $publish 'HyperX Battery Monitor.exe'
 if (-not (Test-Path $exe)) {
@@ -42,6 +45,9 @@ if ($isccCandidates.Count -eq 0) {
 
 Write-Host 'Building installer...' -ForegroundColor Cyan
 & $isccCandidates[0] $installer
+if ($LASTEXITCODE -ne 0) {
+    throw "Installer build failed with exit code $LASTEXITCODE."
+}
 
 if ($BuildStorePackage) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -76,7 +82,11 @@ if ($BuildStorePackage) {
     }
 
     Write-Host 'Building Microsoft Store MSIX package...' -ForegroundColor Cyan
-    & $msbuild $packageProject /restore /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\"
+    # Rebuild to prevent cached upload manifests from retaining a previous release version.
+    & $msbuild $packageProject /restore /t:Rebuild /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Store package build failed with exit code $LASTEXITCODE."
+    }
 }
 
 Write-Host ''
