@@ -200,7 +200,7 @@ internal sealed class TrayContextMenuForm : Form
         _statusDot.Left = _statusTitle.Right + titleToDotGap;
         _statusText.Left = _statusDot.Right + dotToTextGap;
 
-        int rightInset = _statusTitle.Left;
+        int rightInset = _statusText.Margin.Right;
         _statusText.Width = Math.Max(0, ClientSize.Width - _statusText.Left - rightInset);
     }
 
