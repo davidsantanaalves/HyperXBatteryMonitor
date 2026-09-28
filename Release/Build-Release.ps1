@@ -14,7 +14,7 @@ $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host 'Publishing HyperX Battery Monitor 2.0.0...' -ForegroundColor Cyan
+Write-Host 'Publishing HyperX Battery Monitor 2.0.1...' -ForegroundColor Cyan
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
 
 $exe = Join-Path $publish 'HyperX Battery Monitor.exe'
