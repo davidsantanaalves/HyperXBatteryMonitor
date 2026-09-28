@@ -33,6 +33,7 @@ public sealed class SettingsManager
             {
                 AppSettings defaults = AppSettings.CreateDefault();
                 defaults.Language = DetectWindowsLanguage();
+                defaults.IsNewSettingsProfile = true;
 
                 try
                 {

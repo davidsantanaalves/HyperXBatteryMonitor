@@ -27,7 +27,8 @@ public sealed class Cloud2CoreWirelessDevice : HyperXBatteryDeviceBase
         ReportId = ProtocolReportId,
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
         BatteryByteIndex = 4,
-        PreferHighestUsage = true
+        PreferHighestUsage = true,
+        SupportsMicrophoneMuteMonitoring = true
     };
 
     public Cloud2CoreWirelessDevice() : base(DeviceDefinition)

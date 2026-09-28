@@ -35,8 +35,18 @@ public sealed partial class SettingsForm : Form
             Cursor = Cursors.Hand;
         }
 
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            base.OnEnabledChanged(e);
+            Cursor = Enabled ? Cursors.Hand : Cursors.Default;
+            Invalidate();
+        }
+
         protected override void OnClick(EventArgs e)
         {
+            if (!Enabled)
+                return;
+
             base.OnClick(e);
             Checked = !Checked;
         }
@@ -46,13 +56,32 @@ public sealed partial class SettingsForm : Form
             base.OnPaint(e);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle track = new(0, 2, Width - 1, Height - 5);
-            Color trackColor = _checked ? Accent : (_dark ? Color.FromArgb(76, 81, 87) : Color.FromArgb(205, 211, 220));
+
+            Color trackColor;
+            if (!Enabled)
+            {
+                trackColor = _dark
+                    ? Color.FromArgb(58, 62, 67)
+                    : Color.FromArgb(224, 228, 234);
+            }
+            else
+            {
+                trackColor = _checked
+                    ? Accent
+                    : (_dark
+                        ? Color.FromArgb(76, 81, 87)
+                        : Color.FromArgb(205, 211, 220));
+            }
+
             using (Brush b = new SolidBrush(trackColor))
                 e.Graphics.FillRoundedRectangle(b, track, track.Height / 2);
 
             int knobSize = Math.Max(10, track.Height - 4);
             int knobX = _checked ? track.Right - knobSize - 2 : track.Left + 2;
-            using Brush knob = new SolidBrush(Color.White);
+            Color knobColor = Enabled
+                ? Color.White
+                : (_dark ? Color.FromArgb(150, 154, 160) : Color.FromArgb(245, 246, 248));
+            using Brush knob = new SolidBrush(knobColor);
             e.Graphics.FillEllipse(knob, knobX, track.Top + 2, knobSize, knobSize);
         }
     }

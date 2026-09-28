@@ -1,5 +1,5 @@
 #define MyAppName "HyperX Battery Monitor"
-#define MyAppVersion "2.0.1"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Dave Santana"
 #define MyAppExeName "HyperX Battery Monitor.exe"
 #define MyAppUserModelId "DaveSantana.HyperXBatteryMonitor"

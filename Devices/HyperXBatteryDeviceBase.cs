@@ -47,6 +47,9 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
 
     public bool IsMicrophoneMuted => _isMicrophoneMuted;
 
+    public bool SupportsMicrophoneMuteMonitoring =>
+        Definition.SupportsMicrophoneMuteMonitoring;
+
     public event EventHandler<int>? BatteryChanged;
 
     public event EventHandler<bool>? ChargingChanged;

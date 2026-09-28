@@ -120,11 +120,21 @@ internal sealed class PngIconCache : IDisposable
     {
         string theme = darkMode ? "Dark" : "Light";
         string suffix = darkMode ? "dark" : "light";
-        return Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            theme,
+        string directory = Path.Combine(AppContext.BaseDirectory, "Icons", theme);
+
+        string standardPath = Path.Combine(
+            directory,
             $"{iconKey}-{suffix}-{sizePx}x{sizePx}.png");
+        if (File.Exists(standardPath))
+            return standardPath;
+
+        string themePrefixPath = Path.Combine(
+            directory,
+            $"{suffix}_{iconKey}-{sizePx}x{sizePx}.png");
+
+        return File.Exists(themePrefixPath)
+            ? themePrefixPath
+            : standardPath;
     }
 
     private int ResolveAssetSize(string iconKey, bool darkMode, int requestedSize)
@@ -155,29 +165,36 @@ internal sealed class PngIconCache : IDisposable
         string theme = darkMode ? "Dark" : "Light";
         string suffix = darkMode ? "dark" : "light";
         string directory = Path.Combine(AppContext.BaseDirectory, "Icons", theme);
-        string prefix = $"{iconKey}-{suffix}-";
+        string[] prefixes =
+        {
+            $"{iconKey}-{suffix}-",
+            $"{suffix}_{iconKey}-"
+        };
 
         List<int> sizes = new();
         if (Directory.Exists(directory))
         {
-            foreach (string filePath in Directory.EnumerateFiles(directory, $"{prefix}*x*.png", SearchOption.TopDirectoryOnly))
+            foreach (string prefix in prefixes)
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    continue;
+                foreach (string filePath in Directory.EnumerateFiles(directory, $"{prefix}*x*.png", SearchOption.TopDirectoryOnly))
+                {
+                    string fileName = Path.GetFileNameWithoutExtension(filePath);
+                    if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        continue;
 
-                string dimensions = fileName[prefix.Length..];
-                int separator = dimensions.IndexOf('x');
-                if (separator <= 0)
-                    continue;
+                    string dimensions = fileName[prefix.Length..];
+                    int separator = dimensions.IndexOf('x');
+                    if (separator <= 0)
+                        continue;
 
-                if (!int.TryParse(dimensions[..separator], NumberStyles.None, CultureInfo.InvariantCulture, out int width) || width <= 0)
-                    continue;
+                    if (!int.TryParse(dimensions[..separator], NumberStyles.None, CultureInfo.InvariantCulture, out int width) || width <= 0)
+                        continue;
 
-                if (!int.TryParse(dimensions[(separator + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int height) || height != width)
-                    continue;
+                    if (!int.TryParse(dimensions[(separator + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int height) || height != width)
+                        continue;
 
-                sizes.Add(width);
+                    sizes.Add(width);
+                }
             }
         }
 

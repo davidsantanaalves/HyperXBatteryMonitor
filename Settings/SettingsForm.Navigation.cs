@@ -55,13 +55,29 @@ public sealed partial class SettingsForm : Form
         };
     }
 
+    private Control CreateMicrophoneMuteTableIcon()
+    {
+        bool dark = EffectiveTheme == AppTheme.Dark;
+        string themeDirectory = dark ? "Dark" : "Light";
+        string themePrefix = dark ? "dark" : "light";
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            "Icons",
+            themeDirectory,
+            $"{themePrefix}_mute-{StandardUiIconLogicalSize}x{StandardUiIconLogicalSize}.png");
+
+        return File.Exists(path)
+            ? CreateTableIcon("mute", StandardUiIconLogicalSize)
+            : CreateTableIcon("notification", StandardUiIconLogicalSize);
+    }
+
     private void Sidebar_Paint(object? sender, PaintEventArgs e)
     {
         using Pen pen = new(EffectiveTheme == AppTheme.Dark ? Color.FromArgb(55, 59, 63) : Color.FromArgb(229, 233, 239));
         e.Graphics.DrawLine(pen, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
         int horizontalInset = ScaleUi(16);
-        int firstSeparatorY = ScaleUi(236);
-        int secondSeparatorY = ScaleUi(458);
+        int firstSeparatorY = ScaleUi(SidebarFirstSeparatorLogicalY);
+        int secondSeparatorY = ScaleUi(SidebarSecondSeparatorLogicalY);
         e.Graphics.DrawLine(pen, horizontalInset, firstSeparatorY, _sidebar.Width - horizontalInset, firstSeparatorY);
         e.Graphics.DrawLine(pen, horizontalInset, secondSeparatorY, _sidebar.Width - horizontalInset, secondSeparatorY);
     }
@@ -516,13 +532,34 @@ public sealed partial class SettingsForm : Form
         criticalRow.Controls.Add(percentLabel, 3, 0);
         low.Controls.Add(criticalRow, 1, 1);
 
+        RoundedPanel blinkCard = CreateResponsiveCard(NotificationSimpleCardLogicalHeight);
+        AddNotificationRow(blinkCard, NotificationSimpleCardLogicalHeight, NotificationCardBottomSpacingLogicalHeight);
+        AddNotificationSimpleCard(blinkCard, "blink", "FlashSystrayIcon", "FlashSystrayIconDescription", out _blinkOnCriticalBatteryToggle, _pendingBlinkOnCriticalBattery, value => _pendingBlinkOnCriticalBattery = value);
+
         RoundedPanel fullCard = CreateResponsiveCard(NotificationSimpleCardLogicalHeight);
         AddNotificationRow(fullCard, NotificationSimpleCardLogicalHeight, NotificationCardBottomSpacingLogicalHeight);
         AddNotificationSimpleCard(fullCard, "battery_full", "NotifyWhenFullyCharged", "NotifyWhenFullyChargedDescription", out _notifyWhenFullyChargedToggle, _pendingNotifyWhenFullyCharged, value => _pendingNotifyWhenFullyCharged = value);
 
-        RoundedPanel blinkCard = CreateResponsiveCard(NotificationSimpleCardLogicalHeight);
-        AddNotificationRow(blinkCard, NotificationSimpleCardLogicalHeight, 0);
-        AddNotificationSimpleCard(blinkCard, "blink", "FlashSystrayIcon", "FlashSystrayIconDescription", out _blinkOnCriticalBatteryToggle, _pendingBlinkOnCriticalBattery, value => _pendingBlinkOnCriticalBattery = value);
+        bool microphoneMonitoringSupported =
+            HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(
+                _pendingSelectedDevice);
+
+        RoundedPanel microphoneMuteCard =
+            CreateResponsiveCard(NotificationSimpleCardLogicalHeight);
+        AddNotificationRow(
+            microphoneMuteCard,
+            NotificationSimpleCardLogicalHeight,
+            0);
+        AddNotificationSimpleCard(
+            microphoneMuteCard,
+            "notification",
+            "ShowMicrophoneMuteInSystray",
+            "ShowMicrophoneMuteInSystrayDescription",
+            out _showMicrophoneMuteInSystrayToggle,
+            microphoneMonitoringSupported && _pendingShowMicrophoneMuteInSystray,
+            value => _pendingShowMicrophoneMuteInSystray = value,
+            microphoneMonitoringSupported,
+            CreateMicrophoneMuteTableIcon());
 
         AddNotificationFlexibleSpacer(page);
     }
@@ -572,16 +609,26 @@ public sealed partial class SettingsForm : Form
         string descriptionKey,
         out ToggleSwitchControl toggle,
         bool checkedValue,
-        Action<bool> onChanged)
+        Action<bool> onChanged,
+        bool enabled = true,
+        Control? icon = null)
     {
         TableLayoutPanel layout = new() { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = ScaleUiPadding(12, NotificationCardVerticalPaddingLogicalHeight, 12, NotificationCardVerticalPaddingLogicalHeight), Margin = new Padding(0), BackColor = Color.Transparent };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(38)));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(NotificationToggleColumnLogicalWidth)));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.Controls.Add(CreateTableIcon(iconKey, LargeUiIconLogicalSize), 0, 0);
-        layout.Controls.Add(CreateTextStack(titleKey == "NotifyWhenFullyCharged" ? L(titleKey) : L(titleKey), L(descriptionKey).TrimEnd('.')), 1, 0);
-        ToggleSwitchControl createdToggle = new() { Dock = DockStyle.None, Anchor = AnchorStyles.Right, Size = ScaleUiSize(42, 24), Checked = checkedValue, DarkMode = EffectiveTheme == AppTheme.Dark };
+        layout.Controls.Add(icon ?? CreateTableIcon(iconKey, LargeUiIconLogicalSize), 0, 0);
+        layout.Controls.Add(CreateTextStack(L(titleKey), L(descriptionKey).TrimEnd('.')), 1, 0);
+        ToggleSwitchControl createdToggle = new()
+        {
+            Dock = DockStyle.None,
+            Anchor = AnchorStyles.Right,
+            Size = ScaleUiSize(42, 24),
+            Checked = checkedValue,
+            DarkMode = EffectiveTheme == AppTheme.Dark,
+            Enabled = enabled
+        };
         createdToggle.CheckedChanged += (_, _) => onChanged(createdToggle.Checked);
         toggle = createdToggle;
         layout.Controls.Add(createdToggle, 2, 0);

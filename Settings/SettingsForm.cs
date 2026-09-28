@@ -50,8 +50,14 @@ public sealed partial class SettingsForm : Form
     private StatusDotControl _sidebarStatusDot = null!;
     private Label _sidebarBatteryTitleLabel = null!;
     private Label _sidebarBatteryLabel = null!;
-    private Label _sidebarChargingLabel = null!;
     private BatteryIconControl _sidebarBatteryIcon = null!;
+    private PictureBox _sidebarChargingIcon = null!;
+    private bool? _sidebarChargingIconDark;
+    private Label _sidebarMicrophoneTitleLabel = null!;
+    private PictureBox _sidebarMicrophoneIcon = null!;
+    private Label _sidebarMicrophoneLabel = null!;
+    private bool? _sidebarMicrophoneIconDark;
+    private bool? _sidebarMicrophoneIconMuted;
     private readonly Dictionary<string, SidebarItem> _navButtons = new();
     private IHyperXDevice? _device;
     private AppLanguage _selectedLanguage;
@@ -61,6 +67,7 @@ public sealed partial class SettingsForm : Form
     private bool _pendingNotifyOnLowBattery;
     private bool _pendingNotifyWhenFullyCharged;
     private bool _pendingBlinkOnCriticalBattery;
+    private bool _pendingShowMicrophoneMuteInSystray;
     private int _pendingCriticalBatteryPercent;
     private BatteryDisplayMode _pendingDisplayMode;
     private AdvancedDisplayMode _pendingAdvancedDisplayMode;
@@ -71,6 +78,7 @@ public sealed partial class SettingsForm : Form
     private ToggleSwitchControl _notifyOnLowBatteryToggle = null!;
     private ToggleSwitchControl _notifyWhenFullyChargedToggle = null!;
     private ToggleSwitchControl _blinkOnCriticalBatteryToggle = null!;
+    private ToggleSwitchControl _showMicrophoneMuteInSystrayToggle = null!;
     private CriticalBatteryNumericControl _criticalBatteryPercentInput = null!;
     private bool _updatingLanguage;
     private bool _isCharging;
@@ -88,6 +96,35 @@ public sealed partial class SettingsForm : Form
     private static readonly Color DarkSecondary = Color.FromArgb(196, 201, 207);
 
     private const int LogicalDpi = 96;
+    private const int SidebarFirstSeparatorLogicalY = 236;
+    private const int SidebarSecondSeparatorLogicalY = 458;
+    private const int SidebarDeviceCardLogicalHeight = 190;
+    private const int SidebarDeviceCardLogicalTop =
+        SidebarFirstSeparatorLogicalY +
+        (SidebarSecondSeparatorLogicalY - SidebarFirstSeparatorLogicalY - SidebarDeviceCardLogicalHeight) / 2;
+    private const int SidebarTitleLogicalLeft = 8;
+    private const int SidebarTitleLogicalWidth = 50;
+    private const int SidebarBatteryTitleLogicalWidth = 46;
+    private const int SidebarIconColumnLogicalLeft = 50;
+    private const int SidebarIconColumnLogicalWidth = 32;
+    private const int SidebarValueLogicalLeft = 83;
+    private const int SidebarStatusRowLogicalTop = 97;
+    private const int SidebarStatusDotLogicalTop = 97;
+    private const int SidebarStatusDotLogicalSize = 18;
+    private const int SidebarStatusTextVerticalOffsetLogical = 1;
+    private const int SidebarBatteryRowLogicalTop = 128;
+    private const int SidebarBatteryIconLogicalTop = 122;
+    private const int SidebarBatteryIconLogicalSize = 32;
+    private const int SidebarChargingIconLogicalTop = 125;
+    private const int SidebarChargingIconLogicalSize = 25;
+    private const int SidebarMicrophoneRowLogicalTop = 160;
+    private const int SidebarMicrophoneIconLogicalTop = 157;
+    private const int SidebarMicrophoneIconLogicalSize = 25;
+    private const int SidebarContentRightInsetLogical = 0;
+    private const int SidebarInlineIconGapLogical = 3;
+    private const string MicrophoneOpenIconAssetName = "mic";
+    private const string MicrophoneMutedIconAssetName = "mute";
+    private const string ChargingIconAssetName = "lightning";
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const string DarkScrollableThemeClass = "DarkMode_Explorer";
     private const string LightScrollableThemeClass = "Explorer";
@@ -192,10 +229,13 @@ public sealed partial class SettingsForm : Form
         _selectedLanguage = settings.Language;
         _selectedTheme = settings.Theme;
         _pendingSelectedDevice = settings.SelectedDevice;
-        _pendingStartupEnabled = _startupManager.IsEnabled();
+        _pendingStartupEnabled = settings.IsNewSettingsProfile
+            ? AppSettings.DefaultStartWithWindows
+            : _startupManager.IsEnabled();
         _pendingNotifyOnLowBattery = settings.NotifyOnLowBattery;
         _pendingNotifyWhenFullyCharged = settings.NotifyWhenFullyCharged;
         _pendingBlinkOnCriticalBattery = settings.BlinkOnCriticalBattery;
+        _pendingShowMicrophoneMuteInSystray = settings.ShowMicrophoneMuteInSystray;
         _pendingCriticalBatteryPercent = Math.Clamp(settings.CriticalBatteryPercent, 1, 100);
         _pendingDisplayMode = settings.DisplayMode;
         _pendingAdvancedDisplayMode = settings.AdvancedDisplayMode;
@@ -238,8 +278,8 @@ public sealed partial class SettingsForm : Form
 
         _sidebarDeviceCard = new RoundedPanel
         {
-            Location = new Point(10, 272),
-            Size = new Size(_sidebar.ClientSize.Width - 20, 170),
+            Location = new Point(10, SidebarDeviceCardLogicalTop),
+            Size = new Size(_sidebar.ClientSize.Width - 20, SidebarDeviceCardLogicalHeight),
             Anchor = AnchorStyles.Left | AnchorStyles.Top,
             BorderColor = DarkBorder,
             OutsideBackColor = LightSidebar,
@@ -267,8 +307,8 @@ public sealed partial class SettingsForm : Form
         _sidebarStatusTitleLabel = new Label
         {
             AutoSize = false,
-            Size = new Size(52, 20),
-            Location = new Point(10, 96),
+            Size = new Size(SidebarTitleLogicalWidth, SidebarStatusDotLogicalSize),
+            Location = new Point(SidebarTitleLogicalLeft, SidebarStatusRowLogicalTop),
             Text = L("SidebarStatus"),
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Segoe UI", 8.5f),
@@ -277,15 +317,21 @@ public sealed partial class SettingsForm : Form
 
         _sidebarStatusDot = new StatusDotControl
         {
-            Size = new Size(18, 18),
-            Location = new Point(62, 97)
+            Size = new Size(SidebarStatusDotLogicalSize, SidebarStatusDotLogicalSize),
+            Location = new Point(
+                SidebarIconColumnLogicalLeft + (SidebarIconColumnLogicalWidth - SidebarStatusDotLogicalSize) / 2,
+                SidebarStatusDotLogicalTop)
         };
 
         _sidebarStatusLabel = new Label
         {
             AutoSize = false,
-            Size = new Size(_sidebarDeviceCard.Width - 83, 20),
-            Location = new Point(83, 96),
+            Size = new Size(
+                _sidebarDeviceCard.Width - SidebarValueLogicalLeft - SidebarContentRightInsetLogical,
+                SidebarStatusDotLogicalSize),
+            Location = new Point(
+                SidebarValueLogicalLeft,
+                SidebarStatusRowLogicalTop + SidebarStatusTextVerticalOffsetLogical),
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Segoe UI", 8.5f),
             BackColor = Color.Transparent
@@ -294,8 +340,8 @@ public sealed partial class SettingsForm : Form
         _sidebarBatteryTitleLabel = new Label
         {
             AutoSize = false,
-            Size = new Size(52, 20),
-            Location = new Point(10, 122),
+            Size = new Size(SidebarBatteryTitleLogicalWidth, 20),
+            Location = new Point(SidebarTitleLogicalLeft, SidebarBatteryRowLogicalTop),
             Text = L("SidebarBattery"),
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Segoe UI", 8.5f),
@@ -304,30 +350,63 @@ public sealed partial class SettingsForm : Form
 
         _sidebarBatteryIcon = new BatteryIconControl
         {
-            Size = new Size(32, 32),
-            Location = new Point(62, 116),
+            Size = new Size(SidebarBatteryIconLogicalSize, SidebarBatteryIconLogicalSize),
+            Location = new Point(SidebarIconColumnLogicalLeft, SidebarBatteryIconLogicalTop),
             DarkMode = false
         };
 
         _sidebarBatteryLabel = new Label
         {
             AutoSize = false,
-            Size = new Size(_sidebarDeviceCard.Width - 95, 20),
-            Location = new Point(98, 122),
+            Size = new Size(_sidebarDeviceCard.Width - SidebarValueLogicalLeft - SidebarContentRightInsetLogical, 20),
+            Location = new Point(SidebarValueLogicalLeft, SidebarBatteryRowLogicalTop),
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Segoe UI", 8.5f),
             BackColor = Color.Transparent
         };
 
-        _sidebarChargingLabel = new Label
+        _sidebarChargingIcon = new PictureBox
         {
-            AutoSize = false,
-            Size = new Size(96, 18),
-            Location = new Point(47, 147),
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font = new Font("Segoe UI", 8.5f),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Size = new Size(SidebarChargingIconLogicalSize, SidebarChargingIconLogicalSize),
+            Location = new Point(SidebarValueLogicalLeft, SidebarChargingIconLogicalTop),
             BackColor = Color.Transparent,
             Visible = false
+        };
+
+        _sidebarMicrophoneTitleLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(_sidebarStatusTitleLabel.Width, _sidebarStatusTitleLabel.Height),
+            Location = new Point(_sidebarStatusTitleLabel.Left, SidebarMicrophoneRowLogicalTop),
+            Text = L("SidebarMicrophone"),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarMicrophoneIcon = new PictureBox
+        {
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Size = new Size(SidebarMicrophoneIconLogicalSize, SidebarMicrophoneIconLogicalSize),
+            Location = new Point(
+                SidebarIconColumnLogicalLeft + (SidebarIconColumnLogicalWidth - SidebarMicrophoneIconLogicalSize + 1) / 2,
+                SidebarMicrophoneIconLogicalTop),
+            BackColor = Color.Transparent
+        };
+
+        _sidebarMicrophoneLabel = new Label
+        {
+            AutoSize = false,
+            Size = new Size(
+                _sidebarDeviceCard.Width - SidebarValueLogicalLeft - SidebarContentRightInsetLogical,
+                _sidebarStatusLabel.Height),
+            Location = new Point(
+                SidebarValueLogicalLeft,
+                SidebarMicrophoneRowLogicalTop),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f),
+            BackColor = Color.Transparent
         };
 
         _sidebarDeviceCard.Controls.Add(_sidebarDeviceImage);
@@ -338,7 +417,10 @@ public sealed partial class SettingsForm : Form
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryTitleLabel);
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryIcon);
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryLabel);
-        _sidebarDeviceCard.Controls.Add(_sidebarChargingLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarChargingIcon);
+        _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneTitleLabel);
+        _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneIcon);
+        _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneLabel);
         _sidebar.Controls.Add(_sidebarDeviceCard);
 
         _applicationNameLabel = new Label
@@ -386,7 +468,10 @@ public sealed partial class SettingsForm : Form
         RefreshDeviceStatus();
 
         if (_device != null)
+        {
             _device.BatteryChanged += Device_BatteryChanged;
+            _device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
+        }
         FormClosed += SettingsForm_FormClosed;
     }
 
@@ -399,12 +484,18 @@ public sealed partial class SettingsForm : Form
         }
 
         if (_device != null)
+        {
             _device.BatteryChanged -= Device_BatteryChanged;
+            _device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
+        }
 
         _device = device;
 
         if (_device != null)
+        {
             _device.BatteryChanged += Device_BatteryChanged;
+            _device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
+        }
 
         RefreshDeviceStatus();
     }

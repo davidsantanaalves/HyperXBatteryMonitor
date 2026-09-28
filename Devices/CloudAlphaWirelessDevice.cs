@@ -31,7 +31,8 @@ public sealed class CloudAlphaWirelessDevice : HyperXBatteryDeviceBase
             ProtocolReportId, ProtocolMarker, BatteryResponseSelector
         },
         BatteryByteIndex = 3,
-        PreferHighestUsage = true
+        PreferHighestUsage = true,
+        SupportsMicrophoneMuteMonitoring = true
     };
 
     public CloudAlphaWirelessDevice() : base(DeviceDefinition)

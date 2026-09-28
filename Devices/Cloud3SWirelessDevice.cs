@@ -33,7 +33,8 @@ public sealed class Cloud3SWirelessDevice : HyperXBatteryDeviceBase
         },
         BatteryByteIndex = 6,
         RequiredUsagePage = 448,
-        RequiredUsage = 1
+        RequiredUsage = 1,
+        SupportsMicrophoneMuteMonitoring = true
     };
 
     public Cloud3SWirelessDevice() : base(DeviceDefinition)

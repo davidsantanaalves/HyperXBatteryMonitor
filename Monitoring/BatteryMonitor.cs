@@ -93,14 +93,21 @@ public sealed class BatteryMonitor : IDisposable
 
                 if (!_microphoneStateInitialized)
                 {
-                    bool? microphoneMuted =
-                        await _device.QueryMicrophoneMuteStatusAsync(
-                            cancellationToken);
-
-                    if (microphoneMuted.HasValue)
+                    if (!_device.SupportsMicrophoneMuteMonitoring)
                     {
                         _microphoneStateInitialized = true;
-                        UpdateMicrophoneMuteState(microphoneMuted.Value);
+                    }
+                    else
+                    {
+                        bool? microphoneMuted =
+                            await _device.QueryMicrophoneMuteStatusAsync(
+                                cancellationToken);
+
+                        if (microphoneMuted.HasValue)
+                        {
+                            _microphoneStateInitialized = true;
+                            UpdateMicrophoneMuteState(microphoneMuted.Value);
+                        }
                     }
                 }
 

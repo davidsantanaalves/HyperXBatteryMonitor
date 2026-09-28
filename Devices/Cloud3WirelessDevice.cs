@@ -23,7 +23,8 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         ResponseLength = 62,
         ReportId = ProtocolReportId,
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
-        BatteryByteIndex = 4
+        BatteryByteIndex = 4,
+        SupportsMicrophoneMuteMonitoring = true
     };
 
     private readonly HidConnection _connection = new();
@@ -55,6 +56,9 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     public bool IsCharging => _isCharging;
 
     public bool IsMicrophoneMuted => _isMicrophoneMuted;
+
+    public bool SupportsMicrophoneMuteMonitoring =>
+        Definition.SupportsMicrophoneMuteMonitoring;
 
     public event EventHandler<int>? BatteryChanged;
 

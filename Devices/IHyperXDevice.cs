@@ -16,6 +16,8 @@ public interface IHyperXDevice : IDisposable
 
     bool IsMicrophoneMuted { get; }
 
+    bool SupportsMicrophoneMuteMonitoring { get; }
+
     event EventHandler<int>? BatteryChanged;
 
     event EventHandler<bool>? ChargingChanged;
