@@ -25,7 +25,6 @@ public sealed partial class SettingsForm : Form
 
     private void RebuildDevicePage()
     {
-        _pageHost.Controls.Clear();
         BuildDevicePage();
         RefreshDeviceStatus();
     }

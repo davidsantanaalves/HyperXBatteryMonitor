@@ -24,6 +24,10 @@ public sealed partial class SettingsForm : Form
     private const int NotificationPrimaryRowLogicalHeight = 50;
     private const int StandardUiIconLogicalSize = 25;
     private const int LargeUiIconLogicalSize = 36;
+    private const int WmSetRedraw = 0x000B;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
     private int ScaleUi(int logicalValue)
     {
@@ -291,6 +295,18 @@ public sealed partial class SettingsForm : Form
         if (IsHandleCreated)
             ApplyNativeScrollTheme(_activePageLayout, EffectiveTheme == AppTheme.Dark);
         return _activePageLayout;
+    }
+
+    private void SetPageHostRedraw(bool enabled)
+    {
+        if (!_pageHost.IsHandleCreated)
+            return;
+
+        _ = SendMessage(
+            _pageHost.Handle,
+            WmSetRedraw,
+            enabled ? new IntPtr(1) : IntPtr.Zero,
+            IntPtr.Zero);
     }
 
     private void AddResponsiveRow(Control control, int height = 0, int bottomMargin = 10)
@@ -716,46 +732,52 @@ public sealed partial class SettingsForm : Form
         foreach ((string name, SidebarItem item) in _navButtons)
             item.Selected = name == key;
 
+        bool redrawWasSuspended = _pageHost.IsHandleCreated;
+        if (redrawWasSuspended)
+            SetPageHostRedraw(false);
+
         _pageHost.SuspendLayout();
-        _pageHost.Visible = false;
         try
         {
-            if (key == "Device")
+            switch (key)
             {
-                RebuildDevicePage();
-                return;
-            }
-            if (key == "Interface")
-            {
-                ShowInterfacePage();
-                return;
-            }
-            if (key == "BatteryMonitor")
-            {
-                ShowBatteryMonitorPage();
-                return;
-            }
-            if (key == "Notifications")
-            {
-                ShowNotificationsPage();
-                return;
-            }
-            if (key == "About")
-            {
-                ShowAboutPage();
-                return;
-            }
+                case "Device":
+                    RebuildDevicePage();
+                    break;
 
-            TableLayoutPanel page = BeginResponsivePage();
-            AddPageHeader(page, "about", Glyph.Info, key, string.Empty);
+                case "Interface":
+                    ShowInterfacePage();
+                    break;
+
+                case "BatteryMonitor":
+                    ShowBatteryMonitorPage();
+                    break;
+
+                case "Notifications":
+                    ShowNotificationsPage();
+                    break;
+
+                case "About":
+                    ShowAboutPage();
+                    break;
+
+                default:
+                    TableLayoutPanel page = BeginResponsivePage();
+                    AddPageHeader(page, "about", Glyph.Info, key, string.Empty);
+                    break;
+            }
         }
         finally
         {
-            // The host is hidden only while the page is rebuilt. Always restore it
-            // so navigation cannot leave the entire content area invisible.
-            _pageHost.Visible = true;
             _pageHost.ResumeLayout(true);
+            _activePageLayout?.PerformLayout();
+
+            if (redrawWasSuspended)
+                SetPageHostRedraw(true);
+
             _pageHost.Invalidate(true);
+            _pageHost.Update();
         }
     }
+
 }
