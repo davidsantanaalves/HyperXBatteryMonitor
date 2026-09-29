@@ -172,8 +172,6 @@ From the Settings window you can configure:
 
 Microphone-related options are automatically unavailable for headset models that do not support microphone mute monitoring.
 
-Important: After selecting your headset, you need to click Apply or OK before the application starts reading data from the device.
-
 ## Battery Monitor Modes
 
 HyperX Battery Monitor provides multiple ways to display battery information in the Windows system tray.
