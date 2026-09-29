@@ -413,13 +413,15 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             status = L("TrayConnected");
         }
 
-        string microphoneStatus =
+        bool microphoneStatusAvailable =
             selected &&
             _device?.IsConnected == true &&
-            _device.SupportsMicrophoneMuteMonitoring
-                ? (_device.IsMicrophoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
-                : L("MicrophoneNA");
-        string microphone = string.Format(L("TrayMicrophone"), microphoneStatus);
+            _device.SupportsMicrophoneMuteMonitoring;
+        string microphone = microphoneStatusAvailable
+            ? string.Format(
+                L("TrayMicrophone"),
+                _device!.IsMicrophoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
+            : L("MicrophoneNA");
 
         _notifyIcon.Text = $"{deviceName}\n{status}\n{battery}\n{microphone}";
     }

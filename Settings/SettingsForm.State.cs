@@ -405,21 +405,13 @@ public sealed partial class SettingsForm : Form
         StopDevicePreview();
         UnsubscribeFromDeviceStatusEvents(_device);
 
-        if (_sidebarChargingIcon != null)
-        {
-            Image? chargingIcon = _sidebarChargingIcon.Image;
-            _sidebarChargingIcon.Image = null;
-            chargingIcon?.Dispose();
-            _sidebarChargingIconDark = null;
-        }
-
         if (_sidebarMicrophoneIcon != null)
         {
             Image? microphoneIcon = _sidebarMicrophoneIcon.Image;
             _sidebarMicrophoneIcon.Image = null;
             microphoneIcon?.Dispose();
             _sidebarMicrophoneIconDark = null;
-            _sidebarMicrophoneIconMuted = null;
+            _sidebarMicrophoneIconUsesMuteAsset = null;
         }
 
         _iconCache.Dispose();

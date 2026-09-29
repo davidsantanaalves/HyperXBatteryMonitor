@@ -51,13 +51,11 @@ public sealed partial class SettingsForm : Form
     private Label _sidebarBatteryTitleLabel = null!;
     private Label _sidebarBatteryLabel = null!;
     private BatteryIconControl _sidebarBatteryIcon = null!;
-    private PictureBox _sidebarChargingIcon = null!;
-    private bool? _sidebarChargingIconDark;
     private Label _sidebarMicrophoneTitleLabel = null!;
     private PictureBox _sidebarMicrophoneIcon = null!;
     private Label _sidebarMicrophoneLabel = null!;
     private bool? _sidebarMicrophoneIconDark;
-    private bool? _sidebarMicrophoneIconMuted;
+    private bool? _sidebarMicrophoneIconUsesMuteAsset;
     private readonly Dictionary<string, SidebarItem> _navButtons = new();
     private IHyperXDevice? _device;
     private AppLanguage _selectedLanguage;
@@ -115,16 +113,12 @@ public sealed partial class SettingsForm : Form
     private const int SidebarBatteryRowLogicalTop = 128;
     private const int SidebarBatteryIconLogicalTop = 122;
     private const int SidebarBatteryIconLogicalSize = 32;
-    private const int SidebarChargingIconLogicalTop = 125;
-    private const int SidebarChargingIconLogicalSize = 25;
     private const int SidebarMicrophoneRowLogicalTop = 160;
     private const int SidebarMicrophoneIconLogicalTop = 157;
     private const int SidebarMicrophoneIconLogicalSize = 25;
     private const int SidebarContentRightInsetLogical = 0;
-    private const int SidebarInlineIconGapLogical = 3;
     private const string MicrophoneOpenIconAssetName = "mic";
     private const string MicrophoneMutedIconAssetName = "mute";
-    private const string ChargingIconAssetName = "lightning";
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const string DarkScrollableThemeClass = "DarkMode_Explorer";
     private const string LightScrollableThemeClass = "Explorer";
@@ -367,15 +361,6 @@ public sealed partial class SettingsForm : Form
             BackColor = Color.Transparent
         };
 
-        _sidebarChargingIcon = new PictureBox
-        {
-            SizeMode = PictureBoxSizeMode.Zoom,
-            Size = new Size(SidebarChargingIconLogicalSize, SidebarChargingIconLogicalSize),
-            Location = new Point(SidebarValueLogicalLeft, SidebarChargingIconLogicalTop),
-            BackColor = Color.Transparent,
-            Visible = false
-        };
-
         _sidebarMicrophoneTitleLabel = new Label
         {
             AutoSize = false,
@@ -419,7 +404,6 @@ public sealed partial class SettingsForm : Form
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryTitleLabel);
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryIcon);
         _sidebarDeviceCard.Controls.Add(_sidebarBatteryLabel);
-        _sidebarDeviceCard.Controls.Add(_sidebarChargingIcon);
         _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneTitleLabel);
         _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneIcon);
         _sidebarDeviceCard.Controls.Add(_sidebarMicrophoneLabel);
