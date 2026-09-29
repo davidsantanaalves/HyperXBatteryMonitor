@@ -65,12 +65,26 @@ public sealed class HyperXDeviceManager : IDisposable
             : null;
     }
 
-    public IHyperXDevice? GetAvailableDevice(string? selectedDeviceName)
+    public IHyperXDevice? GetAvailableDevice(string? selectedDeviceName) =>
+        CreateDevice(selectedDeviceName);
+
+    public static IHyperXDevice? CreateDevice(string? selectedDeviceName)
     {
         HyperXDeviceRegistration? registration =
             FindRegistration(selectedDeviceName);
 
         return registration?.Factory();
+    }
+
+    public static bool IsSameDevice(string? left, string? right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            return string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right);
+
+        return string.Equals(
+            NormalizeDeviceName(left),
+            NormalizeDeviceName(right),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool SupportsMicrophoneMuteMonitoring(

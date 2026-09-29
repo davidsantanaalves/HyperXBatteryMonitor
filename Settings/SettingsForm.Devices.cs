@@ -7,14 +7,135 @@ using System.Xml.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using HyperXBatteryTray.Devices;
+using HyperXBatteryTray.Monitoring;
 
 namespace HyperXBatteryTray.Settings;
 
 public sealed partial class SettingsForm : Form
 {
+    private IHyperXDevice? _runtimeDevice;
+    private bool _runtimeIsCharging;
+    private BatteryMonitor? _devicePreviewMonitor;
+
     private void DeviceSelector_SelectionChanged(object? sender, EventArgs e)
     {
         _pendingSelectedDevice = _deviceSelector.SelectedDeviceName;
+        StartDevicePreviewForSelection();
+        RefreshDeviceStatus();
+    }
+
+    private void StartDevicePreviewForSelection()
+    {
+        StopDevicePreview();
+
+        if (string.IsNullOrWhiteSpace(_pendingSelectedDevice) ||
+            (_runtimeDevice != null && HyperXDeviceManager.IsSameDevice(
+                _pendingSelectedDevice,
+                _settings.SelectedDevice)))
+        {
+            return;
+        }
+
+        UnsubscribeFromDeviceStatusEvents(_device);
+        IHyperXDevice? previewDevice = HyperXDeviceManager.CreateDevice(_pendingSelectedDevice);
+        _device = previewDevice;
+        _isCharging = false;
+
+        if (previewDevice == null)
+            return;
+
+        BatteryMonitor previewMonitor = new(previewDevice);
+
+        previewMonitor.BatteryChanged += DevicePreviewMonitor_BatteryChanged;
+        previewMonitor.ConnectionChanged += DevicePreviewMonitor_ConnectionChanged;
+        previewMonitor.ChargingChanged += DevicePreviewMonitor_ChargingChanged;
+        previewMonitor.MicrophoneMuteChanged += DevicePreviewMonitor_MicrophoneMuteChanged;
+
+        _devicePreviewMonitor = previewMonitor;
+        previewMonitor.Start();
+    }
+
+    private void StopDevicePreview()
+    {
+        if (_devicePreviewMonitor != null)
+        {
+            _devicePreviewMonitor.BatteryChanged -= DevicePreviewMonitor_BatteryChanged;
+            _devicePreviewMonitor.ConnectionChanged -= DevicePreviewMonitor_ConnectionChanged;
+            _devicePreviewMonitor.ChargingChanged -= DevicePreviewMonitor_ChargingChanged;
+            _devicePreviewMonitor.MicrophoneMuteChanged -= DevicePreviewMonitor_MicrophoneMuteChanged;
+            _devicePreviewMonitor.Dispose();
+            _devicePreviewMonitor = null;
+        }
+
+        if (!ReferenceEquals(_device, _runtimeDevice))
+        {
+            UnsubscribeFromDeviceStatusEvents(_device);
+            _device = _runtimeDevice;
+            SubscribeToDeviceStatusEvents(_device);
+        }
+
+        _isCharging = _runtimeIsCharging;
+    }
+
+    private void SubscribeToDeviceStatusEvents(IHyperXDevice? device)
+    {
+        if (device == null)
+            return;
+
+        device.BatteryChanged += Device_BatteryChanged;
+        device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
+    }
+
+    private void UnsubscribeFromDeviceStatusEvents(IHyperXDevice? device)
+    {
+        if (device == null)
+            return;
+
+        device.BatteryChanged -= Device_BatteryChanged;
+        device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
+    }
+
+    private void DevicePreviewMonitor_BatteryChanged(object? sender, int battery) =>
+        RefreshDevicePreviewStatus(sender);
+
+    private void DevicePreviewMonitor_ConnectionChanged(object? sender, bool connected) =>
+        RefreshDevicePreviewStatus(sender);
+
+    private void DevicePreviewMonitor_MicrophoneMuteChanged(object? sender, bool muted) =>
+        RefreshDevicePreviewStatus(sender);
+
+    private void DevicePreviewMonitor_ChargingChanged(object? sender, bool charging)
+    {
+        if (IsDisposed || !IsHandleCreated)
+            return;
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => DevicePreviewMonitor_ChargingChanged(sender, charging)));
+            return;
+        }
+
+        if (!ReferenceEquals(sender, _devicePreviewMonitor))
+            return;
+
+        _isCharging = charging;
+        RefreshDeviceStatus();
+    }
+
+    private void RefreshDevicePreviewStatus(object? sender)
+    {
+        if (IsDisposed || !IsHandleCreated)
+            return;
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => RefreshDevicePreviewStatus(sender)));
+            return;
+        }
+
+        if (!ReferenceEquals(sender, _devicePreviewMonitor))
+            return;
+
         RefreshDeviceStatus();
     }
 

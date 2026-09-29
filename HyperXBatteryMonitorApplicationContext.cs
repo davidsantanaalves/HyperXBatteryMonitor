@@ -84,7 +84,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         if (string.IsNullOrWhiteSpace(_settings.SelectedDevice))
             return;
 
-        _device = _deviceManager.GetFirstAvailableDevice();
+        _device = _deviceManager.GetAvailableDevice(_settings.SelectedDevice);
 
         if (_device == null)
             return;

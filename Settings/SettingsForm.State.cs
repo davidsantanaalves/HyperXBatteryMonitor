@@ -395,17 +395,15 @@ public sealed partial class SettingsForm : Form
             MessageBox.Show(this, string.Format(L("StartupError"), ex.Message), "HyperX Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return false;
         }
+        StopDevicePreview();
         SettingsApplied?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
     private void SettingsForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
-        if (_device != null)
-        {
-            _device.BatteryChanged -= Device_BatteryChanged;
-            _device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
-        }
+        StopDevicePreview();
+        UnsubscribeFromDeviceStatusEvents(_device);
 
         if (_sidebarChargingIcon != null)
         {

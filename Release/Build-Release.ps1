@@ -14,7 +14,7 @@ $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host 'Publishing HyperX Battery Monitor 2.1.0...' -ForegroundColor Cyan
+Write-Host 'Publishing HyperX Battery Monitor 2.1.1...' -ForegroundColor Cyan
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) {
     throw "Application publish failed with exit code $LASTEXITCODE."

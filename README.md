@@ -139,9 +139,9 @@ Some headset capabilities vary by model.
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.1.0, download:
+For version 2.1.1, download:
 
-`HyperXBatteryMonitor-Setup-v2.1.0.exe`
+`HyperXBatteryMonitor-Setup-v2.1.1.exe`
 
 Run the installer and follow the installation instructions.
 
@@ -252,7 +252,7 @@ These options can be configured independently through the Settings window.
 
 ## Project Status
 
-**Version:** 2.1.0
+**Version:** 2.1.1
 
 **Status:** Stable release
 
