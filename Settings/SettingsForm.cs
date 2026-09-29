@@ -222,7 +222,9 @@ public sealed partial class SettingsForm : Form
     public SettingsForm(AppSettings settings, IHyperXDevice? device = null, bool isCharging = false)
     {
         _settings = settings;
+        _runtimeDevice = device;
         _device = device;
+        _runtimeIsCharging = isCharging;
         _isCharging = isCharging;
         _startupManager = new StartupManager();
         _iconCache = new PngIconCache();
@@ -467,36 +469,29 @@ public sealed partial class SettingsForm : Form
         PositionWindowAtTop();
         RefreshDeviceStatus();
 
-        if (_device != null)
-        {
-            _device.BatteryChanged += Device_BatteryChanged;
-            _device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
-        }
+        SubscribeToDeviceStatusEvents(_device);
         FormClosed += SettingsForm_FormClosed;
     }
 
     internal void SetDevice(IHyperXDevice? device)
     {
-        if (ReferenceEquals(_device, device))
+        StopDevicePreview();
+
+        if (ReferenceEquals(_runtimeDevice, device))
         {
+            _device = _runtimeDevice;
             RefreshDeviceStatus();
             return;
         }
 
-        if (_device != null)
-        {
-            _device.BatteryChanged -= Device_BatteryChanged;
-            _device.MicrophoneMuteChanged -= Device_MicrophoneMuteChanged;
-        }
+        UnsubscribeFromDeviceStatusEvents(_device);
 
+        _runtimeDevice = device;
         _device = device;
+        _runtimeIsCharging = false;
+        _isCharging = false;
 
-        if (_device != null)
-        {
-            _device.BatteryChanged += Device_BatteryChanged;
-            _device.MicrophoneMuteChanged += Device_MicrophoneMuteChanged;
-        }
-
+        SubscribeToDeviceStatusEvents(_device);
         RefreshDeviceStatus();
     }
 
@@ -508,6 +503,11 @@ public sealed partial class SettingsForm : Form
             BeginInvoke(new Action(() => SetCharging(charging)));
             return;
         }
+
+        _runtimeIsCharging = charging;
+
+        if (_devicePreviewMonitor != null)
+            return;
 
         _isCharging = charging;
         RefreshDeviceStatus();
