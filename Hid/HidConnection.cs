@@ -33,6 +33,12 @@ public sealed class HidConnection : IDisposable
 
     public string? DevicePath { get; private set; }
 
+    public int InputReportByteLength { get; private set; }
+
+    public int OutputReportByteLength { get; private set; }
+
+    public int FeatureReportByteLength { get; private set; }
+
     public bool IsOpen =>
         _writeHandle is { IsInvalid: false } &&
         _readHandle is { IsInvalid: false };
@@ -86,6 +92,21 @@ public sealed class HidConnection : IDisposable
                 $"Erro {error}.");
         }
 
+        HidCapabilities? capabilities = GetHidCapabilities(_readHandle);
+
+        if (!capabilities.HasValue ||
+            capabilities.Value.InputReportByteLength == 0 ||
+            capabilities.Value.OutputReportByteLength == 0)
+        {
+            Close();
+            throw new InvalidOperationException(
+                "Não foi possível obter os tamanhos dos reports HID do dispositivo.");
+        }
+
+        InputReportByteLength = capabilities.Value.InputReportByteLength;
+        OutputReportByteLength = capabilities.Value.OutputReportByteLength;
+        FeatureReportByteLength = capabilities.Value.FeatureReportByteLength;
+
         _writeStream = new FileStream(
             _writeHandle,
             FileAccess.Write,
@@ -103,43 +124,61 @@ public sealed class HidConnection : IDisposable
         return true;
     }
 
-    public void Write(
-        byte[] report)
+    public void Write(byte[] report)
     {
         ThrowIfDisposed();
 
-        if (_writeStream == null)
+        if (_writeStream == null || OutputReportByteLength <= 0)
+        {
             throw new InvalidOperationException(
                 "O dispositivo HID não está aberto.");
+        }
+
+        if (report.Length > OutputReportByteLength)
+        {
+            throw new InvalidOperationException(
+                $"O comando HID possui {report.Length} bytes, mas o dispositivo " +
+                $"aceita reports de saída de {OutputReportByteLength} bytes.");
+        }
+
+        byte[] outputReport;
+
+        if (report.Length == OutputReportByteLength)
+        {
+            outputReport = report;
+        }
+        else
+        {
+            outputReport = new byte[OutputReportByteLength];
+            Buffer.BlockCopy(report, 0, outputReport, 0, report.Length);
+        }
 
         _writeStream.Write(
-            report,
+            outputReport,
             0,
-            report.Length);
+            outputReport.Length);
 
         _writeStream.Flush();
     }
 
     public async Task<byte[]?> ReadAsync(
-        int reportLength,
         CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
 
-        if (_readStream == null)
+        if (_readStream == null || InputReportByteLength <= 0)
+        {
             throw new InvalidOperationException(
                 "O dispositivo HID não está aberto.");
+        }
 
-        byte[] buffer =
-            new byte[reportLength];
+        byte[] buffer = new byte[InputReportByteLength];
 
         try
         {
             int bytesRead =
                 await _readStream.ReadAsync(
-                    buffer.AsMemory(
-                        0,
-                        buffer.Length),
+                    buffer.AsMemory(0, buffer.Length),
                     cancellationToken);
 
             if (bytesRead <= 0)
@@ -148,8 +187,7 @@ public sealed class HidConnection : IDisposable
             if (bytesRead == buffer.Length)
                 return buffer;
 
-            byte[] result =
-                new byte[bytesRead];
+            byte[] result = new byte[bytesRead];
 
             Buffer.BlockCopy(
                 buffer,
@@ -192,12 +230,6 @@ public sealed class HidConnection : IDisposable
         if (deviceInfoSet == INVALID_HANDLE_VALUE)
             return null;
 
-        string? firstMatch = null;
-        string? bestMatch = null;
-        ushort bestUsage = 0;
-        ushort bestUsagePage = 0;
-        bool hasUsageCandidate = false;
-
         try
         {
             uint index = 0;
@@ -232,52 +264,8 @@ public sealed class HidConnection : IDisposable
                     deviceInfoSet,
                     ref interfaceData);
 
-                if (path == null || !definition.Matches(path))
-                {
-                    index++;
-                    continue;
-                }
-
-                firstMatch ??= path;
-
-                HidCapabilities? capabilities = GetHidCapabilities(path);
-
-                if (definition.RequiredUsagePage.HasValue &&
-                    (!capabilities.HasValue ||
-                     capabilities.Value.UsagePage != definition.RequiredUsagePage.Value))
-                {
-                    index++;
-                    continue;
-                }
-
-                if (definition.RequiredUsage.HasValue &&
-                    (!capabilities.HasValue ||
-                     capabilities.Value.Usage != definition.RequiredUsage.Value))
-                {
-                    index++;
-                    continue;
-                }
-
-                if (definition.RequiredUsagePage.HasValue ||
-                    definition.RequiredUsage.HasValue)
-                {
+                if (path != null && definition.Matches(path))
                     return path;
-                }
-
-                if (!definition.PreferHighestUsage)
-                    return path;
-
-                if (capabilities.HasValue &&
-                    (!hasUsageCandidate ||
-                     capabilities.Value.Usage > bestUsage ||
-                     (capabilities.Value.Usage == bestUsage &&
-                      capabilities.Value.UsagePage >= bestUsagePage)))
-                {
-                    hasUsageCandidate = true;
-                    bestUsage = capabilities.Value.Usage;
-                    bestUsagePage = capabilities.Value.UsagePage;
-                    bestMatch = path;
-                }
 
                 index++;
             }
@@ -287,73 +275,52 @@ public sealed class HidConnection : IDisposable
             SetupDiDestroyDeviceInfoList(deviceInfoSet);
         }
 
-        if (definition.RequiredUsagePage.HasValue ||
-            definition.RequiredUsage.HasValue)
-        {
-            return bestMatch;
-        }
-
-        return bestMatch ?? firstMatch;
+        return null;
     }
 
-    private static HidCapabilities? GetHidCapabilities(string devicePath)
+    private static HidCapabilities? GetHidCapabilities(
+        SafeFileHandle handle)
     {
+        if (handle.IsInvalid)
+            return null;
+
+        if (!HidD_GetPreparsedData(
+                handle,
+                out IntPtr preparsedData) ||
+            preparsedData == IntPtr.Zero)
+        {
+            return null;
+        }
+
         try
         {
-            using SafeFileHandle handle = CreateFile(
-                devicePath,
-                GENERIC_READ,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                IntPtr.Zero,
-                OPEN_EXISTING,
-                0,
-                IntPtr.Zero);
+            HIDP_CAPS capabilities = new()
+            {
+                Reserved = new ushort[17]
+            };
 
-            if (handle.IsInvalid)
+            int status = HidP_GetCaps(
+                preparsedData,
+                ref capabilities);
+
+            if (status != HIDP_STATUS_SUCCESS)
                 return null;
 
-            if (!HidD_GetPreparsedData(
-                    handle,
-                    out IntPtr preparsedData) ||
-                preparsedData == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            try
-            {
-                HIDP_CAPS capabilities = new()
-                {
-                    Reserved = new ushort[17]
-                };
-
-                int status = HidP_GetCaps(
-                    preparsedData,
-                    ref capabilities);
-
-                if (status != HIDP_STATUS_SUCCESS)
-                    return null;
-
-                return new HidCapabilities(
-                    capabilities.UsagePage,
-                    capabilities.Usage);
-            }
-            finally
-            {
-                _ = HidD_FreePreparsedData(preparsedData);
-            }
+            return new HidCapabilities(
+                capabilities.InputReportByteLength,
+                capabilities.OutputReportByteLength,
+                capabilities.FeatureReportByteLength);
         }
-        catch
+        finally
         {
-            // Interface capability discovery is optional for generic devices.
-            // A failure must never terminate the application.
-            return null;
+            _ = HidD_FreePreparsedData(preparsedData);
         }
     }
 
     private readonly record struct HidCapabilities(
-        ushort UsagePage,
-        ushort Usage);
+        ushort InputReportByteLength,
+        ushort OutputReportByteLength,
+        ushort FeatureReportByteLength);
 
     private static string? GetDevicePath(
         IntPtr deviceInfoSet,
@@ -443,6 +410,9 @@ public sealed class HidConnection : IDisposable
         _readHandle = null;
 
         DevicePath = null;
+        InputReportByteLength = 0;
+        OutputReportByteLength = 0;
+        FeatureReportByteLength = 0;
     }
 
     public void Dispose()
@@ -483,7 +453,7 @@ public sealed class HidConnection : IDisposable
             IntPtr PreparsedData);
 
     [DllImport(
-        "hidparse.dll",
+        "hid.dll",
         SetLastError = false)]
     private static extern int
         HidP_GetCaps(

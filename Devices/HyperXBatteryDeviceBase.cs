@@ -261,16 +261,9 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         return null;
     }
 
-    protected byte[] CreateCommand(byte[] commandBytes)
+    protected static byte[] CreateCommand(byte[] commandBytes)
     {
-        byte[] command = new byte[Definition.ReportLength];
-
-        Array.Copy(
-            commandBytes,
-            command,
-            Math.Min(commandBytes.Length, command.Length));
-
-        return command;
+        return (byte[])commandBytes.Clone();
     }
 
     protected virtual bool TryParseBatteryReport(
@@ -319,7 +312,6 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
             try
             {
                 byte[]? report = await _connection.ReadAsync(
-                    Definition.ResponseLength,
                     cancellationToken);
 
                 if (report is null || report.Length == 0)
@@ -496,7 +488,6 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         timeoutCancellation.CancelAfter(QueryTimeout);
 
         return await _connection.ReadAsync(
-            Definition.ResponseLength,
             timeoutCancellation.Token);
     }
 

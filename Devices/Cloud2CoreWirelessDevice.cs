@@ -21,13 +21,9 @@ public sealed class Cloud2CoreWirelessDevice : HyperXBatteryDeviceBase
         Name = "HyperX Cloud 2 Core",
         VendorId = 0x03F0,
         ProductId = 0x0995,
-        InterfacePattern = "VID_03F0&PID_0995",
-        ReportLength = 52,
-        ResponseLength = 20,
-        ReportId = ProtocolReportId,
+        InterfacePattern = "VID_03F0&PID_0995&MI_03&Col02",
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
         BatteryByteIndex = 4,
-        PreferHighestUsage = true,
         SupportsMicrophoneMuteMonitoring = true,
         NominalBatteryLifeHours = 80
     };

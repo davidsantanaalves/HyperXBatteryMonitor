@@ -19,9 +19,6 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         VendorId = 0x03F0,
         ProductId = 0x05B7,
         InterfacePattern = "VID_03F0&PID_05B7&MI_03&Col01",
-        ReportLength = 62,
-        ResponseLength = 62,
-        ReportId = ProtocolReportId,
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
         BatteryByteIndex = 4,
         SupportsMicrophoneMuteMonitoring = true,
@@ -238,12 +235,9 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         }
     }
 
-    private byte[] CreateCommand(byte selector)
+    private static byte[] CreateCommand(byte selector)
     {
-        byte[] command = new byte[Definition.ReportLength];
-        command[0] = ProtocolReportId;
-        command[1] = selector;
-        return command;
+        return new byte[] { ProtocolReportId, selector };
     }
 
     private async Task ReaderLoopAsync(
@@ -254,7 +248,6 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
             try
             {
                 byte[]? report = await _connection.ReadAsync(
-                    Definition.ResponseLength,
                     cancellationToken);
 
                 if (report is null || report.Length == 0)
