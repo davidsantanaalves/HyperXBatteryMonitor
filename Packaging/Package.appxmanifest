@@ -8,7 +8,7 @@
   <Identity
     Name="DaveSantana.HyperXBatteryMonitor"
     Publisher="CN=4F48EFAA-3E79-407D-BF62-E7DB9145457C"
-    Version="2.1.1.0"
+    Version="2.2.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
