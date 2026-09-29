@@ -129,7 +129,7 @@ Some headset capabilities vary by model.
 
 ### System Tray Menu
 
-<img width="168" height="245" alt="image" src="https://github.com/user-attachments/assets/66f86f44-0178-4931-8b72-f5fa4af7fac8" />
+<img width="168" height="245" alt="image" src="https://github.com/user-attachments/assets/02f9213e-a72a-4ced-ba90-96f44c6021a1" />
 
 ### System Tray Icon and device monitoring
 
