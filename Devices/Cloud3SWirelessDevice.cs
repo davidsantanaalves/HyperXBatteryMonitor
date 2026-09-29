@@ -23,18 +23,14 @@ public sealed class Cloud3SWirelessDevice : HyperXBatteryDeviceBase
         Name = "HyperX Cloud III S",
         VendorId = 0x03F0,
         ProductId = 0x06BE,
-        InterfacePattern = "VID_03F0&PID_06BE",
-        ReportLength = 52,
-        ResponseLength = 20,
-        ReportId = CommandReportId,
+        InterfacePattern = "VID_03F0&PID_06BE&MI_03&Col05",
         BatteryCommandBytes = new byte[]
         {
             CommandReportId, 0x02, 0x03, 0x01, 0x00, BatteryResponseSelector
         },
         BatteryByteIndex = 6,
-        RequiredUsagePage = 448,
-        RequiredUsage = 1,
-        SupportsMicrophoneMuteMonitoring = true
+        SupportsMicrophoneMuteMonitoring = true,
+        NominalBatteryLifeHours = 120
     };
 
     public Cloud3SWirelessDevice() : base(DeviceDefinition)

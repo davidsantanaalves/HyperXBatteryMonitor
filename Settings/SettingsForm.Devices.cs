@@ -40,6 +40,7 @@ public sealed partial class SettingsForm : Form
         IHyperXDevice? previewDevice = HyperXDeviceManager.CreateDevice(_pendingSelectedDevice);
         _device = previewDevice;
         _isCharging = false;
+        _batteryRemainingTime = null;
 
         if (previewDevice == null)
             return;
@@ -75,6 +76,7 @@ public sealed partial class SettingsForm : Form
         }
 
         _isCharging = _runtimeIsCharging;
+        _batteryRemainingTime = _runtimeBatteryRemainingTime;
     }
 
     private void SubscribeToDeviceStatusEvents(IHyperXDevice? device)
@@ -223,19 +225,35 @@ public sealed partial class SettingsForm : Form
         _sidebarBatteryIcon.DarkMode = EffectiveTheme == AppTheme.Dark;
         _sidebarBatteryIcon.Invalidate();
 
-        _sidebarBatteryLabel.Text = connected
-            ? $"{Math.Clamp(_device!.Battery, 0, 100)}%"
-            : L("BatteryNA");
-        UpdateSidebarChargingIcon(
-            EffectiveTheme == AppTheme.Dark,
-            connected && _isCharging);
+        if (connected)
+        {
+            int batteryPercent = Math.Clamp(_device!.Battery, 0, 100);
+            string? remaining = _isCharging
+                ? null
+                : BatteryRemainingTimeFormatter.Format(
+                    _batteryRemainingTime,
+                    _selectedLanguage);
+
+            _sidebarBatteryLabel.Text = remaining == null
+                ? $"{batteryPercent}%"
+                : $"{batteryPercent}% ({remaining})";
+        }
+        else
+        {
+            _sidebarBatteryLabel.Text = L("BatteryNA");
+        }
+        bool microphoneMonitoringSupported =
+            selected && HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(normalized);
         bool microphoneStatusAvailable =
-            connected && _device?.SupportsMicrophoneMuteMonitoring == true;
+            connected &&
+            microphoneMonitoringSupported &&
+            _device!.IsMicrophoneMuteStateKnown;
         bool microphoneMuted = microphoneStatusAvailable && _device!.IsMicrophoneMuted;
         _sidebarMicrophoneLabel.Text = microphoneStatusAvailable
             ? (microphoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
             : L("MicrophoneNA");
-        UpdateSidebarMicrophoneIcon(EffectiveTheme == AppTheme.Dark, microphoneMuted);
+        bool useMuteIcon = !selected || !microphoneMonitoringSupported || microphoneMuted;
+        UpdateSidebarMicrophoneIcon(EffectiveTheme == AppTheme.Dark, useMuteIcon);
 
         Color foreground = EffectiveTheme == AppTheme.Dark ? Color.WhiteSmoke : LightText;
         Color secondary = EffectiveTheme == AppTheme.Dark ? DarkSecondary : LightSecondary;
@@ -270,75 +288,11 @@ public sealed partial class SettingsForm : Form
         _sidebarDeviceImage.Visible = _sidebarDeviceImage.Image != null;
     }
 
-    private void UpdateSidebarChargingIcon(bool dark, bool visible)
-    {
-        if (_sidebarChargingIcon == null || _sidebarBatteryLabel == null)
-            return;
-
-        if (!visible)
-        {
-            _sidebarChargingIcon.Visible = false;
-            return;
-        }
-
-        if (_sidebarChargingIconDark != dark || _sidebarChargingIcon.Image == null)
-        {
-            Image? previous = _sidebarChargingIcon.Image;
-            _sidebarChargingIcon.Image = null;
-            previous?.Dispose();
-
-            string themeDirectory = dark ? "Dark" : "Light";
-            string themePrefix = dark ? "dark" : "light";
-            string path = Path.Combine(
-                AppContext.BaseDirectory,
-                "Icons",
-                themeDirectory,
-                $"{themePrefix}_{ChargingIconAssetName}-{SidebarChargingIconLogicalSize}x{SidebarChargingIconLogicalSize}.png");
-
-            if (File.Exists(path))
-            {
-                try
-                {
-                    using Image source = Image.FromFile(path);
-                    _sidebarChargingIcon.Image = new Bitmap(source);
-                    _sidebarChargingIconDark = dark;
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Could not load charging icon '{path}': {ex.Message}");
-                    _sidebarChargingIconDark = null;
-                }
-            }
-            else
-            {
-                _sidebarChargingIconDark = null;
-            }
-        }
-
-        if (_sidebarChargingIcon.Image == null)
-        {
-            _sidebarChargingIcon.Visible = false;
-            return;
-        }
-
-        int batteryTextWidth = TextRenderer.MeasureText(
-            _sidebarBatteryLabel.Text,
-            _sidebarBatteryLabel.Font,
-            Size.Empty,
-            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
-        int iconGap = ScaleUi(SidebarInlineIconGapLogical);
-        int rightInset = ScaleUi(SidebarContentRightInsetLogical);
-        int desiredLeft = _sidebarBatteryLabel.Left + batteryTextWidth + iconGap;
-        int maximumLeft = _sidebarDeviceCard.ClientSize.Width - _sidebarChargingIcon.Width - rightInset;
-        _sidebarChargingIcon.Left = Math.Min(desiredLeft, maximumLeft);
-        _sidebarChargingIcon.Visible = true;
-    }
-
-    private void UpdateSidebarMicrophoneIcon(bool dark, bool muted)
+    private void UpdateSidebarMicrophoneIcon(bool dark, bool useMuteIcon)
     {
         if (_sidebarMicrophoneIcon == null ||
-            (_sidebarMicrophoneIconDark == dark && _sidebarMicrophoneIconMuted == muted))
+            (_sidebarMicrophoneIconDark == dark &&
+             _sidebarMicrophoneIconUsesMuteAsset == useMuteIcon))
         {
             return;
         }
@@ -349,7 +303,7 @@ public sealed partial class SettingsForm : Form
 
         string themeDirectory = dark ? "Dark" : "Light";
         string themePrefix = dark ? "dark" : "light";
-        string iconName = muted ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
+        string iconName = useMuteIcon ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
         string path = Path.Combine(
             AppContext.BaseDirectory,
             "Icons",
@@ -372,7 +326,7 @@ public sealed partial class SettingsForm : Form
         }
 
         _sidebarMicrophoneIconDark = dark;
-        _sidebarMicrophoneIconMuted = muted;
+        _sidebarMicrophoneIconUsesMuteAsset = useMuteIcon;
     }
 
     private void UpdateDeviceInformation()

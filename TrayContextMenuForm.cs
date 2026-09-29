@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using HyperXBatteryTray.Devices;
+using HyperXBatteryTray.Monitoring;
 using HyperXBatteryTray.Settings;
 
 namespace HyperXBatteryTray;
@@ -23,16 +24,12 @@ internal sealed class TrayContextMenuForm : Form
     private const int BatteryRowLogicalTop = 127;
     private const int BatteryIconLogicalTop = 121;
     private const int BatteryIconLogicalSize = 30;
-    private const int ChargingIconLogicalTop = 124;
-    private const int ChargingIconLogicalSize = 25;
-    private const int InlineIconGapLogical = 3;
     private const int MicrophoneRowLogicalTop = 160;
     private const int MicrophoneIconLogicalTop = 157;
     private const int MicrophoneIconLogicalSize = 25;
     private const int MenuContentRightInsetLogical = 0;
     private const string MicrophoneOpenIconAssetName = "mic";
     private const string MicrophoneMutedIconAssetName = "mute";
-    private const string ChargingIconAssetName = "lightning";
     private const int CursorGapLogical = 8;
     private const int WorkAreaMarginLogical = 4;
     private const float CornerRadiusLogical = 10f;
@@ -50,7 +47,6 @@ internal sealed class TrayContextMenuForm : Form
     private readonly Label _batteryText;
     private readonly TrayStatusDotControl _statusDot;
     private readonly TrayBatteryIconControl _batteryIcon;
-    private readonly PictureBox _chargingIcon;
     private readonly Label _microphoneTitle;
     private readonly PictureBox _microphoneIcon;
     private readonly Label _microphoneText;
@@ -59,14 +55,13 @@ internal sealed class TrayContextMenuForm : Form
     private readonly Panel _buttonBar;
     private IHyperXDevice? _device;
     private bool _charging;
+    private TimeSpan? _batteryRemainingTime;
     private bool _dark;
     private Bitmap? _deviceBitmap;
     private string? _deviceImageFileName;
-    private Bitmap? _chargingBitmap;
-    private bool? _chargingIconDark;
     private Bitmap? _microphoneBitmap;
     private bool? _microphoneIconDark;
-    private bool? _microphoneIconMuted;
+    private bool? _microphoneIconUsesMuteAsset;
     private ToolTip? _toolTip;
     private bool _closeOnDeactivateEnabled;
 
@@ -74,6 +69,7 @@ internal sealed class TrayContextMenuForm : Form
         AppSettings settings,
         IHyperXDevice? device,
         bool charging,
+        TimeSpan? batteryRemainingTime,
         AppTheme theme,
         Action<object?, EventArgs> settingsAction,
         Action<object?, EventArgs> exitAction)
@@ -81,6 +77,7 @@ internal sealed class TrayContextMenuForm : Form
         _settings = settings;
         _device = device;
         _charging = charging;
+        _batteryRemainingTime = batteryRemainingTime;
         _settingsAction = settingsAction;
         _exitAction = exitAction;
         _iconCache = new PngIconCache();
@@ -136,14 +133,6 @@ internal sealed class TrayContextMenuForm : Form
             Location = new Point(IconColumnLogicalLeft, BatteryIconLogicalTop)
         };
         _batteryText = CreateLabel(8.5f, FontStyle.Regular, ContentAlignment.MiddleLeft, new Rectangle(RowValueLogicalLeft, BatteryRowLogicalTop, MenuLogicalWidth - RowValueLogicalLeft - MenuContentRightInsetLogical, 20));
-        _chargingIcon = new PictureBox
-        {
-            SizeMode = PictureBoxSizeMode.Zoom,
-            Size = new Size(ChargingIconLogicalSize, ChargingIconLogicalSize),
-            Location = new Point(RowValueLogicalLeft, ChargingIconLogicalTop),
-            BackColor = Color.Transparent,
-            Visible = false
-        };
         _microphoneTitle = CreateLabel(
             8.5f,
             FontStyle.Regular,
@@ -175,7 +164,7 @@ internal sealed class TrayContextMenuForm : Form
         Controls.AddRange(new Control[]
         {
             _deviceImage, _deviceName, _statusTitle, _statusDot, _statusText,
-            _batteryTitle, _batteryIcon, _batteryText, _chargingIcon,
+            _batteryTitle, _batteryIcon, _batteryText,
             _microphoneTitle, _microphoneIcon, _microphoneText
         });
 
@@ -215,7 +204,7 @@ internal sealed class TrayContextMenuForm : Form
         AutoScaleDimensions = new SizeF(PngIconCache.LogicalDpi, PngIconCache.LogicalDpi);
         AutoScaleMode = AutoScaleMode.Dpi;
 
-        UpdateDevice(device, charging);
+        UpdateDevice(device, charging, batteryRemainingTime);
         ApplyLocalization();
         ApplyTheme(_dark);
     }
@@ -229,19 +218,26 @@ internal sealed class TrayContextMenuForm : Form
         BackColor = Color.Transparent
     };
 
-    public void UpdateDevice(IHyperXDevice? device, bool charging)
+    public void UpdateDevice(
+        IHyperXDevice? device,
+        bool charging,
+        TimeSpan? batteryRemainingTime)
     {
         if (IsDisposed || Disposing)
             return;
 
         if (IsHandleCreated && InvokeRequired)
         {
-            BeginInvoke((MethodInvoker)(() => UpdateDevice(device, charging)));
+            BeginInvoke((MethodInvoker)(() => UpdateDevice(
+                device,
+                charging,
+                batteryRemainingTime)));
             return;
         }
 
         _device = device;
         _charging = charging;
+        _batteryRemainingTime = batteryRemainingTime;
         bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
         bool connected = selected && device?.IsConnected == true && device.Battery >= 0 && device.Battery <= 100;
         string normalized = NormalizeDeviceName(_settings.SelectedDevice);
@@ -254,17 +250,37 @@ internal sealed class TrayContextMenuForm : Form
         _batteryIcon.Connected = connected;
         _batteryIcon.Battery = connected && device != null ? Math.Clamp(device.Battery, 0, 100) : 0;
         _batteryIcon.Charging = connected && charging;
-        _batteryText.Text = connected ? $"{Math.Clamp(device!.Battery, 0, 100)}%" : Localization.Get("BatteryNA", _settings.Language);
-        UpdateChargingIcon(_dark, connected && charging);
+        if (connected)
+        {
+            int batteryPercent = Math.Clamp(device!.Battery, 0, 100);
+            string? remaining = charging
+                ? null
+                : BatteryRemainingTimeFormatter.Format(
+                    batteryRemainingTime,
+                    _settings.Language);
+
+            _batteryText.Text = remaining == null
+                ? $"{batteryPercent}%"
+                : $"{batteryPercent}% ({remaining})";
+        }
+        else
+        {
+            _batteryText.Text = Localization.Get("BatteryNA", _settings.Language);
+        }
+        bool microphoneMonitoringSupported =
+            selected && HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(normalized);
         bool microphoneStatusAvailable =
-            connected && device?.SupportsMicrophoneMuteMonitoring == true;
+            connected &&
+            microphoneMonitoringSupported &&
+            device!.IsMicrophoneMuteStateKnown;
         bool microphoneMuted = microphoneStatusAvailable && device!.IsMicrophoneMuted;
         _microphoneText.Text = microphoneStatusAvailable
             ? (microphoneMuted
                 ? Localization.Get("MicrophoneMuted", _settings.Language)
                 : Localization.Get("MicrophoneOpen", _settings.Language))
             : Localization.Get("MicrophoneNA", _settings.Language);
-        SetMicrophoneIcon(_dark, microphoneMuted);
+        bool useMuteIcon = !selected || !microphoneMonitoringSupported || microphoneMuted;
+        SetMicrophoneIcon(_dark, useMuteIcon);
         Invalidate(true);
     }
 
@@ -275,7 +291,10 @@ internal sealed class TrayContextMenuForm : Form
         _microphoneTitle.Text = Localization.Get("SidebarMicrophone", _settings.Language);
         _toolTip?.SetToolTip(_settingsButton, Localization.Get("ContextMenuSettings", _settings.Language));
         _toolTip?.SetToolTip(_exitButton, Localization.Get("ContextMenuExit", _settings.Language));
-        UpdateDevice(_device, _charging);
+        UpdateDevice(
+            _device,
+            _charging,
+            _batteryRemainingTime);
     }
 
     public void ApplyTheme(bool dark)
@@ -291,18 +310,19 @@ internal sealed class TrayContextMenuForm : Form
         _batteryText.ForeColor = secondary;
         _microphoneTitle.ForeColor = secondary;
         _microphoneText.ForeColor = secondary;
-        UpdateChargingIcon(dark,
-            _device?.IsConnected == true &&
-            _device.Battery >= 0 &&
-            _device.Battery <= 100 &&
-            _charging);
+        bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
+        string normalized = NormalizeDeviceName(_settings.SelectedDevice);
+        bool microphoneMonitoringSupported =
+            selected && HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(normalized);
         bool microphoneMuted =
             _device?.IsConnected == true &&
             _device.Battery >= 0 &&
             _device.Battery <= 100 &&
-            _device.SupportsMicrophoneMuteMonitoring &&
+            microphoneMonitoringSupported &&
+            _device.IsMicrophoneMuteStateKnown &&
             _device.IsMicrophoneMuted;
-        SetMicrophoneIcon(dark, microphoneMuted);
+        bool useMuteIcon = !selected || !microphoneMonitoringSupported || microphoneMuted;
+        SetMicrophoneIcon(dark, useMuteIcon);
         _statusDot.Invalidate();
         _batteryIcon.DarkMode = dark;
         _settingsButton.DarkMode = dark;
@@ -411,87 +431,22 @@ internal sealed class TrayContextMenuForm : Form
             _deviceImage.Image = null;
             _deviceBitmap?.Dispose();
             _deviceBitmap = null;
-            _chargingIcon.Image = null;
-            _chargingBitmap?.Dispose();
-            _chargingBitmap = null;
-            _chargingIconDark = null;
             _microphoneIcon.Image = null;
             _microphoneBitmap?.Dispose();
             _microphoneBitmap = null;
             _microphoneIconDark = null;
-            _microphoneIconMuted = null;
+            _microphoneIconUsesMuteAsset = null;
         }
         base.Dispose(disposing);
     }
 
-    private void UpdateChargingIcon(bool dark, bool visible)
+    private void SetMicrophoneIcon(bool dark, bool useMuteIcon)
     {
-        if (!visible)
+        if (_microphoneIconDark == dark &&
+            _microphoneIconUsesMuteAsset == useMuteIcon)
         {
-            _chargingIcon.Visible = false;
             return;
         }
-
-        if (_chargingIconDark != dark || _chargingBitmap == null)
-        {
-            _chargingIcon.Image = null;
-            _chargingBitmap?.Dispose();
-            _chargingBitmap = null;
-
-            string themeDirectory = dark ? "Dark" : "Light";
-            string themePrefix = dark ? "dark" : "light";
-            string path = Path.Combine(
-                AppContext.BaseDirectory,
-                "Icons",
-                themeDirectory,
-                $"{themePrefix}_{ChargingIconAssetName}-{ChargingIconLogicalSize}x{ChargingIconLogicalSize}.png");
-
-            if (File.Exists(path))
-            {
-                try
-                {
-                    using Bitmap source = new(path);
-                    _chargingBitmap = new Bitmap(source);
-                    _chargingIconDark = dark;
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Could not load charging icon '{path}': {ex.Message}");
-                    _chargingIconDark = null;
-                }
-            }
-            else
-            {
-                _chargingIconDark = null;
-            }
-
-            _chargingIcon.Image = _chargingBitmap;
-        }
-
-        if (_chargingBitmap == null)
-        {
-            _chargingIcon.Visible = false;
-            return;
-        }
-
-        int batteryTextWidth = TextRenderer.MeasureText(
-            _batteryText.Text,
-            _batteryText.Font,
-            Size.Empty,
-            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
-        int gap = PngIconCache.ScaleLogicalToInt(InlineIconGapLogical, DeviceDpi);
-        int rightInset = PngIconCache.ScaleLogicalToInt(MenuContentRightInsetLogical, DeviceDpi);
-        int desiredLeft = _batteryText.Left + batteryTextWidth + gap;
-        int maximumLeft = ClientSize.Width - _chargingIcon.Width - rightInset;
-        _chargingIcon.Left = Math.Min(desiredLeft, maximumLeft);
-        _chargingIcon.Visible = true;
-    }
-
-    private void SetMicrophoneIcon(bool dark, bool muted)
-    {
-        if (_microphoneIconDark == dark && _microphoneIconMuted == muted)
-            return;
 
         _microphoneIcon.Image = null;
         _microphoneBitmap?.Dispose();
@@ -499,7 +454,7 @@ internal sealed class TrayContextMenuForm : Form
 
         string themeDirectory = dark ? "Dark" : "Light";
         string themePrefix = dark ? "dark" : "light";
-        string iconName = muted ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
+        string iconName = useMuteIcon ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
         string path = Path.Combine(
             AppContext.BaseDirectory,
             "Icons",
@@ -523,7 +478,7 @@ internal sealed class TrayContextMenuForm : Form
 
         _microphoneIcon.Image = _microphoneBitmap;
         _microphoneIconDark = dark;
-        _microphoneIconMuted = muted;
+        _microphoneIconUsesMuteAsset = useMuteIcon;
     }
 
     private void SetDeviceImage(string fileName)

@@ -22,17 +22,14 @@ public sealed class CloudAlphaWirelessDevice : HyperXBatteryDeviceBase
         Name = "HyperX Cloud Alpha",
         VendorId = 0x03F0,
         ProductId = 0x098D,
-        InterfacePattern = "VID_03F0&PID_098D",
-        ReportLength = 52,
-        ResponseLength = 20,
-        ReportId = ProtocolReportId,
+        InterfacePattern = "VID_03F0&PID_098D&MI_03&Col01",
         BatteryCommandBytes = new byte[]
         {
             ProtocolReportId, ProtocolMarker, BatteryResponseSelector
         },
         BatteryByteIndex = 3,
-        PreferHighestUsage = true,
-        SupportsMicrophoneMuteMonitoring = true
+        SupportsMicrophoneMuteMonitoring = true,
+        NominalBatteryLifeHours = 300
     };
 
     public CloudAlphaWirelessDevice() : base(DeviceDefinition)

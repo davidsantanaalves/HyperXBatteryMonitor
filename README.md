@@ -7,6 +7,7 @@ The application provides a convenient way to monitor your headset directly from 
 ## Features
 
 * 🔋 Battery level monitoring directly from the Windows system tray
+* ⏳ Estimated remaining battery time, with locally saved discharge history per headset model
 * 🎧 Support for multiple HyperX wireless headsets
 * 📊 Multiple battery indicator display modes
 * 🎨 Customizable battery indicator colors
@@ -28,13 +29,33 @@ The application provides a convenient way to monitor your headset directly from 
 * 🪟 Native Windows / Windows Forms interface
 * 🚀 Lightweight and designed to run in the background
 
-## What's New in Version 2.1.0
+## What's New in Version 2.2.0
 
-Version 2.1.0 expands headset status monitoring beyond battery information.
+### Estimated remaining battery time
+
+The Settings sidebar, system tray menu, and tray tooltip now show estimated remaining battery time alongside the battery percentage.
+
+Estimates start from the selected model's nominal battery life and adapt to observed discharge history, saved locally across application restarts. They are approximate, are shown in hours or minutes, and are hidden while charging or disconnected.
+
+### Device monitoring fixes
+
+* Cloud Stinger 2 now implements charging-status queries and validates battery and charging responses separately.
+* Device communication uses the specific HID control interface for each supported model and report sizes provided by Windows.
+* Microphone status remains unavailable until the headset reports a known state, including after reconnection.
+* Tray tooltip text is kept within the Windows length limit.
+
+### Interface improvements
+
+* The sidebar and tray menu use the battery icon's charging indication without a separate lightning image beside the percentage.
+* Unavailable battery/device information labels are more consistent in Portuguese and Spanish.
+
+## Headset Status Monitoring
+
+HyperX Battery Monitor displays battery, charging, connection, and supported microphone mute information.
 
 ### Microphone mute monitoring
 
-Supported headsets can now report their microphone mute state directly to HyperX Battery Monitor.
+Supported headsets can report their microphone mute state directly to HyperX Battery Monitor.
 
 The microphone state is displayed in:
 
@@ -46,6 +67,7 @@ The application displays whether the microphone is:
 
 * **Open**
 * **Muted**
+* **N/A** (localized) until a supported headset reports its microphone state, or when unavailable
 
 When microphone mute indication is enabled, the system tray icon alternates between the current battery-status icon and the microphone-mute icon while the microphone is muted.
 
@@ -66,7 +88,7 @@ Charging-state support has been expanded across the supported headset implementa
 
 When a headset is charging, HyperX Battery Monitor can indicate the charging state through the system tray and device monitoring interface.
 
-The sidebar and tray menu also display a charging indicator next to the battery percentage when applicable.
+The sidebar and tray menu indicate charging through the battery icon when applicable.
 
 ### Improved device monitoring
 
@@ -111,6 +133,8 @@ Some headset capabilities vary by model.
 
 ## Screenshots
 
+These screenshots illustrate earlier versions; version 2.2.0 adds remaining-time estimates and updates the charging and microphone status presentation.
+
 ### Device selection
 
 <img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/89cc6d77-a066-4d72-8cf3-17338ed3ee45" />
@@ -139,9 +163,9 @@ Some headset capabilities vary by model.
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.1.1, download:
+For version 2.2.0, download:
 
-`HyperXBatteryMonitor-Setup-v2.1.1.exe`
+`HyperXBatteryMonitor-Setup-v2.2.0.exe`
 
 Run the installer and follow the installation instructions.
 
@@ -154,6 +178,8 @@ After launching the application, the HyperX Battery Monitor icon will appear in 
 Right-click the tray icon to access the device status and available options.
 
 Double-click the tray icon to open the application settings.
+
+Selecting a headset previews its status in Settings. Click Apply or OK to save the selection and use it for system tray monitoring.
 
 From the Settings window you can configure:
 
@@ -227,7 +253,7 @@ When charging is detected, the application can:
 
 * Display a charging-specific tray icon or charging indicator
 * Show the charging state in the device monitoring interface
-* Display a charging indicator next to the battery percentage
+* Indicate charging through the battery icon in the sidebar and tray menu
 * Notify the user when the headset reaches full charge
 
 Charging behavior depends on the selected battery display mode.
@@ -250,15 +276,11 @@ These options can be configured independently through the Settings window.
 
 ## Project Status
 
-**Version:** 2.1.1
+**Version:** 2.2.0
 
 **Status:** Stable release
 
-Version 2.1.0 expands HyperX Battery Monitor with microphone mute monitoring, broader charging-state support, improved device-status information, and enhanced system tray integration.
-
-The application can now display connection, battery, charging, and microphone information directly from the sidebar, system tray menu, and tray tooltip.
-
-For supported headset models, microphone mute changes can also be represented visually in the system tray by alternating between the current battery icon and a microphone-mute icon.
+Version 2.2.0 adds estimated remaining battery time and improves device communication, Cloud Stinger 2 charging monitoring, and microphone status handling. The five supported headset models remain unchanged.
 
 The project remains under active development, and additional devices and features may be added in future versions.
 

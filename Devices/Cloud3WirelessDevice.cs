@@ -19,12 +19,10 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         VendorId = 0x03F0,
         ProductId = 0x05B7,
         InterfacePattern = "VID_03F0&PID_05B7&MI_03&Col01",
-        ReportLength = 62,
-        ResponseLength = 62,
-        ReportId = ProtocolReportId,
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
         BatteryByteIndex = 4,
-        SupportsMicrophoneMuteMonitoring = true
+        SupportsMicrophoneMuteMonitoring = true,
+        NominalBatteryLifeHours = 120
     };
 
     private readonly HidConnection _connection = new();
@@ -42,6 +40,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     private bool _isConnected;
     private bool _isCharging;
     private bool _isMicrophoneMuted;
+    private bool _isMicrophoneMuteStateKnown;
 
     public string Name => Definition.Name;
 
@@ -56,6 +55,8 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
     public bool IsCharging => _isCharging;
 
     public bool IsMicrophoneMuted => _isMicrophoneMuted;
+
+    public bool IsMicrophoneMuteStateKnown => _isMicrophoneMuteStateKnown;
 
     public bool SupportsMicrophoneMuteMonitoring =>
         Definition.SupportsMicrophoneMuteMonitoring;
@@ -83,6 +84,8 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
 
             _readerCancellation = new CancellationTokenSource();
             _isConnected = true;
+            _isMicrophoneMuted = false;
+            _isMicrophoneMuteStateKnown = false;
 
             CancellationToken token = _readerCancellation.Token;
             _readerTask = Task.Run(() => ReaderLoopAsync(token));
@@ -98,6 +101,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
             _isConnected = false;
             _isCharging = false;
             _isMicrophoneMuted = false;
+            _isMicrophoneMuteStateKnown = false;
             return false;
         }
     }
@@ -115,7 +119,8 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         _readerTask = null;
 
         UpdateChargingState(false);
-        UpdateMicrophoneMuteState(false);
+        _isMicrophoneMuted = false;
+        _isMicrophoneMuteStateKnown = false;
         SetBatteryUnavailable();
     }
 
@@ -230,12 +235,9 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         }
     }
 
-    private byte[] CreateCommand(byte selector)
+    private static byte[] CreateCommand(byte selector)
     {
-        byte[] command = new byte[Definition.ReportLength];
-        command[0] = ProtocolReportId;
-        command[1] = selector;
-        return command;
+        return new byte[] { ProtocolReportId, selector };
     }
 
     private async Task ReaderLoopAsync(
@@ -246,7 +248,6 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
             try
             {
                 byte[]? report = await _connection.ReadAsync(
-                    Definition.ResponseLength,
                     cancellationToken);
 
                 if (report is null || report.Length == 0)
@@ -377,11 +378,15 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
 
     private void UpdateMicrophoneMuteState(bool isMuted)
     {
-        if (_isMicrophoneMuted == isMuted)
-            return;
+        bool stateChanged =
+            !_isMicrophoneMuteStateKnown ||
+            _isMicrophoneMuted != isMuted;
 
         _isMicrophoneMuted = isMuted;
-        MicrophoneMuteChanged?.Invoke(this, isMuted);
+        _isMicrophoneMuteStateKnown = true;
+
+        if (stateChanged)
+            MicrophoneMuteChanged?.Invoke(this, isMuted);
     }
 
     private void SetBatteryUnavailable()
