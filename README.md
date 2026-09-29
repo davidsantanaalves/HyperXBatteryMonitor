@@ -113,27 +113,27 @@ Some headset capabilities vary by model.
 
 ### Device selection
 
-<img width="762" height="552" alt="device" src="https://github.com/user-attachments/assets/7e4392b7-4003-4592-a717-03a5bae7f522" />
+<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/89cc6d77-a066-4d72-8cf3-17338ed3ee45" />
 
 ### Interface options
 
-<img width="762" height="552" alt="interface" src="https://github.com/user-attachments/assets/3a6a2990-64ff-4e63-8238-3cb143362266" />
+<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/607a7533-edda-4953-b82e-5522a6199699" />
 
 ### Battery monitor options
 
-<img width="762" height="552" alt="battery_monitor" src="https://github.com/user-attachments/assets/cd59ce42-0cf9-4c3c-93e8-ba2352683d17" />
+<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/41dc4eb7-67ef-4985-be3d-9d276f51579b" />
 
 ### Notifications options
 
-<img width="762" height="552" alt="notifications" src="https://github.com/user-attachments/assets/65161280-2eed-43cb-a740-69548a40ea12" />
+<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/61810f84-41fb-4430-9cbe-374b15ab1dbd" />
 
 ### System Tray Menu
 
-<img width="168" height="225" alt="tray_menu" src="https://github.com/user-attachments/assets/4efcf509-13bc-472d-ae39-9bda50b7cb0a" />
+<img width="168" height="245" alt="image" src="https://github.com/user-attachments/assets/66f86f44-0178-4931-8b72-f5fa4af7fac8" />
 
 ### System Tray Icon and device monitoring
 
-<img width="163" height="135" alt="tray_status" src="https://github.com/user-attachments/assets/0df62982-b7f9-4def-b773-037824681bb2" />
+<img width="129" height="143" alt="image" src="https://github.com/user-attachments/assets/3c5cf6ca-8e5d-433d-90df-138c92f74a41" />
 
 ## Installation
 
@@ -171,6 +171,8 @@ From the Settings window you can configure:
 * Start with Windows
 
 Microphone-related options are automatically unavailable for headset models that do not support microphone mute monitoring.
+
+Important: After selecting your headset, you need to click Apply or OK before the application starts reading data from the device.
 
 ## Battery Monitor Modes
 
