@@ -7,6 +7,7 @@ public sealed class SettingsManager
 {
     private readonly string _settingsDirectory;
     private readonly string _settingsFile;
+    private readonly string _batteryHistoryFile;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -23,6 +24,10 @@ public sealed class SettingsManager
         _settingsFile = Path.Combine(
             _settingsDirectory,
             "settings.json");
+
+        _batteryHistoryFile = Path.Combine(
+            _settingsDirectory,
+            "battery-history.json");
     }
 
     public AppSettings Load()
@@ -87,6 +92,52 @@ public sealed class SettingsManager
         File.Move(
             temporaryFile,
             _settingsFile,
+            overwrite: true);
+    }
+
+    public BatteryHistoryData LoadBatteryHistory()
+    {
+        try
+        {
+            if (!File.Exists(_batteryHistoryFile))
+                return new BatteryHistoryData();
+
+            string json = File.ReadAllText(_batteryHistoryFile);
+
+            BatteryHistoryData? history =
+                JsonSerializer.Deserialize<BatteryHistoryData>(
+                    json,
+                    JsonOptions);
+
+            if (history?.Devices == null)
+                return new BatteryHistoryData();
+
+            return history;
+        }
+        catch
+        {
+            return new BatteryHistoryData();
+        }
+    }
+
+    public void SaveBatteryHistory(BatteryHistoryData history)
+    {
+        Directory.CreateDirectory(_settingsDirectory);
+
+        string json = JsonSerializer.Serialize(
+            history,
+            JsonOptions);
+
+        string temporaryFile =
+            _batteryHistoryFile + ".tmp";
+
+        File.WriteAllText(
+            temporaryFile,
+            json);
+
+        File.Move(
+            temporaryFile,
+            _batteryHistoryFile,
             overwrite: true);
     }
 

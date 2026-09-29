@@ -14,6 +14,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 {
     private const string DisconnectedIconFileSuffix = "_disconnected.ico";
     private const string MicrophoneMuteIconFileSuffix = "_mute.ico";
+    private const int NotifyIconMaximumTextLength = 127;
 
     private readonly NotifyIcon _notifyIcon;
     private readonly HyperXDeviceManager _deviceManager;
@@ -22,6 +23,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private readonly SettingsManager _settingsManager;
     private readonly AppSettings _settings;
     private readonly NotificationService _notificationService;
+    private readonly BatteryRemainingTimeEstimator _batteryRemainingTimeEstimator;
 
     private Icon? _currentApplicationIcon;
     private SettingsForm? _settingsForm;
@@ -39,6 +41,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _settingsManager = new SettingsManager();
         _settings = _settingsManager.Load();
         _notificationService = new NotificationService();
+        _batteryRemainingTimeEstimator = new BatteryRemainingTimeEstimator(
+            _settingsManager.LoadBatteryHistory());
 
         if (!_settings.ThemeConfigured)
         {
@@ -115,6 +119,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _device = null;
         _isCharging = false;
         _isMicrophoneMuted = false;
+        _batteryRemainingTimeEstimator.ResetSession();
     }
 
     private void Application_Idle(object? sender, EventArgs e)
@@ -240,6 +245,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
                 _settings,
                 _device,
                 _isCharging,
+                GetCurrentBatteryRemainingTime(),
                 GetEffectiveTheme(),
                 ShowSettings,
                 ExitApplication);
@@ -247,7 +253,10 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         }
         else
         {
-            _trayMenu.UpdateDevice(_device, _isCharging);
+            _trayMenu.UpdateDevice(
+                _device,
+                _isCharging,
+                GetCurrentBatteryRemainingTime());
         }
 
         _trayMenu.ApplyLocalization();
@@ -267,7 +276,11 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             return;
         }
 
-        _settingsForm = new SettingsForm(_settings, _device, _isCharging);
+        _settingsForm = new SettingsForm(
+            _settings,
+            _device,
+            _isCharging,
+            GetCurrentBatteryRemainingTime());
         _settingsForm.SettingsApplied += SettingsForm_SettingsApplied;
         _settingsForm.FormClosed += SettingsForm_FormClosed;
         _settingsForm.Show();
@@ -290,6 +303,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             _notificationService.ResetState();
             InitializeSelectedDevice();
             _settingsForm?.SetDevice(_device);
+            _settingsForm?.SetBatteryRemainingTime(
+                GetCurrentBatteryRemainingTime());
             ApplyLocalization();
             ApplyTheme();
             RestartBlinkTimer();
@@ -312,6 +327,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private void BatteryMonitor_BatteryChanged(object? sender, int battery)
     {
+        UpdateBatteryRemainingTimeState();
+
         if (_device != null)
         {
             _notificationService.Update(
@@ -324,7 +341,10 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
         UpdateTrayIcon();
         UpdateTray();
-        _trayMenu?.UpdateDevice(_device, _isCharging);
+        _trayMenu?.UpdateDevice(
+            _device,
+            _isCharging,
+            GetCurrentBatteryRemainingTime());
     }
 
     private void BatteryMonitor_ConnectionChanged(object? sender, bool connected)
@@ -335,6 +355,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             _isMicrophoneMuted = false;
             _notificationService.ResetState();
         }
+
+        UpdateBatteryRemainingTimeState();
 
         if (connected && _device != null)
         {
@@ -349,7 +371,10 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
-        _trayMenu?.UpdateDevice(_device, _isCharging);
+        _trayMenu?.UpdateDevice(
+            _device,
+            _isCharging,
+            GetCurrentBatteryRemainingTime());
     }
 
     private void BatteryMonitor_ChargingChanged(
@@ -357,6 +382,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         bool charging)
     {
         _isCharging = charging;
+        UpdateBatteryRemainingTimeState();
 
         if (_device != null)
         {
@@ -371,7 +397,10 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         _settingsForm?.SetCharging(_isCharging);
         UpdateTrayIcon();
         UpdateTray();
-        _trayMenu?.UpdateDevice(_device, _isCharging);
+        _trayMenu?.UpdateDevice(
+            _device,
+            _isCharging,
+            GetCurrentBatteryRemainingTime());
     }
 
     private void BatteryMonitor_MicrophoneMuteChanged(
@@ -390,7 +419,10 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private void UpdateTray()
     {
         UpdateNotifyIconTooltip();
-        _trayMenu?.UpdateDevice(_device, _isCharging);
+        _trayMenu?.UpdateDevice(
+            _device,
+            _isCharging,
+            GetCurrentBatteryRemainingTime());
     }
 
     private void UpdateNotifyIconTooltip()
@@ -407,7 +439,15 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         }
         else
         {
-            battery = string.Format(L("TrayBattery"), Math.Clamp(_device.Battery, 0, 100));
+            int batteryPercent = Math.Clamp(_device.Battery, 0, 100);
+            string? remaining = BatteryRemainingTimeFormatter.Format(
+                GetCurrentBatteryRemainingTime(),
+                _settings.Language);
+
+            battery = remaining == null
+                ? string.Format(L("TrayBattery"), batteryPercent)
+                : string.Format(L("TrayBatteryWithRemaining"), batteryPercent, remaining);
+
             if (_isCharging)
                 battery += $" {L("TrayCharging")}";
             status = L("TrayConnected");
@@ -416,15 +456,55 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
         bool microphoneStatusAvailable =
             selected &&
             _device?.IsConnected == true &&
-            _device.SupportsMicrophoneMuteMonitoring;
-        string microphone = microphoneStatusAvailable
-            ? string.Format(
-                L("TrayMicrophone"),
-                _device!.IsMicrophoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
-            : L("MicrophoneNA");
+            _device.SupportsMicrophoneMuteMonitoring &&
+            _device.IsMicrophoneMuteStateKnown;
+        string microphone = string.Format(
+            L("TrayMicrophone"),
+            microphoneStatusAvailable
+                ? (_device!.IsMicrophoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))
+                : L("MicrophoneNA"));
 
-        _notifyIcon.Text = $"{deviceName}\n{status}\n{battery}\n{microphone}";
+        string tooltip = $"{deviceName}\n{status}\n{battery}\n{microphone}";
+        _notifyIcon.Text = tooltip.Length <= NotifyIconMaximumTextLength
+            ? tooltip
+            : tooltip[..NotifyIconMaximumTextLength];
     }
+
+    private void UpdateBatteryRemainingTimeState()
+    {
+        int battery = _device?.Battery ?? -1;
+        bool connected = _device?.IsConnected == true;
+
+        bool historyChanged = _batteryRemainingTimeEstimator.Observe(
+            _settings.SelectedDevice,
+            battery,
+            connected,
+            _isCharging);
+
+        if (historyChanged)
+        {
+            try
+            {
+                _settingsManager.SaveBatteryHistory(
+                    _batteryRemainingTimeEstimator.CreateHistorySnapshot());
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Could not save battery history: {ex.Message}");
+            }
+        }
+
+        _settingsForm?.SetBatteryRemainingTime(
+            GetCurrentBatteryRemainingTime());
+    }
+
+    private TimeSpan? GetCurrentBatteryRemainingTime() =>
+        _batteryRemainingTimeEstimator.EstimateRemaining(
+            _settings.SelectedDevice,
+            _device?.Battery ?? -1,
+            _device?.IsConnected == true,
+            _isCharging);
 
     private static string NormalizeDeviceName(string value) =>
         string.Equals(value, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)

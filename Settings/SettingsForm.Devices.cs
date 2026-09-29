@@ -40,6 +40,7 @@ public sealed partial class SettingsForm : Form
         IHyperXDevice? previewDevice = HyperXDeviceManager.CreateDevice(_pendingSelectedDevice);
         _device = previewDevice;
         _isCharging = false;
+        _batteryRemainingTime = null;
 
         if (previewDevice == null)
             return;
@@ -75,6 +76,7 @@ public sealed partial class SettingsForm : Form
         }
 
         _isCharging = _runtimeIsCharging;
+        _batteryRemainingTime = _runtimeBatteryRemainingTime;
     }
 
     private void SubscribeToDeviceStatusEvents(IHyperXDevice? device)
@@ -223,13 +225,29 @@ public sealed partial class SettingsForm : Form
         _sidebarBatteryIcon.DarkMode = EffectiveTheme == AppTheme.Dark;
         _sidebarBatteryIcon.Invalidate();
 
-        _sidebarBatteryLabel.Text = connected
-            ? $"{Math.Clamp(_device!.Battery, 0, 100)}%"
-            : L("BatteryNA");
+        if (connected)
+        {
+            int batteryPercent = Math.Clamp(_device!.Battery, 0, 100);
+            string? remaining = _isCharging
+                ? null
+                : BatteryRemainingTimeFormatter.Format(
+                    _batteryRemainingTime,
+                    _selectedLanguage);
+
+            _sidebarBatteryLabel.Text = remaining == null
+                ? $"{batteryPercent}%"
+                : $"{batteryPercent}% ({remaining})";
+        }
+        else
+        {
+            _sidebarBatteryLabel.Text = L("BatteryNA");
+        }
         bool microphoneMonitoringSupported =
             selected && HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(normalized);
         bool microphoneStatusAvailable =
-            connected && microphoneMonitoringSupported;
+            connected &&
+            microphoneMonitoringSupported &&
+            _device!.IsMicrophoneMuteStateKnown;
         bool microphoneMuted = microphoneStatusAvailable && _device!.IsMicrophoneMuted;
         _sidebarMicrophoneLabel.Text = microphoneStatusAvailable
             ? (microphoneMuted ? L("MicrophoneMuted") : L("MicrophoneOpen"))

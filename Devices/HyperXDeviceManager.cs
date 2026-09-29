@@ -96,6 +96,18 @@ public sealed class HyperXDeviceManager : IDisposable
         return registration?.Definition.SupportsMicrophoneMuteMonitoring == true;
     }
 
+    internal static double? GetNominalBatteryLifeHours(
+        string? selectedDeviceName)
+    {
+        HyperXDeviceRegistration? registration =
+            FindRegistration(selectedDeviceName);
+
+        return registration?.Definition.NominalBatteryLifeHours;
+    }
+
+    internal static string NormalizeSupportedDeviceName(string value) =>
+        NormalizeDeviceName(value);
+
     private static HyperXDeviceRegistration? FindRegistration(
         string? selectedDeviceName)
     {

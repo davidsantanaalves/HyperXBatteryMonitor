@@ -32,7 +32,8 @@ public sealed class CloudAlphaWirelessDevice : HyperXBatteryDeviceBase
         },
         BatteryByteIndex = 3,
         PreferHighestUsage = true,
-        SupportsMicrophoneMuteMonitoring = true
+        SupportsMicrophoneMuteMonitoring = true,
+        NominalBatteryLifeHours = 300
     };
 
     public CloudAlphaWirelessDevice() : base(DeviceDefinition)

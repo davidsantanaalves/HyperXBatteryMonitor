@@ -28,6 +28,8 @@ public sealed class HyperXDeviceDefinition
 
     public bool SupportsMicrophoneMuteMonitoring { get; init; }
 
+    public double? NominalBatteryLifeHours { get; init; }
+
     public bool Matches(string devicePath)
     {
         return devicePath.Contains(

@@ -13,7 +13,8 @@ public sealed class CloudStinger2WirelessDevice : HyperXBatteryDeviceBase
         ReportId = 0x06,
         BatteryCommandBytes = new byte[] { 0x06, 0xFF, 0xBB, 0x02 },
         BatteryByteIndex = 7,
-        PreferHighestUsage = true
+        PreferHighestUsage = true,
+        NominalBatteryLifeHours = 20
     };
 
     public CloudStinger2WirelessDevice() : base(DeviceDefinition)

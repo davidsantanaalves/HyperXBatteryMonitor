@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using HyperXBatteryTray.Devices;
+using HyperXBatteryTray.Monitoring;
 
 namespace HyperXBatteryTray.Settings;
 
@@ -80,6 +81,8 @@ public sealed partial class SettingsForm : Form
     private CriticalBatteryNumericControl _criticalBatteryPercentInput = null!;
     private bool _updatingLanguage;
     private bool _isCharging;
+    private TimeSpan? _batteryRemainingTime;
+    private TimeSpan? _runtimeBatteryRemainingTime;
     private string _currentPage = "Device";
 
     private static readonly Color Accent = Color.FromArgb(0, 122, 255);
@@ -213,13 +216,19 @@ public sealed partial class SettingsForm : Form
 
     public event EventHandler? SettingsApplied;
 
-    public SettingsForm(AppSettings settings, IHyperXDevice? device = null, bool isCharging = false)
+    public SettingsForm(
+        AppSettings settings,
+        IHyperXDevice? device = null,
+        bool isCharging = false,
+        TimeSpan? batteryRemainingTime = null)
     {
         _settings = settings;
         _runtimeDevice = device;
         _device = device;
         _runtimeIsCharging = isCharging;
         _isCharging = isCharging;
+        _runtimeBatteryRemainingTime = batteryRemainingTime;
+        _batteryRemainingTime = batteryRemainingTime;
         _startupManager = new StartupManager();
         _iconCache = new PngIconCache();
         _selectedLanguage = settings.Language;
@@ -474,8 +483,31 @@ public sealed partial class SettingsForm : Form
         _device = device;
         _runtimeIsCharging = false;
         _isCharging = false;
+        _runtimeBatteryRemainingTime = null;
+        _batteryRemainingTime = null;
 
         SubscribeToDeviceStatusEvents(_device);
+        RefreshDeviceStatus();
+    }
+
+    internal void SetBatteryRemainingTime(TimeSpan? batteryRemainingTime)
+    {
+        if (IsDisposed || !IsHandleCreated)
+            return;
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() =>
+                SetBatteryRemainingTime(batteryRemainingTime)));
+            return;
+        }
+
+        _runtimeBatteryRemainingTime = batteryRemainingTime;
+
+        if (_devicePreviewMonitor != null)
+            return;
+
+        _batteryRemainingTime = batteryRemainingTime;
         RefreshDeviceStatus();
     }
 

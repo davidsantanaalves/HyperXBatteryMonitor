@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using HyperXBatteryTray.Devices;
+using HyperXBatteryTray.Monitoring;
 using HyperXBatteryTray.Settings;
 
 namespace HyperXBatteryTray;
@@ -54,6 +55,7 @@ internal sealed class TrayContextMenuForm : Form
     private readonly Panel _buttonBar;
     private IHyperXDevice? _device;
     private bool _charging;
+    private TimeSpan? _batteryRemainingTime;
     private bool _dark;
     private Bitmap? _deviceBitmap;
     private string? _deviceImageFileName;
@@ -67,6 +69,7 @@ internal sealed class TrayContextMenuForm : Form
         AppSettings settings,
         IHyperXDevice? device,
         bool charging,
+        TimeSpan? batteryRemainingTime,
         AppTheme theme,
         Action<object?, EventArgs> settingsAction,
         Action<object?, EventArgs> exitAction)
@@ -74,6 +77,7 @@ internal sealed class TrayContextMenuForm : Form
         _settings = settings;
         _device = device;
         _charging = charging;
+        _batteryRemainingTime = batteryRemainingTime;
         _settingsAction = settingsAction;
         _exitAction = exitAction;
         _iconCache = new PngIconCache();
@@ -200,7 +204,7 @@ internal sealed class TrayContextMenuForm : Form
         AutoScaleDimensions = new SizeF(PngIconCache.LogicalDpi, PngIconCache.LogicalDpi);
         AutoScaleMode = AutoScaleMode.Dpi;
 
-        UpdateDevice(device, charging);
+        UpdateDevice(device, charging, batteryRemainingTime);
         ApplyLocalization();
         ApplyTheme(_dark);
     }
@@ -214,19 +218,26 @@ internal sealed class TrayContextMenuForm : Form
         BackColor = Color.Transparent
     };
 
-    public void UpdateDevice(IHyperXDevice? device, bool charging)
+    public void UpdateDevice(
+        IHyperXDevice? device,
+        bool charging,
+        TimeSpan? batteryRemainingTime)
     {
         if (IsDisposed || Disposing)
             return;
 
         if (IsHandleCreated && InvokeRequired)
         {
-            BeginInvoke((MethodInvoker)(() => UpdateDevice(device, charging)));
+            BeginInvoke((MethodInvoker)(() => UpdateDevice(
+                device,
+                charging,
+                batteryRemainingTime)));
             return;
         }
 
         _device = device;
         _charging = charging;
+        _batteryRemainingTime = batteryRemainingTime;
         bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
         bool connected = selected && device?.IsConnected == true && device.Battery >= 0 && device.Battery <= 100;
         string normalized = NormalizeDeviceName(_settings.SelectedDevice);
@@ -239,11 +250,29 @@ internal sealed class TrayContextMenuForm : Form
         _batteryIcon.Connected = connected;
         _batteryIcon.Battery = connected && device != null ? Math.Clamp(device.Battery, 0, 100) : 0;
         _batteryIcon.Charging = connected && charging;
-        _batteryText.Text = connected ? $"{Math.Clamp(device!.Battery, 0, 100)}%" : Localization.Get("BatteryNA", _settings.Language);
+        if (connected)
+        {
+            int batteryPercent = Math.Clamp(device!.Battery, 0, 100);
+            string? remaining = charging
+                ? null
+                : BatteryRemainingTimeFormatter.Format(
+                    batteryRemainingTime,
+                    _settings.Language);
+
+            _batteryText.Text = remaining == null
+                ? $"{batteryPercent}%"
+                : $"{batteryPercent}% ({remaining})";
+        }
+        else
+        {
+            _batteryText.Text = Localization.Get("BatteryNA", _settings.Language);
+        }
         bool microphoneMonitoringSupported =
             selected && HyperXDeviceManager.SupportsMicrophoneMuteMonitoring(normalized);
         bool microphoneStatusAvailable =
-            connected && microphoneMonitoringSupported;
+            connected &&
+            microphoneMonitoringSupported &&
+            device!.IsMicrophoneMuteStateKnown;
         bool microphoneMuted = microphoneStatusAvailable && device!.IsMicrophoneMuted;
         _microphoneText.Text = microphoneStatusAvailable
             ? (microphoneMuted
@@ -262,7 +291,10 @@ internal sealed class TrayContextMenuForm : Form
         _microphoneTitle.Text = Localization.Get("SidebarMicrophone", _settings.Language);
         _toolTip?.SetToolTip(_settingsButton, Localization.Get("ContextMenuSettings", _settings.Language));
         _toolTip?.SetToolTip(_exitButton, Localization.Get("ContextMenuExit", _settings.Language));
-        UpdateDevice(_device, _charging);
+        UpdateDevice(
+            _device,
+            _charging,
+            _batteryRemainingTime);
     }
 
     public void ApplyTheme(bool dark)
@@ -287,6 +319,7 @@ internal sealed class TrayContextMenuForm : Form
             _device.Battery >= 0 &&
             _device.Battery <= 100 &&
             microphoneMonitoringSupported &&
+            _device.IsMicrophoneMuteStateKnown &&
             _device.IsMicrophoneMuted;
         bool useMuteIcon = !selected || !microphoneMonitoringSupported || microphoneMuted;
         SetMicrophoneIcon(dark, useMuteIcon);

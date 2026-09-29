@@ -20,6 +20,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
     private int _battery = -1;
     private bool _isCharging;
     private bool _isMicrophoneMuted;
+    private bool _isMicrophoneMuteStateKnown;
     private bool _isConnected;
 
     protected HyperXBatteryDeviceBase(HyperXDeviceDefinition definition)
@@ -47,6 +48,8 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
 
     public bool IsMicrophoneMuted => _isMicrophoneMuted;
 
+    public bool IsMicrophoneMuteStateKnown => _isMicrophoneMuteStateKnown;
+
     public bool SupportsMicrophoneMuteMonitoring =>
         Definition.SupportsMicrophoneMuteMonitoring;
 
@@ -72,6 +75,8 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
                 return false;
 
             _isConnected = true;
+            _isMicrophoneMuted = false;
+            _isMicrophoneMuteStateKnown = false;
 
             if (UsesContinuousReader)
             {
@@ -106,7 +111,8 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         _readerTask = null;
 
         UpdateChargingState(false);
-        UpdateMicrophoneMuteState(false);
+        _isMicrophoneMuted = false;
+        _isMicrophoneMuteStateKnown = false;
         SetBatteryUnavailable();
     }
 
@@ -534,11 +540,15 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
 
     private void UpdateMicrophoneMuteState(bool isMuted)
     {
-        if (_isMicrophoneMuted == isMuted)
-            return;
+        bool stateChanged =
+            !_isMicrophoneMuteStateKnown ||
+            _isMicrophoneMuted != isMuted;
 
         _isMicrophoneMuted = isMuted;
-        MicrophoneMuteChanged?.Invoke(this, isMuted);
+        _isMicrophoneMuteStateKnown = true;
+
+        if (stateChanged)
+            MicrophoneMuteChanged?.Invoke(this, isMuted);
     }
 
     private void SetBatteryUnavailable()
