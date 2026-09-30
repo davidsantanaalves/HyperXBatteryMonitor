@@ -165,11 +165,15 @@ Download the latest version from the **Releases** section of this repository.
 
 For version 2.2.0, download:
 
-`HyperXBatteryMonitor-Setup-v2.2.0.exe`
+✅ https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.2.0/HyperXBatteryMonitor-Setup-v2.2.0.exe (`HyperXBatteryMonitor-Setup-v2.2.0.exe`)
 
 Run the installer and follow the installation instructions.
 
 After installation, HyperX Battery Monitor runs in the Windows system tray.
+
+If you prefer, you can install HyperX Battery Monitor directly from the Microsoft Store:
+
+✅ https://apps.microsoft.com/detail/9N4G6WKMM4QJ?hl=en-us&gl=BR&ocid=pdpshare
 
 ## Usage
 
