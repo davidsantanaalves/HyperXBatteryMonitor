@@ -447,6 +447,7 @@ public sealed partial class SettingsForm : Form
         _wirelessRangeValueLabel.ForeColor = valueColor;
         _batteryLifeValueLabel.ForeColor = valueColor;
         _chargeTimeValueLabel.ForeColor = valueColor;
+        UpdateDeviceCapabilities();
     }
 
     private void Device_BatteryChanged(object? sender, int battery)

@@ -30,6 +30,7 @@ public sealed class Cloud3SWirelessDevice : HyperXBatteryDeviceBase
         },
         BatteryByteIndex = 6,
         SupportsMicrophoneMuteMonitoring = true,
+        SupportsChargingMonitoring = true,
         NominalBatteryLifeHours = 120
     };
 

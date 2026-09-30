@@ -14,6 +14,10 @@ public sealed partial class SettingsForm : Form
 {
     private const int PageHeaderLogicalHeight = 80;
     private const int PageHeaderBottomMarginLogical = 6;
+    private const int DeviceSelectorRowLogicalHeight = 148;
+    private const int DeviceConnectionRowLogicalHeight = 105;
+    private const int DeviceBatteryRowLogicalHeight = 94;
+    private const int DeviceSectionHeaderLogicalHeight = 42;
     private const int NotificationToggleColumnLogicalWidth = 54;
     private const int NotificationCriticalLabelInputGapLogicalWidth = 8;
     private const int NotificationCriticalInputPercentGapLogicalWidth = 6;
@@ -119,40 +123,11 @@ public sealed partial class SettingsForm : Form
         TableLayoutPanel page = BeginResponsivePage();
         AddPageHeader(page, "device", Glyph.Headphones, "Device", "DeviceDescription");
 
-        RoundedPanel selectorCard = CreateResponsiveCard(88);
+        RoundedPanel selectorCard = CreateResponsiveCard(DeviceSelectorRowLogicalHeight);
         AddResponsiveRow(selectorCard);
-        TableLayoutPanel selectorLayout = new()
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            Padding = ScaleUiPadding(12, 8, 12, 8),
-            Margin = new Padding(0),
-            BackColor = Color.Transparent
-        };
-        selectorLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(92)));
-        selectorLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        selectorCard.Controls.Add(selectorLayout);
+        BuildDeviceSelectorCard(selectorCard);
 
-        Label selectorLabel = CreateWrappedLabel(L("DeviceLabelShort"), true, 9.5f);
-        selectorLabel.Dock = DockStyle.Fill;
-        selectorLabel.TextAlign = ContentAlignment.MiddleLeft;
-        selectorLayout.Controls.Add(selectorLabel, 0, 0);
-
-        _deviceSelector = new DeviceSelector
-        {
-            Dock = DockStyle.Fill,
-            Margin = new Padding(0, 0, 0, 0),
-            SelectedIndex = 0,
-            DarkMode = EffectiveTheme == AppTheme.Dark
-        };
-        selectorLayout.Controls.Add(_deviceSelector, 1, 0);
-        selectorLayout.PerformLayout();
-        _deviceSelector.SetPlaceholder(L("LocateDevice"));
-        _deviceSelector.SelectedDeviceName = _pendingSelectedDevice;
-        _deviceSelector.SelectionChanged += DeviceSelector_SelectionChanged;
-
-        RoundedPanel connectionCard = CreateResponsiveCard(138);
+        RoundedPanel connectionCard = CreateResponsiveCard(DeviceConnectionRowLogicalHeight);
         AddResponsiveRow(connectionCard);
         TableLayoutPanel connectionLayout = CreateSectionLayout(2);
         connectionCard.Controls.Add(connectionLayout);
@@ -164,8 +139,8 @@ public sealed partial class SettingsForm : Form
             ("location", "WirelessRange", "Cloud3Wireless_Range")
         });
 
-        RoundedPanel batteryCard = CreateResponsiveCard(125);
-        AddResponsiveRow(batteryCard, 0, 0);
+        RoundedPanel batteryCard = CreateResponsiveCard(DeviceBatteryRowLogicalHeight);
+        AddResponsiveRow(batteryCard, DeviceBatteryRowLogicalHeight, 0);
         TableLayoutPanel batteryLayout = CreateSectionLayout(2);
         batteryCard.Controls.Add(batteryLayout);
         AddDeviceSectionHeader(batteryLayout, "battery", "Battery", "BatteryDescription");
@@ -174,6 +149,8 @@ public sealed partial class SettingsForm : Form
             ("clock", "BatteryLife", "Cloud3Wireless_Battery"),
             ("energy", "ChargeTime", "Cloud3Wireless_ChargeTime")
         });
+
+        UpdateDeviceCapabilities();
     }
 
     private void AddDeviceSectionHeader(
@@ -188,7 +165,7 @@ public sealed partial class SettingsForm : Form
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0),
-            Padding = ScaleUiPadding(14, 10, 14, 4),
+            Padding = ScaleUiPadding(14, 4, 14, 2),
             BackColor = Color.Transparent
         };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(38)));
@@ -207,10 +184,10 @@ public sealed partial class SettingsForm : Form
             Margin = new Padding(0),
             BackColor = Color.Transparent
         };
-        text.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(23)));
+        text.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(20)));
         text.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         text.Controls.Add(CreateWrappedLabel(L(titleKey), true, 11f), 0, 0);
-        text.Controls.Add(CreateWrappedLabel(L(descriptionKey), false, 8.5f), 0, 1);
+        text.Controls.Add(CreateWrappedLabel(L(descriptionKey), false, 8.2f), 0, 1);
         header.Controls.Add(text, 1, 0);
         parent.Controls.Add(header, 0, 0);
         parent.SetColumnSpan(header, parent.ColumnCount);
@@ -225,7 +202,7 @@ public sealed partial class SettingsForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = columns.Count,
             RowCount = 1,
-            Margin = ScaleUiPadding(10, 0, 10, 8),
+            Margin = ScaleUiPadding(10, 0, 10, 4),
             Padding = new Padding(0),
             BackColor = Color.Transparent
         };
@@ -254,20 +231,20 @@ public sealed partial class SettingsForm : Form
         };
         column.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(30)));
         column.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        column.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(30)));
+        column.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(22)));
         column.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         PngIconControl infoIcon = CreateTableIcon(iconKey, StandardUiIconLogicalSize, 4);
         infoIcon.Margin = ScaleUiPadding(0, 1, 4, 1);
         column.Controls.Add(infoIcon, 0, 0);
 
-        Label title = CreateWrappedLabel(L(labelKey), true, 8.8f);
+        Label title = CreateWrappedLabel(L(labelKey), true, 8.3f);
         title.Dock = DockStyle.Fill;
         title.Margin = new Padding(0);
         title.TextAlign = ContentAlignment.MiddleLeft;
         column.Controls.Add(title, 1, 0);
 
-        Label value = CreateWrappedLabel(L(valueKey), false, 8.8f);
+        Label value = CreateWrappedLabel(L(valueKey), false, 8.2f);
         value.Dock = DockStyle.Fill;
         value.Margin = new Padding(0);
         value.TextAlign = ContentAlignment.TopLeft;
@@ -373,7 +350,7 @@ public sealed partial class SettingsForm : Form
             Margin = new Padding(0),
             BackColor = Color.Transparent
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(52)));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(DeviceSectionHeaderLogicalHeight)));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         return layout;
     }

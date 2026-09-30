@@ -37,6 +37,7 @@ public sealed class CloudMix2Device : HyperXBatteryDeviceBase
         BatteryCommandBytes = Command(BatterySelector),
         BatteryByteIndex = ResponseValueIndex,
         SupportsMicrophoneMuteMonitoring = true,
+        SupportsChargingMonitoring = false,
         NominalBatteryLifeHours = 72
     };
 

@@ -121,6 +121,55 @@ public sealed class HyperXDeviceManager : IDisposable
         return registration?.Definition.SupportsMicrophoneMuteMonitoring == true;
     }
 
+    public static bool SupportsChargingMonitoring(
+        string? selectedDeviceName)
+    {
+        HyperXDeviceRegistration? registration =
+            FindRegistration(selectedDeviceName);
+
+        return registration?.Definition.SupportsChargingMonitoring == true;
+    }
+
+    public static async Task<IReadOnlyList<string>> ProbeResponsiveDevicesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        List<string> detectedDevices = new();
+
+        foreach (HyperXDeviceRegistration registration in SupportedDevices)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string? devicePath = HidConnection.FindDevice(registration.Definition);
+            if (string.IsNullOrWhiteSpace(devicePath))
+                continue;
+
+            using IHyperXDevice device = registration.Factory();
+
+            try
+            {
+                if (!device.Connect())
+                    continue;
+
+                int? battery = await device.QueryBatteryAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (battery is >= 0 and <= 100)
+                    detectedDevices.Add(registration.Definition.Name);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Automatic device detection could not probe '{registration.Definition.Name}': {ex.Message}");
+            }
+        }
+
+        return detectedDevices;
+    }
+
     internal static double? GetNominalBatteryLifeHours(
         string? selectedDeviceName)
     {

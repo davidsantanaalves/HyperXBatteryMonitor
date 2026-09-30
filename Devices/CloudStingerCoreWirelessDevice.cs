@@ -45,6 +45,7 @@ public sealed class CloudStingerCoreWirelessDevice : HyperXBatteryDeviceBase
         BatteryCommandBytes = BatteryCommand,
         BatteryByteIndex = VoltageIndex,
         SupportsMicrophoneMuteMonitoring = false,
+        SupportsChargingMonitoring = true,
         NominalBatteryLifeHours = 17
     };
 

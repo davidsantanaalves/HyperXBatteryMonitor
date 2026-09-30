@@ -174,6 +174,15 @@ public sealed partial class SettingsForm : Form
             _deviceSelector.Invalidate();
         }
 
+        if (_autoDetectButton != null)
+        {
+            _autoDetectButton.DarkMode = dark;
+            _autoDetectButton.OutsideBackColor = dark
+                ? Color.FromArgb(42, 45, 48)
+                : Color.FromArgb(248, 249, 251);
+            _autoDetectButton.Invalidate();
+        }
+
         StyleFooterButton(_resetButton, dark, false);
         StyleFooterButton(_cancelButton, dark, false);
         StyleFooterButton(_applyButton, dark, false);
@@ -414,6 +423,8 @@ public sealed partial class SettingsForm : Form
             _sidebarMicrophoneIconUsesMuteAsset = null;
         }
 
+        _deviceAutoDetectToolTip?.Dispose();
+        _deviceAutoDetectToolTip = null;
         _iconCache.Dispose();
     }
 
@@ -442,7 +453,10 @@ public sealed partial class SettingsForm : Form
             new PngIconRequest("support", 25),
             new PngIconRequest("documentation", 25),
             new PngIconRequest("external", 25),
-            new PngIconRequest("legal", 25)
+            new PngIconRequest("legal", 25),
+            new PngIconRequest("auto-detect", 36),
+            new PngIconRequest("supported", 25),
+            new PngIconRequest("unsupported", 25)
         }, EffectiveTheme == AppTheme.Dark, DeviceDpi);
     }
 

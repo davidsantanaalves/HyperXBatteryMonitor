@@ -29,6 +29,7 @@ public sealed class CloudStinger2WirelessDevice : HyperXBatteryDeviceBase
             ProtocolReportId, ProtocolMarker1, ProtocolMarker2, BatterySelector
         },
         BatteryByteIndex = BatteryValueIndex,
+        SupportsChargingMonitoring = true,
         NominalBatteryLifeHours = 20
     };
 
