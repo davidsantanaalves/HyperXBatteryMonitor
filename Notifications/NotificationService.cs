@@ -190,6 +190,21 @@ public sealed class NotificationService
                 StringComparison.OrdinalIgnoreCase)
                 => "cloudstinger2.png",
 
+            _ when normalized.Equals("HyperX Cloud Flight S", StringComparison.OrdinalIgnoreCase)
+                => "cloudflights.png",
+
+            _ when normalized.Equals("HyperX Cloud Flight Wireless", StringComparison.OrdinalIgnoreCase)
+                => "cloudflightwireless.png",
+
+            _ when normalized.Equals("HyperX Cloud Stinger Core Wireless + 7.1", StringComparison.OrdinalIgnoreCase)
+                => "cloudstingercorewireless7.1.png",
+
+            _ when normalized.Equals("HyperX Cloud Flight 2", StringComparison.OrdinalIgnoreCase)
+                => "cloudflight2.png",
+
+            _ when normalized.Equals("HyperX Cloud Mix 2", StringComparison.OrdinalIgnoreCase)
+                => "cloudmix2.png",
+
             _ => null
         };
 

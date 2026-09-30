@@ -107,7 +107,12 @@ public sealed partial class SettingsForm : Form
                 new("HyperX Cloud III S", Path.Combine(devicesPath, "cloud3.png")),
                 new("HyperX Cloud 2 Core", Path.Combine(devicesPath, "cloud2core.png")),
                 new("HyperX Cloud Alpha", Path.Combine(devicesPath, "cloudalpha.png")),
-                new("HyperX Cloud Stinger 2", Path.Combine(devicesPath, "cloudstinger2.png"))
+                new("HyperX Cloud Stinger 2", Path.Combine(devicesPath, "cloudstinger2.png")),
+                new("HyperX Cloud Flight S", Path.Combine(devicesPath, "cloudflights.png")),
+                new("HyperX Cloud Flight Wireless", Path.Combine(devicesPath, "cloudflightwireless.png")),
+                new("HyperX Cloud Stinger Core Wireless + 7.1", Path.Combine(devicesPath, "cloudstingercorewireless7.1.png")),
+                new("HyperX Cloud Flight 2", Path.Combine(devicesPath, "cloudflight2.png")),
+                new("HyperX Cloud Mix 2", Path.Combine(devicesPath, "cloudmix2.png"))
             };
             _options.Sort((left, right) => StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name));
 

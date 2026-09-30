@@ -224,6 +224,41 @@ public static class Localization
         ["CloudAlpha_Battery"] = "Up to 300 hours",
         ["CloudAlpha_ChargeTime"] = "Approximately 4.5 hours",
 
+        // Devices Information - HyperX Cloud Flight S
+        ["CloudFlightS_WirelessTechnology"] = "2.4 GHz wireless",
+        ["CloudFlightS_ConnectionMethod"] = "USB wireless adapter",
+        ["CloudFlightS_Range"] = "Up to 20 meters",
+        ["CloudFlightS_Battery"] = "Up to 30 hours",
+        ["CloudFlightS_ChargeTime"] = "Approximately 3 hours",
+
+        // Devices Information - HyperX Cloud Flight Wireless
+        ["CloudFlightWireless_WirelessTechnology"] = "2.4 GHz wireless",
+        ["CloudFlightWireless_ConnectionMethod"] = "USB wireless adapter",
+        ["CloudFlightWireless_Range"] = "Up to 20 meters",
+        ["CloudFlightWireless_Battery"] = "Up to 30 hours with LEDs off",
+        ["CloudFlightWireless_ChargeTime"] = "Approximately 3 hours",
+
+        // Devices Information - HyperX Cloud Stinger Core Wireless + 7.1
+        ["CloudStingerCoreWireless_WirelessTechnology"] = "2.4 GHz wireless",
+        ["CloudStingerCoreWireless_ConnectionMethod"] = "USB wireless adapter",
+        ["CloudStingerCoreWireless_Range"] = "Up to 20 meters",
+        ["CloudStingerCoreWireless_Battery"] = "Up to 17 hours",
+        ["CloudStingerCoreWireless_ChargeTime"] = "Approximately 3 hours",
+
+        // Devices Information - HyperX Cloud Flight 2
+        ["CloudFlight2_WirelessTechnology"] = "2.4 GHz wireless and Bluetooth 5.3",
+        ["CloudFlight2_ConnectionMethod"] = "USB wireless dongle or Bluetooth",
+        ["CloudFlight2_Range"] = "Up to 20 meters",
+        ["CloudFlight2_Battery"] = "Up to 100 hours in adapter mode; up to 150 hours via Bluetooth with LEDs off",
+        ["CloudFlight2_ChargeTime"] = "Approximately 3.5 hours",
+
+        // Devices Information - HyperX Cloud Mix 2
+        ["CloudMix2_WirelessTechnology"] = "2.4 GHz wireless and Bluetooth 5.3",
+        ["CloudMix2_ConnectionMethod"] = "USB wireless dongle, Bluetooth, or 3.5 mm cable",
+        ["CloudMix2_Range"] = "Up to 20 meters",
+        ["CloudMix2_Battery"] = "Up to 72 hours via dongle; up to 110 hours via Bluetooth with noise control off",
+        ["CloudMix2_ChargeTime"] = "Approximately 3 hours",
+
         // Devices Information - HyperX Cloud Stinger 2
         ["CloudStinger2_WirelessTechnology"] = "2.4 GHz wireless",
         ["CloudStinger2_ConnectionMethod"] = "USB wireless adapter",
@@ -420,6 +455,41 @@ public static class Localization
         ["CloudAlpha_Battery"] = "Até 300 horas",
         ["CloudAlpha_ChargeTime"] = "Aproximadamente 4,5 horas",
 
+        // Devices Information - HyperX Cloud Flight S
+        ["CloudFlightS_WirelessTechnology"] = "Sem fio de 2,4 GHz",
+        ["CloudFlightS_ConnectionMethod"] = "Adaptador USB sem fio",
+        ["CloudFlightS_Range"] = "Até 20 metros",
+        ["CloudFlightS_Battery"] = "Até 30 horas",
+        ["CloudFlightS_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Flight Wireless
+        ["CloudFlightWireless_WirelessTechnology"] = "Sem fio de 2,4 GHz",
+        ["CloudFlightWireless_ConnectionMethod"] = "Adaptador USB sem fio",
+        ["CloudFlightWireless_Range"] = "Até 20 metros",
+        ["CloudFlightWireless_Battery"] = "Até 30 horas com os LEDs desligados",
+        ["CloudFlightWireless_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Stinger Core Wireless + 7.1
+        ["CloudStingerCoreWireless_WirelessTechnology"] = "Sem fio de 2,4 GHz",
+        ["CloudStingerCoreWireless_ConnectionMethod"] = "Adaptador USB sem fio",
+        ["CloudStingerCoreWireless_Range"] = "Até 20 metros",
+        ["CloudStingerCoreWireless_Battery"] = "Até 17 horas",
+        ["CloudStingerCoreWireless_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Flight 2
+        ["CloudFlight2_WirelessTechnology"] = "Sem fio de 2,4 GHz e Bluetooth 5.3",
+        ["CloudFlight2_ConnectionMethod"] = "Dongle sem fio USB ou Bluetooth",
+        ["CloudFlight2_Range"] = "Até 20 metros",
+        ["CloudFlight2_Battery"] = "Até 100 horas no modo adaptador; até 150 horas via Bluetooth com os LEDs desligados",
+        ["CloudFlight2_ChargeTime"] = "Aproximadamente 3,5 horas",
+
+        // Devices Information - HyperX Cloud Mix 2
+        ["CloudMix2_WirelessTechnology"] = "Sem fio de 2,4 GHz e Bluetooth 5.3",
+        ["CloudMix2_ConnectionMethod"] = "Dongle sem fio USB, Bluetooth ou cabo 3,5 mm",
+        ["CloudMix2_Range"] = "Até 20 metros",
+        ["CloudMix2_Battery"] = "Até 72 horas via dongle; até 110 horas via Bluetooth sem o controle de ruído",
+        ["CloudMix2_ChargeTime"] = "Aproximadamente 3 horas",
+
         // Devices Information - HyperX Cloud Stinger 2
         ["CloudStinger2_WirelessTechnology"] = "Sem fio de 2.4 GHz",
         ["CloudStinger2_ConnectionMethod"] = "Adaptador USB sem fio",
@@ -615,6 +685,41 @@ public static class Localization
         ["CloudAlpha_Range"] = "Hasta 20 metros",
         ["CloudAlpha_Battery"] = "Hasta 300 horas",
         ["CloudAlpha_ChargeTime"] = "Aproximadamente 4,5 horas",
+
+        // Devices Information - HyperX Cloud Flight S
+        ["CloudFlightS_WirelessTechnology"] = "Inalámbrica de 2,4 GHz",
+        ["CloudFlightS_ConnectionMethod"] = "Adaptador USB inalámbrico",
+        ["CloudFlightS_Range"] = "Hasta 20 metros",
+        ["CloudFlightS_Battery"] = "Hasta 30 horas",
+        ["CloudFlightS_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Flight Wireless
+        ["CloudFlightWireless_WirelessTechnology"] = "Inalámbrica de 2,4 GHz",
+        ["CloudFlightWireless_ConnectionMethod"] = "Adaptador USB inalámbrico",
+        ["CloudFlightWireless_Range"] = "Hasta 20 metros",
+        ["CloudFlightWireless_Battery"] = "Hasta 30 horas con los LED apagados",
+        ["CloudFlightWireless_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Stinger Core Wireless + 7.1
+        ["CloudStingerCoreWireless_WirelessTechnology"] = "Inalámbrica de 2,4 GHz",
+        ["CloudStingerCoreWireless_ConnectionMethod"] = "Adaptador USB inalámbrico",
+        ["CloudStingerCoreWireless_Range"] = "Hasta 20 metros",
+        ["CloudStingerCoreWireless_Battery"] = "Hasta 17 horas",
+        ["CloudStingerCoreWireless_ChargeTime"] = "Aproximadamente 3 horas",
+
+        // Devices Information - HyperX Cloud Flight 2
+        ["CloudFlight2_WirelessTechnology"] = "Inalámbrica de 2,4 GHz y Bluetooth 5.3",
+        ["CloudFlight2_ConnectionMethod"] = "Dongle inalámbrico USB o Bluetooth",
+        ["CloudFlight2_Range"] = "Hasta 20 metros",
+        ["CloudFlight2_Battery"] = "Hasta 100 horas en modo adaptador; hasta 150 horas mediante Bluetooth con los LED apagados",
+        ["CloudFlight2_ChargeTime"] = "Aproximadamente 3,5 horas",
+
+        // Devices Information - HyperX Cloud Mix 2
+        ["CloudMix2_WirelessTechnology"] = "Inalámbrica de 2,4 GHz y Bluetooth 5.3",
+        ["CloudMix2_ConnectionMethod"] = "Dongle inalámbrico USB, Bluetooth o cable 3,5 mm",
+        ["CloudMix2_Range"] = "Hasta 20 metros",
+        ["CloudMix2_Battery"] = "Hasta 72 horas por dongle; hasta 110 horas por Bluetooth sin control de ruido",
+        ["CloudMix2_ChargeTime"] = "Aproximadamente 3 horas",
 
         // Devices Information - HyperX Cloud Stinger 2
         ["CloudStinger2_WirelessTechnology"] = "Inalámbrica de 2.4 GHz",

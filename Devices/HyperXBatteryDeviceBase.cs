@@ -17,6 +17,11 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
     private TaskCompletionSource<bool>? _chargeStatusRequest;
     private TaskCompletionSource<bool>? _microphoneMuteRequest;
 
+    private readonly object _reportRequestLock = new();
+    private TaskCompletionSource<byte[]>? _reportRequest;
+    private Func<byte[], bool>? _reportMatcher;
+    private volatile bool _usesCorrelatedReports;
+
     private int _battery = -1;
     private bool _isCharging;
     private bool _isMicrophoneMuted;
@@ -98,7 +103,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         }
     }
 
-    public void Disconnect()
+    public virtual void Disconnect()
     {
         _isConnected = false;
 
@@ -116,7 +121,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         SetBatteryUnavailable();
     }
 
-    public async Task<int?> QueryBatteryAsync(
+    public virtual async Task<int?> QueryBatteryAsync(
         CancellationToken cancellationToken = default)
     {
         if (!_isConnected)
@@ -156,7 +161,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         }
     }
 
-    public async Task<bool?> QueryChargeStatusAsync(
+    public virtual async Task<bool?> QueryChargeStatusAsync(
         CancellationToken cancellationToken = default)
     {
         if (!_isConnected)
@@ -201,7 +206,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         }
     }
 
-    public async Task<bool?> QueryMicrophoneMuteStatusAsync(
+    public virtual async Task<bool?> QueryMicrophoneMuteStatusAsync(
         CancellationToken cancellationToken = default)
     {
         if (!_isConnected)
@@ -244,6 +249,70 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
                     _microphoneMuteRequest = null;
             }
         }
+    }
+
+    // Opt-in request correlation for protocols whose responses contain multiple states.
+    // The existing continuous reader remains the only input-report reader.
+    protected async Task<byte[]?> QueryReportAsync(
+        byte[] command,
+        Func<byte[], bool> matchesResponse,
+        CancellationToken cancellationToken)
+    {
+        if (!IsConnected || !UsesContinuousReader)
+            return null;
+
+        var response = new TaskCompletionSource<byte[]>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        lock (_reportRequestLock)
+        {
+            if (_reportRequest != null)
+                throw new InvalidOperationException("A HID status request is already pending.");
+
+            _usesCorrelatedReports = true;
+            _reportRequest = response;
+            _reportMatcher = matchesResponse;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(QueryTimeout);
+        try
+        {
+            if (!await SendReportAsync(command, timeout.Token).ConfigureAwait(false))
+                return null;
+
+            return await response.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+        finally
+        {
+            lock (_reportRequestLock)
+            {
+                if (ReferenceEquals(_reportRequest, response))
+                {
+                    _reportRequest = null;
+                    _reportMatcher = null;
+                }
+            }
+        }
+    }
+
+    protected virtual Task<bool> SendReportAsync(byte[] command, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Connection.Write(command);
+        return Task.FromResult(true);
     }
 
     protected virtual byte[] CreateBatteryCommand()
@@ -314,6 +383,9 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
                 byte[]? report = await _connection.ReadAsync(
                     cancellationToken);
 
+                if (_usesCorrelatedReports && cancellationToken.IsCancellationRequested)
+                    break;
+
                 if (report is null || report.Length == 0)
                     continue;
 
@@ -335,7 +407,16 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         }
     }
 
-    private void ProcessInputReport(byte[] report)
+    protected void CompleteReportRequest(byte[] report)
+    {
+        lock (_reportRequestLock)
+        {
+            if (_reportMatcher?.Invoke(report) == true)
+                _reportRequest?.TrySetResult(report);
+        }
+    }
+
+    protected virtual void ProcessInputReport(byte[] report)
     {
         if (TryParseBatteryReport(
                 report,
@@ -511,7 +592,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         }
     }
 
-    private void UpdateBattery(int battery)
+    protected void UpdateBattery(int battery)
     {
         if (_battery == battery)
             return;
@@ -520,7 +601,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         BatteryChanged?.Invoke(this, battery);
     }
 
-    private void UpdateChargingState(bool isCharging)
+    protected void UpdateChargingState(bool isCharging)
     {
         if (_isCharging == isCharging)
             return;
@@ -529,7 +610,7 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
         ChargingChanged?.Invoke(this, isCharging);
     }
 
-    private void UpdateMicrophoneMuteState(bool isMuted)
+    protected void UpdateMicrophoneMuteState(bool isMuted)
     {
         bool stateChanged =
             !_isMicrophoneMuteStateKnown ||
@@ -553,6 +634,13 @@ public abstract class HyperXBatteryDeviceBase : IHyperXDevice
 
     private void CancelPendingRequests()
     {
+        lock (_reportRequestLock)
+        {
+            _reportRequest?.TrySetCanceled();
+            _reportRequest = null;
+            _reportMatcher = null;
+        }
+
         lock (_batteryRequestLock)
         {
             _batteryRequest?.TrySetCanceled();

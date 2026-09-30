@@ -209,6 +209,11 @@ public sealed partial class SettingsForm : Form
             "HyperX Cloud 2 Core" => "cloud2core.png",
             "HyperX Cloud Alpha" => "cloudalpha.png",
             "HyperX Cloud Stinger 2" => "cloudstinger2.png",
+            "HyperX Cloud Flight S" => "cloudflights.png",
+            "HyperX Cloud Flight Wireless" => "cloudflightwireless.png",
+            "HyperX Cloud Stinger Core Wireless + 7.1" => "cloudstingercorewireless7.1.png",
+            "HyperX Cloud Flight 2" => "cloudflight2.png",
+            "HyperX Cloud Mix 2" => "cloudmix2.png",
             _ => "unknown-device.png"
         };
 
@@ -379,6 +384,46 @@ public sealed partial class SettingsForm : Form
                 L("CloudStinger2_Range"),
                 L("CloudStinger2_Battery"),
                 L("CloudStinger2_ChargeTime")
+            },
+            "HyperX Cloud Flight S" => new[]
+            {
+                L("CloudFlightS_WirelessTechnology"),
+                L("CloudFlightS_ConnectionMethod"),
+                L("CloudFlightS_Range"),
+                L("CloudFlightS_Battery"),
+                L("CloudFlightS_ChargeTime")
+            },
+            "HyperX Cloud Flight Wireless" => new[]
+            {
+                L("CloudFlightWireless_WirelessTechnology"),
+                L("CloudFlightWireless_ConnectionMethod"),
+                L("CloudFlightWireless_Range"),
+                L("CloudFlightWireless_Battery"),
+                L("CloudFlightWireless_ChargeTime")
+            },
+            "HyperX Cloud Stinger Core Wireless + 7.1" => new[]
+            {
+                L("CloudStingerCoreWireless_WirelessTechnology"),
+                L("CloudStingerCoreWireless_ConnectionMethod"),
+                L("CloudStingerCoreWireless_Range"),
+                L("CloudStingerCoreWireless_Battery"),
+                L("CloudStingerCoreWireless_ChargeTime")
+            },
+            "HyperX Cloud Flight 2" => new[]
+            {
+                L("CloudFlight2_WirelessTechnology"),
+                L("CloudFlight2_ConnectionMethod"),
+                L("CloudFlight2_Range"),
+                L("CloudFlight2_Battery"),
+                L("CloudFlight2_ChargeTime")
+            },
+            "HyperX Cloud Mix 2" => new[]
+            {
+                L("CloudMix2_WirelessTechnology"),
+                L("CloudMix2_ConnectionMethod"),
+                L("CloudMix2_Range"),
+                L("CloudMix2_Battery"),
+                L("CloudMix2_ChargeTime")
             },
             _ => new[]
             {

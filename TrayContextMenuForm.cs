@@ -520,6 +520,11 @@ internal sealed class TrayContextMenuForm : Form
         "HyperX Cloud 2 Core" => "cloud2core.png",
         "HyperX Cloud Alpha" => "cloudalpha.png",
         "HyperX Cloud Stinger 2" => "cloudstinger2.png",
+        "HyperX Cloud Flight S" => "cloudflights.png",
+        "HyperX Cloud Flight Wireless" => "cloudflightwireless.png",
+        "HyperX Cloud Stinger Core Wireless + 7.1" => "cloudstingercorewireless7.1.png",
+        "HyperX Cloud Flight 2" => "cloudflight2.png",
+        "HyperX Cloud Mix 2" => "cloudmix2.png",
         _ => "unknown-device.png"
     };
 

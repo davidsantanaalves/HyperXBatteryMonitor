@@ -34,6 +34,31 @@ public sealed class HyperXDeviceManager : IDisposable
             {
                 Definition = CloudStinger2WirelessDevice.DeviceDefinition,
                 Factory = () => new CloudStinger2WirelessDevice()
+            },
+            new()
+            {
+                Definition = CloudFlightSDevice.DeviceDefinition,
+                Factory = () => new CloudFlightSDevice()
+            },
+            new()
+            {
+                Definition = CloudFlightWirelessDevice.DeviceDefinition,
+                Factory = () => new CloudFlightWirelessDevice()
+            },
+            new()
+            {
+                Definition = CloudStingerCoreWirelessDevice.DeviceDefinition,
+                Factory = () => new CloudStingerCoreWirelessDevice()
+            },
+            new()
+            {
+                Definition = CloudFlight2Device.DeviceDefinition,
+                Factory = () => new CloudFlight2Device()
+            },
+            new()
+            {
+                Definition = CloudMix2Device.DeviceDefinition,
+                Factory = () => new CloudMix2Device()
             }
         };
 
