@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$BuildStorePackage
 )
 
@@ -8,13 +8,29 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'HyperXBatteryMonitor.csproj'
 $installer = Join-Path $root 'Installer\HyperXBatteryTray.iss'
+
+[xml]$projectXml = Get-Content -LiteralPath $project -Raw
+$versionNodes = @(
+    $projectXml.Project.PropertyGroup |
+        ForEach-Object { $_.Version } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+)
+
+if ($versionNodes.Count -ne 1) {
+    throw "Expected exactly one <Version> element in $project, but found $($versionNodes.Count)."
+}
+
+$appVersion = ([string]$versionNodes[0]).Trim()
+if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') {
+    throw "The project version '$appVersion' is not a numeric release version supported by the installer."
+}
 $packageProject = Join-Path $root 'Packaging\HyperXBatteryMonitor.Package.wapproj'
 $publish = Join-Path $root 'bin\Release\net10.0-windows10.0.17763.0\win-x64\publish'
 $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host 'Publishing HyperX Battery Monitor 2.2.0...' -ForegroundColor Cyan
+Write-Host "Publishing HyperX Battery Monitor $appVersion..." -ForegroundColor Cyan
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) {
     throw "Application publish failed with exit code $LASTEXITCODE."
@@ -44,7 +60,7 @@ if ($isccCandidates.Count -eq 0) {
 }
 
 Write-Host 'Building installer...' -ForegroundColor Cyan
-& $isccCandidates[0] $installer
+& $isccCandidates[0] "/DMyAppVersion=$appVersion" $installer
 if ($LASTEXITCODE -ne 0) {
     throw "Installer build failed with exit code $LASTEXITCODE."
 }

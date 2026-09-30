@@ -1,5 +1,7 @@
-#define MyAppName "HyperX Battery Monitor"
-#define MyAppVersion "2.2.0"
+﻿#define MyAppName "HyperX Battery Monitor"
+#ifndef MyAppVersion
+  #error MyAppVersion must be supplied by Release\Build-Release.ps1
+#endif
 #define MyAppPublisher "Dave Santana"
 #define MyAppExeName "HyperX Battery Monitor.exe"
 #define MyAppUserModelId "DaveSantana.HyperXBatteryMonitor"

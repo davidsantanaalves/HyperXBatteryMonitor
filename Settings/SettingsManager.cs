@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 
@@ -100,7 +101,7 @@ public sealed class SettingsManager
         try
         {
             if (!File.Exists(_batteryHistoryFile))
-                return new BatteryHistoryData();
+                return BatteryHistoryData.CreateCurrent();
 
             string json = File.ReadAllText(_batteryHistoryFile);
 
@@ -109,19 +110,26 @@ public sealed class SettingsManager
                     json,
                     JsonOptions);
 
-            if (history?.Devices == null)
-                return new BatteryHistoryData();
+            if (history?.Devices == null ||
+                history.Version != BatteryHistoryData.CurrentVersion)
+            {
+                return ResetBatteryHistory();
+            }
 
             return history;
         }
-        catch
+        catch (Exception ex)
         {
-            return new BatteryHistoryData();
+            Debug.WriteLine(
+                $"Could not load battery history; resetting it: {ex.Message}");
+            return ResetBatteryHistory();
         }
     }
 
     public void SaveBatteryHistory(BatteryHistoryData history)
     {
+        history.Version = BatteryHistoryData.CurrentVersion;
+
         Directory.CreateDirectory(_settingsDirectory);
 
         string json = JsonSerializer.Serialize(
@@ -145,6 +153,23 @@ public sealed class SettingsManager
     {
         if (File.Exists(_settingsFile))
             File.Delete(_settingsFile);
+    }
+
+    private BatteryHistoryData ResetBatteryHistory()
+    {
+        BatteryHistoryData history = BatteryHistoryData.CreateCurrent();
+
+        try
+        {
+            SaveBatteryHistory(history);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"Could not persist the reset battery history: {ex.Message}");
+        }
+
+        return history;
     }
 
     private static AppLanguage DetectWindowsLanguage()

@@ -18,6 +18,7 @@ public sealed partial class SettingsForm : Form
     private const int DeviceConnectionRowLogicalHeight = 105;
     private const int DeviceBatteryRowLogicalHeight = 94;
     private const int DeviceSectionHeaderLogicalHeight = 42;
+    private const int StandardSectionHeaderLogicalHeight = 52;
     private const int NotificationToggleColumnLogicalWidth = 54;
     private const int NotificationCriticalLabelInputGapLogicalWidth = 8;
     private const int NotificationCriticalInputPercentGapLogicalWidth = 6;
@@ -129,7 +130,7 @@ public sealed partial class SettingsForm : Form
 
         RoundedPanel connectionCard = CreateResponsiveCard(DeviceConnectionRowLogicalHeight);
         AddResponsiveRow(connectionCard);
-        TableLayoutPanel connectionLayout = CreateSectionLayout(2);
+        TableLayoutPanel connectionLayout = CreateSectionLayout(2, DeviceSectionHeaderLogicalHeight);
         connectionCard.Controls.Add(connectionLayout);
         AddDeviceSectionHeader(connectionLayout, "connection", "Connection", "ConnectionDescription");
         AddDeviceInfoColumnsResponsive(connectionLayout, new[]
@@ -141,7 +142,7 @@ public sealed partial class SettingsForm : Form
 
         RoundedPanel batteryCard = CreateResponsiveCard(DeviceBatteryRowLogicalHeight);
         AddResponsiveRow(batteryCard, DeviceBatteryRowLogicalHeight, 0);
-        TableLayoutPanel batteryLayout = CreateSectionLayout(2);
+        TableLayoutPanel batteryLayout = CreateSectionLayout(2, DeviceSectionHeaderLogicalHeight);
         batteryCard.Controls.Add(batteryLayout);
         AddDeviceSectionHeader(batteryLayout, "battery", "Battery", "BatteryDescription");
         AddDeviceInfoColumnsResponsive(batteryLayout, new[]
@@ -339,7 +340,7 @@ public sealed partial class SettingsForm : Form
         return layout;
     }
 
-    private TableLayoutPanel CreateSectionLayout(int rows)
+    private TableLayoutPanel CreateSectionLayout(int rows, int headerLogicalHeight = StandardSectionHeaderLogicalHeight)
     {
         TableLayoutPanel layout = new()
         {
@@ -350,7 +351,7 @@ public sealed partial class SettingsForm : Form
             Margin = new Padding(0),
             BackColor = Color.Transparent
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(DeviceSectionHeaderLogicalHeight)));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(headerLogicalHeight)));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         return layout;
     }
@@ -432,8 +433,16 @@ public sealed partial class SettingsForm : Form
         startupCard.Controls.Add(startup);
         startup.Controls.Add(CreateTableIcon("windows", StandardUiIconLogicalSize), 0, 0);
         TableLayoutPanel startupText = new() { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = Color.Transparent };
-        startupText.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(22))); startupText.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        startupText.Controls.Add(CreateWrappedLabel(L("StartupShort"), true, 9.5f), 0, 0); startupText.Controls.Add(CreateWrappedLabel(L("StartupDescription"), false, 8.5f), 0, 1);
+        startupText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        startupText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        Label startupTitle = CreateWrappedLabel(L("StartupShort"), true, 9.5f);
+        startupTitle.Margin = new Padding(0);
+        startupTitle.TextAlign = ContentAlignment.BottomLeft;
+        Label startupDescription = CreateWrappedLabel(L("StartupDescription"), false, 8.5f);
+        startupDescription.Margin = new Padding(0);
+        startupDescription.TextAlign = ContentAlignment.TopLeft;
+        startupText.Controls.Add(startupTitle, 0, 0);
+        startupText.Controls.Add(startupDescription, 0, 1);
         startup.Controls.Add(startupText, 1, 0);
         _startupToggle = new ToggleSwitchControl { Dock = DockStyle.None, Anchor = AnchorStyles.Right, Size = ScaleUiSize(42, 24), Checked = _pendingStartupEnabled, DarkMode = EffectiveTheme == AppTheme.Dark, Margin = new Padding(0) };
         _startupToggle.CheckedChanged += (_, _) => _pendingStartupEnabled = _startupToggle.Checked;

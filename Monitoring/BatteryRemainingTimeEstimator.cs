@@ -7,18 +7,26 @@ namespace HyperXBatteryTray.Monitoring;
 public sealed class BatteryRemainingTimeEstimator
 {
     public const int MaximumSamplesPerDevice = 10;
-    public const int ObservedDropForFullConfidencePercent = 10;
+    public const int MinimumValidatedWindowDropPercent = 2;
+    public const int ObservedDropForFullHistoricalConfidencePercent = 10;
+    public const int SessionDropForFullHistoricalInfluencePercent = 5;
+    public const double MinimumPlausibleRateMultiplier = 1d / 3d;
+    public const double MaximumPlausibleRateMultiplier = 3d;
+    public const double MaximumHistoricalWeight = 0.80d;
 
     private readonly object _sync = new();
     private readonly BatteryHistoryData _history;
 
     private string? _activeDevice;
-    private int? _referenceBattery;
-    private long _referenceTimestamp;
+    private int? _windowStartBattery;
+    private long _windowStartTimestamp;
+    private int? _lastObservedBattery;
+    private long _lastObservedBatteryTimestamp;
+    private int _sessionValidatedDropPercent;
 
     public BatteryRemainingTimeEstimator(BatteryHistoryData history)
     {
-        _history = history ?? new BatteryHistoryData();
+        _history = history ?? BatteryHistoryData.CreateCurrent();
         NormalizeHistory(_history);
     }
 
@@ -36,7 +44,8 @@ public sealed class BatteryRemainingTimeEstimator
             if (!connected ||
                 charging ||
                 battery is < 0 or > 100 ||
-                !nominalBatteryLifeHours.HasValue)
+                !nominalBatteryLifeHours.HasValue ||
+                nominalBatteryLifeHours.Value <= 0)
             {
                 ResetSessionCore();
                 return false;
@@ -50,30 +59,38 @@ public sealed class BatteryRemainingTimeEstimator
                     _activeDevice,
                     normalizedDevice,
                     StringComparison.OrdinalIgnoreCase) ||
-                !_referenceBattery.HasValue)
+                !_windowStartBattery.HasValue ||
+                !_lastObservedBattery.HasValue)
             {
                 StartSessionCore(normalizedDevice, battery, now);
                 return false;
             }
 
-            if (battery > _referenceBattery.Value)
+            if (battery > _lastObservedBattery.Value)
             {
-                StartSessionCore(normalizedDevice, battery, now);
+                StartLearningWindowCore(battery, now);
+                SetLastObservedBatteryCore(battery, now);
                 return false;
             }
 
-            if (battery == _referenceBattery.Value)
+            if (battery < _lastObservedBattery.Value)
+                SetLastObservedBatteryCore(battery, now);
+
+            int dropPercent = _windowStartBattery.Value - battery;
+            if (dropPercent < MinimumValidatedWindowDropPercent)
                 return false;
 
             TimeSpan elapsed = Stopwatch.GetElapsedTime(
-                _referenceTimestamp,
+                _windowStartTimestamp,
                 now);
-            int dropPercent = _referenceBattery.Value - battery;
 
-            StartSessionCore(normalizedDevice, battery, now);
-
-            if (dropPercent <= 0 || elapsed <= TimeSpan.Zero)
+            if (!IsPlausibleSample(
+                    dropPercent,
+                    elapsed.TotalSeconds,
+                    nominalBatteryLifeHours.Value))
+            {
                 return false;
+            }
 
             AddSampleCore(
                 normalizedDevice,
@@ -83,6 +100,8 @@ public sealed class BatteryRemainingTimeEstimator
                     ElapsedSeconds = elapsed.TotalSeconds
                 });
 
+            _sessionValidatedDropPercent += dropPercent;
+            StartLearningWindowCore(battery, now);
             return true;
         }
     }
@@ -101,8 +120,11 @@ public sealed class BatteryRemainingTimeEstimator
             double? nominalBatteryLifeHours =
                 HyperXDeviceManager.GetNominalBatteryLifeHours(deviceName);
 
-            if (!nominalBatteryLifeHours.HasValue || nominalBatteryLifeHours.Value <= 0)
+            if (!nominalBatteryLifeHours.HasValue ||
+                nominalBatteryLifeHours.Value <= 0)
+            {
                 return null;
+            }
 
             string normalizedDevice =
                 HyperXDeviceManager.NormalizeSupportedDeviceName(deviceName!);
@@ -115,22 +137,36 @@ public sealed class BatteryRemainingTimeEstimator
                     out List<BatteryDischargeSample>? samples) &&
                 samples.Count > 0)
             {
-                int observedDropPercent = samples.Sum(sample => sample.DropPercent);
-                double observedHours = samples.Sum(sample => sample.ElapsedSeconds) / 3600d;
+                double? observedRatePercentPerHour =
+                    CalculateMedianRatePercentPerHour(samples);
 
-                if (observedDropPercent > 0 && observedHours > 0)
+                if (observedRatePercentPerHour.HasValue)
                 {
-                    double observedRatePercentPerHour =
-                        observedDropPercent / observedHours;
-                    double confidence = Math.Clamp(
+                    int observedDropPercent = samples.Sum(sample => sample.DropPercent);
+                    double historicalConfidence = Math.Clamp(
                         observedDropPercent /
-                        (double)ObservedDropForFullConfidencePercent,
+                        (double)ObservedDropForFullHistoricalConfidencePercent,
                         0d,
                         1d);
+                    double sessionConfidence =
+                        string.Equals(
+                            _activeDevice,
+                            normalizedDevice,
+                            StringComparison.OrdinalIgnoreCase)
+                            ? Math.Clamp(
+                                _sessionValidatedDropPercent /
+                                (double)SessionDropForFullHistoricalInfluencePercent,
+                                0d,
+                                1d)
+                            : 0d;
+                    double historicalWeight =
+                        MaximumHistoricalWeight *
+                        historicalConfidence *
+                        sessionConfidence;
 
                     effectiveRatePercentPerHour =
-                        (nominalRatePercentPerHour * (1d - confidence)) +
-                        (observedRatePercentPerHour * confidence);
+                        (nominalRatePercentPerHour * (1d - historicalWeight)) +
+                        (observedRatePercentPerHour.Value * historicalWeight);
                 }
             }
 
@@ -146,15 +182,16 @@ public sealed class BatteryRemainingTimeEstimator
                     _activeDevice,
                     normalizedDevice,
                     StringComparison.OrdinalIgnoreCase) &&
-                _referenceBattery == battery &&
-                _referenceTimestamp != 0)
+                _lastObservedBattery == battery &&
+                _lastObservedBatteryTimestamp != 0)
             {
-                TimeSpan elapsedSinceReference = Stopwatch.GetElapsedTime(
-                    _referenceTimestamp,
+                TimeSpan elapsedSinceBatteryChange = Stopwatch.GetElapsedTime(
+                    _lastObservedBatteryTimestamp,
                     Stopwatch.GetTimestamp());
 
                 remainingPercent -=
-                    elapsedSinceReference.TotalHours * effectiveRatePercentPerHour;
+                    elapsedSinceBatteryChange.TotalHours *
+                    effectiveRatePercentPerHour;
             }
 
             remainingPercent = Math.Clamp(remainingPercent, 0d, 100d);
@@ -176,7 +213,7 @@ public sealed class BatteryRemainingTimeEstimator
     {
         lock (_sync)
         {
-            BatteryHistoryData snapshot = new();
+            BatteryHistoryData snapshot = BatteryHistoryData.CreateCurrent();
 
             foreach ((string device, List<BatteryDischargeSample> samples) in _history.Devices)
             {
@@ -227,15 +264,88 @@ public sealed class BatteryRemainingTimeEstimator
         long timestamp)
     {
         _activeDevice = deviceName;
-        _referenceBattery = battery;
-        _referenceTimestamp = timestamp;
+        _sessionValidatedDropPercent = 0;
+        StartLearningWindowCore(battery, timestamp);
+        SetLastObservedBatteryCore(battery, timestamp);
+    }
+
+    private void StartLearningWindowCore(
+        int battery,
+        long timestamp)
+    {
+        _windowStartBattery = battery;
+        _windowStartTimestamp = timestamp;
+    }
+
+    private void SetLastObservedBatteryCore(
+        int battery,
+        long timestamp)
+    {
+        _lastObservedBattery = battery;
+        _lastObservedBatteryTimestamp = timestamp;
     }
 
     private void ResetSessionCore()
     {
         _activeDevice = null;
-        _referenceBattery = null;
-        _referenceTimestamp = 0;
+        _windowStartBattery = null;
+        _windowStartTimestamp = 0;
+        _lastObservedBattery = null;
+        _lastObservedBatteryTimestamp = 0;
+        _sessionValidatedDropPercent = 0;
+    }
+
+    private static bool IsPlausibleSample(
+        int dropPercent,
+        double elapsedSeconds,
+        double nominalBatteryLifeHours)
+    {
+        if (dropPercent < MinimumValidatedWindowDropPercent ||
+            dropPercent > 100 ||
+            !double.IsFinite(elapsedSeconds) ||
+            elapsedSeconds <= 0 ||
+            !double.IsFinite(nominalBatteryLifeHours) ||
+            nominalBatteryLifeHours <= 0)
+        {
+            return false;
+        }
+
+        double elapsedHours = elapsedSeconds / 3600d;
+        double observedRatePercentPerHour = dropPercent / elapsedHours;
+        double nominalRatePercentPerHour = 100d / nominalBatteryLifeHours;
+        double minimumPlausibleRate =
+            nominalRatePercentPerHour * MinimumPlausibleRateMultiplier;
+        double maximumPlausibleRate =
+            nominalRatePercentPerHour * MaximumPlausibleRateMultiplier;
+
+        return double.IsFinite(observedRatePercentPerHour) &&
+               observedRatePercentPerHour >= minimumPlausibleRate &&
+               observedRatePercentPerHour <= maximumPlausibleRate;
+    }
+
+    private static double? CalculateMedianRatePercentPerHour(
+        IEnumerable<BatteryDischargeSample> samples)
+    {
+        double[] rates = samples
+            .Where(sample =>
+                sample.DropPercent > 0 &&
+                double.IsFinite(sample.ElapsedSeconds) &&
+                sample.ElapsedSeconds > 0)
+            .Select(sample =>
+                sample.DropPercent /
+                (sample.ElapsedSeconds / 3600d))
+            .Where(rate => double.IsFinite(rate) && rate > 0)
+            .OrderBy(rate => rate)
+            .ToArray();
+
+        if (rates.Length == 0)
+            return null;
+
+        int middle = rates.Length / 2;
+
+        return rates.Length % 2 == 1
+            ? rates[middle]
+            : (rates[middle - 1] + rates[middle]) / 2d;
     }
 
     private static void NormalizeHistory(BatteryHistoryData history)
@@ -248,12 +358,24 @@ public sealed class BatteryRemainingTimeEstimator
             if (string.IsNullOrWhiteSpace(device) || samples == null)
                 continue;
 
+            string normalizedDevice =
+                HyperXDeviceManager.NormalizeSupportedDeviceName(device.Trim());
+            double? nominalBatteryLifeHours =
+                HyperXDeviceManager.GetNominalBatteryLifeHours(normalizedDevice);
+
+            if (!nominalBatteryLifeHours.HasValue ||
+                nominalBatteryLifeHours.Value <= 0)
+            {
+                continue;
+            }
+
             List<BatteryDischargeSample> validSamples = samples
                 .Where(sample =>
                     sample != null &&
-                    sample.DropPercent is > 0 and <= 100 &&
-                    double.IsFinite(sample.ElapsedSeconds) &&
-                    sample.ElapsedSeconds > 0)
+                    IsPlausibleSample(
+                        sample.DropPercent,
+                        sample.ElapsedSeconds,
+                        nominalBatteryLifeHours.Value))
                 .TakeLast(MaximumSamplesPerDevice)
                 .Select(sample => new BatteryDischargeSample
                 {
@@ -262,10 +384,28 @@ public sealed class BatteryRemainingTimeEstimator
                 })
                 .ToList();
 
-            if (validSamples.Count > 0)
-                normalized[device.Trim()] = validSamples;
+            if (validSamples.Count == 0)
+                continue;
+
+            if (!normalized.TryGetValue(
+                    normalizedDevice,
+                    out List<BatteryDischargeSample>? existing))
+            {
+                normalized[normalizedDevice] = validSamples;
+                continue;
+            }
+
+            existing.AddRange(validSamples);
+
+            if (existing.Count > MaximumSamplesPerDevice)
+            {
+                existing.RemoveRange(
+                    0,
+                    existing.Count - MaximumSamplesPerDevice);
+            }
         }
 
+        history.Version = BatteryHistoryData.CurrentVersion;
         history.Devices = normalized;
     }
 }
