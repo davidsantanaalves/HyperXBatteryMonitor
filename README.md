@@ -137,27 +137,29 @@ These screenshots illustrate earlier versions; version 2.2.0 adds remaining-time
 
 ### Device selection
 
-<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/89cc6d77-a066-4d72-8cf3-17338ed3ee45" />
+<img width="762" height="552" alt="01 device" src="https://github.com/user-attachments/assets/02641fa7-336f-4d0f-a763-5e5e98ca53b9" />
 
 ### Interface options
 
-<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/607a7533-edda-4953-b82e-5522a6199699" />
+<img width="762" height="552" alt="02 Interface" src="https://github.com/user-attachments/assets/43d3a9e6-795f-46ec-97a2-d0afe80cad00" />
 
 ### Battery monitor options
 
-<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/41dc4eb7-67ef-4985-be3d-9d276f51579b" />
+<img width="762" height="552" alt="03 Battery Monitor" src="https://github.com/user-attachments/assets/b2938732-a482-447c-b9d4-f111e01f2417" />
+
+<img width="460" height="522" alt="04 Customize Dynamic Icons Colors" src="https://github.com/user-attachments/assets/33547ce8-778d-4e1a-b8bb-4751ccff5a4b" />
 
 ### Notifications options
 
-<img width="762" height="552" alt="image" src="https://github.com/user-attachments/assets/61810f84-41fb-4430-9cbe-374b15ab1dbd" />
+<img width="762" height="552" alt="05 Notifications" src="https://github.com/user-attachments/assets/8cc5d4bb-3c03-4b89-8dcf-8684d08499b6" />
 
 ### System Tray Menu
 
-<img width="168" height="245" alt="image" src="https://github.com/user-attachments/assets/02f9213e-a72a-4ced-ba90-96f44c6021a1" />
+<img width="178" height="298" alt="07 Context Menu" src="https://github.com/user-attachments/assets/28d1a174-86f5-4e63-8627-0750e21699da" />
 
 ### System Tray Icon and device monitoring
 
-<img width="129" height="143" alt="image" src="https://github.com/user-attachments/assets/3c5cf6ca-8e5d-433d-90df-138c92f74a41" />
+<img width="132" height="144" alt="08 Tooltip" src="https://github.com/user-attachments/assets/05bc1803-c4ef-4bbd-9b0d-6a006c7e324d" />
 
 ## Installation
 
