@@ -123,7 +123,7 @@ Some headset capabilities vary by model.
 | HyperX Cloud III S | ✅ | ✅ | ✅ |
 | HyperX Cloud 2 Core | ✅ | ✅ | ✅ |
 | HyperX Cloud Alpha | ✅ | ✅ | ✅ |
-| HyperX Cloud Stinger 2 | ✅ | ✅ | — |
+| HyperX Cloud Stinger 2 | ✅ | ✅ | ⛔ |
 
 ## Requirements
 
