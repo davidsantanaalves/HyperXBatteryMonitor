@@ -33,7 +33,7 @@ public sealed partial class SettingsForm : Form
 
     private void ApplyLocalizedText()
     {
-        Text = L("WindowTitle");
+        Text = GetWindowTitle();
         _resetButton.Text = L("RestoreDefaults");
         _okButton.Text = L("Ok");
         _cancelButton.Text = L("Cancel");
@@ -452,6 +452,11 @@ public sealed partial class SettingsForm : Form
         AppTheme.System => L("ThemeSystem"),
         _ => L("ThemeLight")
     };
+
+    private string GetWindowTitle() => string.Format(
+        L("WindowTitle"),
+        Application.ProductName,
+        Application.ProductVersion.Split('+')[0]);
 
     private string L(string key) => Localization.Get(key, _selectedLanguage);
     private AppTheme EffectiveTheme => ResolveTheme(_selectedTheme);

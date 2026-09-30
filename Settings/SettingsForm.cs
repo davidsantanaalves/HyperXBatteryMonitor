@@ -248,7 +248,7 @@ public sealed partial class SettingsForm : Form
         _pendingUseGradient = settings.UseGradient;
         _pendingGradientPercent = Math.Clamp(settings.GradientPercent, 0, 50);
 
-        Text = L("WindowTitle");
+        Text = GetWindowTitle();
         StartPosition = FormStartPosition.Manual;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
