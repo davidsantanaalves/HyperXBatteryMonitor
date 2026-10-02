@@ -53,6 +53,7 @@ public sealed class CloudFlight2Device : HyperXBatteryDeviceBase
         BatteryByteIndex = ValueIndex,
         SupportsMicrophoneMuteMonitoring = true,
         SupportsChargingMonitoring = true,
+        RequiresDedicatedDongle = true,
         NominalBatteryLifeHours = 100
     };
 

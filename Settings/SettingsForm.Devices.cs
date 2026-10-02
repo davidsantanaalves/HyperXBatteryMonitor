@@ -198,9 +198,9 @@ public sealed partial class SettingsForm : Form
             return;
 
         string deviceName = _deviceSelector?.SelectedDeviceName ?? string.Empty;
-        string normalized = string.Equals(deviceName, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III"
-            : deviceName;
+        string normalized = string.IsNullOrWhiteSpace(deviceName)
+            ? string.Empty
+            : HyperXDeviceManager.NormalizeSupportedDeviceName(deviceName);
 
         string imageFile = normalized switch
         {
@@ -217,7 +217,9 @@ public sealed partial class SettingsForm : Form
             _ => "unknown-device.png"
         };
 
-        _sidebarDeviceNameLabel.Text = selected ? normalized : L("UnknownHeadphones");
+        _sidebarDeviceNameLabel.Text = selected
+            ? Localization.DeviceDisplayName(normalized, _selectedLanguage)
+            : L("UnknownHeadphones");
         _sidebarStatusLabel.Text = connected
             ? L("Connected")
             : selected ? L("Disconnected") : L("SidebarUnknown");
@@ -339,9 +341,9 @@ public sealed partial class SettingsForm : Form
         if (_wirelessTechnologyValueLabel == null) return;
 
         string device = _deviceSelector?.SelectedDeviceName ?? string.Empty;
-        string normalized = string.Equals(device, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III"
-            : device;
+        string normalized = string.IsNullOrWhiteSpace(device)
+            ? string.Empty
+            : HyperXDeviceManager.NormalizeSupportedDeviceName(device);
 
         string[] values = normalized switch
         {

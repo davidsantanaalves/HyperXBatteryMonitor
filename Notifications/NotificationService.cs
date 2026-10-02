@@ -86,9 +86,10 @@ public sealed class NotificationService
         int battery,
         AppLanguage language)
     {
+        string displayName = Localization.DeviceDisplayName(deviceName, language);
         string title = string.Format(
             Localization.Get("NotificationLowBatteryTitle", language),
-            deviceName);
+            displayName);
 
         string batteryText = string.Format(
             Localization.Get("NotificationBattery", language),
@@ -109,9 +110,10 @@ public sealed class NotificationService
         string deviceName,
         AppLanguage language)
     {
+        string displayName = Localization.DeviceDisplayName(deviceName, language);
         string title = string.Format(
             Localization.Get("NotificationFullyChargedTitle", language),
-            deviceName);
+            displayName);
 
         string batteryText = Localization.Get(
             "NotificationFullyChargedBattery",
@@ -199,7 +201,9 @@ public sealed class NotificationService
             _ when normalized.Equals("HyperX Cloud Stinger Core Wireless + 7.1", StringComparison.OrdinalIgnoreCase)
                 => "cloudstingercorewireless7.1.png",
 
-            _ when normalized.Equals("HyperX Cloud Flight 2", StringComparison.OrdinalIgnoreCase)
+            _ when normalized.Contains(
+                "Cloud Flight 2",
+                StringComparison.OrdinalIgnoreCase)
                 => "cloudflight2.png",
 
             _ when normalized.Equals("HyperX Cloud Mix 2", StringComparison.OrdinalIgnoreCase)

@@ -9,6 +9,13 @@ public sealed partial class SettingsForm : Form
     private static readonly TimeSpan AutoDetectionTimeout = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan AutoDetectionRetryDelay = TimeSpan.FromMilliseconds(500);
     private const double AutoDetectionOverlayOpacity = 0.72;
+    private const string DetectingImageFileName = "detecting.png";
+    private const string NoDeviceImageFileName = "detecting-error.png";
+    private const string UnsupportedReceiverImageFileName = "device-unsupported.png";
+
+    private sealed record DeviceAutoDetectionResult(
+        IReadOnlyList<string> DetectedDevices,
+        bool UnsupportedThreeInOneReceiverDetected);
 
     private ActionButton? _autoDetectButton;
     private PngIconControl? _batteryCapabilityIcon;
@@ -131,6 +138,7 @@ public sealed partial class SettingsForm : Form
         layout.Controls.Add(capabilities, 0, 1);
         layout.SetColumnSpan(capabilities, 3);
 
+        _deviceSelector.SetLanguage(_selectedLanguage);
         _deviceSelector.SetPlaceholder(L("LocateDevice"));
         _deviceSelector.SelectedDeviceName = _pendingSelectedDevice;
         _deviceSelector.SelectionChanged += DeviceSelector_SelectionChanged;
@@ -247,29 +255,40 @@ public sealed partial class SettingsForm : Form
         }
     }
 
-    private async Task<IReadOnlyList<string>> DetectSupportedDevicesWithTimeoutAsync(
+    private async Task<DeviceAutoDetectionResult> DetectSupportedDevicesWithTimeoutAsync(
         CancellationToken cancellationToken)
     {
         using CancellationTokenSource timeout =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(AutoDetectionTimeout);
 
+        bool unsupportedThreeInOneReceiverDetected = false;
+
         try
         {
             while (true)
             {
+                unsupportedThreeInOneReceiverDetected |=
+                    HyperXDeviceManager.IsThreeInOneReceiverPresent();
+
                 IReadOnlyList<string> detected =
                     await HyperXDeviceManager.ProbeResponsiveDevicesAsync(timeout.Token);
 
                 if (detected.Count > 0)
-                    return detected;
+                {
+                    return new DeviceAutoDetectionResult(
+                        detected,
+                        unsupportedThreeInOneReceiverDetected);
+                }
 
                 await Task.Delay(AutoDetectionRetryDelay, timeout.Token);
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return Array.Empty<string>();
+            return new DeviceAutoDetectionResult(
+                Array.Empty<string>(),
+                unsupportedThreeInOneReceiverDetected);
         }
     }
 
@@ -296,7 +315,7 @@ public sealed partial class SettingsForm : Form
         private readonly bool _dark;
         private readonly AppLanguage _language;
         private readonly int _dpi;
-        private readonly Func<CancellationToken, Task<IReadOnlyList<string>>> _detectionOperation;
+        private readonly Func<CancellationToken, Task<DeviceAutoDetectionResult>> _detectionOperation;
         private readonly CancellationTokenSource _cancellation = new();
         private readonly PictureBox _detectionImageBox;
         private readonly Label _progressLabel;
@@ -315,7 +334,7 @@ public sealed partial class SettingsForm : Form
             bool dark,
             AppLanguage language,
             int dpi,
-            Func<CancellationToken, Task<IReadOnlyList<string>>> detectionOperation)
+            Func<CancellationToken, Task<DeviceAutoDetectionResult>> detectionOperation)
         {
             _iconCache = iconCache;
             _dark = dark;
@@ -365,7 +384,7 @@ public sealed partial class SettingsForm : Form
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.Transparent
             };
-            SetDetectionImage("detecting.png");
+            SetDetectionImage(DetectingImageFileName);
             Controls.Add(_detectionImageBox);
 
             _progressLabel = new Label
@@ -435,18 +454,22 @@ public sealed partial class SettingsForm : Form
 
             try
             {
-                IReadOnlyList<string> detected =
+                DeviceAutoDetectionResult result =
                     await _detectionOperation(_cancellation.Token);
 
                 if (_cancelledByUser || IsDisposed || Disposing)
                     return;
 
-                DetectedDevices = detected;
+                DetectedDevices = result.DetectedDevices;
                 _countdownTimer.Stop();
 
-                if (detected.Count == 0)
+                if (result.DetectedDevices.Count == 0)
                 {
-                    ShowNoDeviceDetectedState();
+                    if (result.UnsupportedThreeInOneReceiverDetected)
+                        ShowUnsupportedReceiverState();
+                    else
+                        ShowNoDeviceDetectedState();
+
                     return;
                 }
 
@@ -503,7 +526,7 @@ public sealed partial class SettingsForm : Form
 
             _showingNoDeviceError = true;
             _countdownTimer.Stop();
-            SetDetectionImage("detecting-error.png");
+            SetDetectionImage(NoDeviceImageFileName);
 
             _progressLabel.Text = L("AutoDetectionNoDevice");
             _progressLabel.Size = ScaleSize(400, 50);
@@ -513,7 +536,28 @@ public sealed partial class SettingsForm : Form
             AcceptButton = _actionButton;
         }
 
-        private void SetDetectionImage(string fileName)
+        private void ShowUnsupportedReceiverState()
+        {
+            if (_showingNoDeviceError || IsDisposed || Disposing)
+                return;
+
+            _showingNoDeviceError = true;
+            _countdownTimer.Stop();
+            SetDetectionImage(
+                UnsupportedReceiverImageFileName,
+                NoDeviceImageFileName);
+
+            _progressLabel.Text = L("AutoDetectionUnsupportedReceiver");
+            _progressLabel.Size = ScaleSize(400, 52);
+            _instructionLabel.Visible = false;
+
+            _actionButton.Text = L("Ok");
+            AcceptButton = _actionButton;
+        }
+
+        private void SetDetectionImage(
+            string fileName,
+            string? fallbackFileName = null)
         {
             _detectionImageBox?.SuspendLayout();
             if (_detectionImageBox != null)
@@ -527,6 +571,16 @@ public sealed partial class SettingsForm : Form
                 "Assets",
                 "Devices",
                 fileName);
+
+            if (!File.Exists(imagePath) &&
+                !string.IsNullOrWhiteSpace(fallbackFileName))
+            {
+                imagePath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "Assets",
+                    "Devices",
+                    fallbackFileName);
+            }
 
             if (File.Exists(imagePath))
             {

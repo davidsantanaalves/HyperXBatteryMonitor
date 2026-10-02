@@ -47,7 +47,10 @@ public sealed partial class SettingsForm : Form
         if (_sidebarMicrophoneTitleLabel != null)
             _sidebarMicrophoneTitleLabel.Text = L("SidebarMicrophone");
         if (_deviceSelector != null)
+        {
+            _deviceSelector.SetLanguage(_selectedLanguage);
             _deviceSelector.SetPlaceholder(L("LocateDevice"));
+        }
         UpdateDeviceInformation();
 
         if (_lightThemeOption != null) _lightThemeOption.LabelText = ThemeText(AppTheme.Light);

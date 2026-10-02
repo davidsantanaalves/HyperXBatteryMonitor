@@ -244,7 +244,9 @@ internal sealed class TrayContextMenuForm : Form
         string imageFile = GetDeviceImage(normalized, selected);
         SetDeviceImage(imageFile);
 
-        _deviceName.Text = selected ? normalized : Localization.Get("UnknownHeadphones", _settings.Language);
+        _deviceName.Text = selected
+            ? Localization.DeviceDisplayName(normalized, _settings.Language)
+            : Localization.Get("UnknownHeadphones", _settings.Language);
         _statusText.Text = connected ? Localization.Get("Connected", _settings.Language) : selected ? Localization.Get("Disconnected", _settings.Language) : Localization.Get("SidebarUnknown", _settings.Language);
         _statusDot.Connected = connected;
         _batteryIcon.Connected = connected;
@@ -510,8 +512,7 @@ internal sealed class TrayContextMenuForm : Form
     }
 
     private static string NormalizeDeviceName(string value) =>
-        string.Equals(value, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III" : value;
+        HyperXDeviceManager.NormalizeSupportedDeviceName(value);
 
     private static string GetDeviceImage(string name, bool selected) => name switch
     {

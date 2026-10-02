@@ -27,6 +27,7 @@ public sealed partial class SettingsForm : Form
         private bool _editingDeviceSelection;
         private bool _selectionInProgress;
         private readonly ClickOutsideFilter _clickOutsideFilter;
+        private AppLanguage _language = AppLanguage.English;
 
         public event EventHandler? SelectionChanged;
 
@@ -49,18 +50,15 @@ public sealed partial class SettingsForm : Form
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string SelectedDeviceName
         {
-            get => GetDisplayText(_selectedIndex);
+            get => GetCanonicalName(_selectedIndex);
             set
             {
                 int index = 0;
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    string normalizedValue = string.Equals(value.Trim(), "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-                        ? "HyperX Cloud III"
-                        : value.Trim();
                     for (int i = 0; i < _options.Count; i++)
                     {
-                        if (string.Equals(_options[i].Name, normalizedValue, StringComparison.OrdinalIgnoreCase))
+                        if (HyperXDeviceManager.IsSameDevice(_options[i].Name, value))
                         {
                             index = i + 1;
                             break;
@@ -181,7 +179,29 @@ public sealed partial class SettingsForm : Form
             Invalidate();
         }
 
-        private string GetDisplayText(int index) => index > 0 && index <= _options.Count ? _options[index - 1].Name : string.Empty;
+        public void SetLanguage(AppLanguage language)
+        {
+            _language = language;
+            SetSearchText(GetDisplayText(_selectedIndex));
+
+            if (_popup != null && !_popup.IsDisposed)
+            {
+                _popup.SetLanguage(language);
+                _popup.RefreshItems(_searchBox.Text);
+            }
+
+            Invalidate();
+        }
+
+        private string GetCanonicalName(int index) =>
+            index > 0 && index <= _options.Count
+                ? _options[index - 1].Name
+                : string.Empty;
+
+        private string GetDisplayText(int index) =>
+            index > 0 && index <= _options.Count
+                ? Localization.DeviceDisplayName(_options[index - 1].Name, _language)
+                : string.Empty;
         private Color SearchBackColor => _dark ? Color.FromArgb(38, 41, 44) : Color.White;
         private Color SearchTextColor => _dark ? Color.WhiteSmoke : LightText;
 
@@ -304,7 +324,9 @@ public sealed partial class SettingsForm : Form
             int matchingIndex = 0;
             for (int i = 0; i < _options.Count; i++)
             {
-                if (string.Equals(_options[i].Name, typed, StringComparison.OrdinalIgnoreCase))
+                string displayName = Localization.DeviceDisplayName(_options[i].Name, _language);
+                if (string.Equals(displayName, typed, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(_options[i].Name, typed, StringComparison.OrdinalIgnoreCase))
                 {
                     matchingIndex = i + 1;
                     break;
@@ -328,7 +350,7 @@ public sealed partial class SettingsForm : Form
             if (!IsHandleCreated) return;
             if (_popup == null || _popup.IsDisposed)
             {
-                _popup = new SearchPopup(this, _options, _dark, SelectOption);
+                _popup = new SearchPopup(this, _options, _dark, _language, SelectOption);
             }
             _popup.SetTheme(_dark);
             _popup.Width = Width;
@@ -455,10 +477,11 @@ public sealed partial class SettingsForm : Form
             private readonly Action<int> _select;
             private readonly Panel _list;
             private bool _dark;
+            private AppLanguage _language;
 
-            public SearchPopup(DeviceSelector owner, List<DeviceOption> options, bool dark, Action<int> select)
+            public SearchPopup(DeviceSelector owner, List<DeviceOption> options, bool dark, AppLanguage language, Action<int> select)
             {
-                _options = options; _dark = dark; _select = select;
+                _options = options; _dark = dark; _language = language; _select = select;
                 FormBorderStyle = FormBorderStyle.None;
                 StartPosition = FormStartPosition.Manual;
                 ShowInTaskbar = false;
@@ -519,6 +542,11 @@ public sealed partial class SettingsForm : Form
                     SettingsForm.ApplyNativeScrollTheme(_list, dark);
             }
 
+            public void SetLanguage(AppLanguage language)
+            {
+                _language = language;
+            }
+
             public void RefreshItems(string query)
             {
                 const int itemHeight = 64;
@@ -532,17 +560,20 @@ public sealed partial class SettingsForm : Form
                     _list.Controls.Clear();
 
                     string normalized = query.Trim();
-                    if (string.IsNullOrEmpty(normalized))
+                    for (int i = 0; i < _options.Count; i++)
                     {
-                        for (int i = 0; i < _options.Count; i++)
-                            _list.Controls.Add(CreateItem(i + 1, _options[i].Name, _options[i].ImagePath));
-                    }
-                    else
-                    {
-                        for (int i = 0; i < _options.Count; i++)
+                        string displayName = Localization.DeviceDisplayName(
+                            _options[i].Name,
+                            _language);
+
+                        if (string.IsNullOrEmpty(normalized) ||
+                            displayName.Contains(normalized, StringComparison.OrdinalIgnoreCase) ||
+                            _options[i].Name.Contains(normalized, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (_options[i].Name.Contains(normalized, StringComparison.OrdinalIgnoreCase))
-                                _list.Controls.Add(CreateItem(i + 1, _options[i].Name, _options[i].ImagePath));
+                            _list.Controls.Add(CreateItem(
+                                i + 1,
+                                displayName,
+                                _options[i].ImagePath));
                         }
                     }
 

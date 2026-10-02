@@ -251,6 +251,23 @@ public sealed class HidConnection : IDisposable
 
     public static string? FindDevice(HyperXDeviceDefinition definition)
     {
+        ArgumentNullException.ThrowIfNull(definition);
+        return FindDevicePath(definition.Matches);
+    }
+
+    public static string? FindDeviceByInterfacePattern(string interfacePattern)
+    {
+        if (string.IsNullOrWhiteSpace(interfacePattern))
+            return null;
+
+        return FindDevicePath(path =>
+            path.Contains(
+                interfacePattern,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? FindDevicePath(Func<string, bool> matches)
+    {
         Guid hidGuid = HidClassGuid;
 
         IntPtr deviceInfoSet =
@@ -298,7 +315,7 @@ public sealed class HidConnection : IDisposable
                     deviceInfoSet,
                     ref interfaceData);
 
-                if (path != null && definition.Matches(path))
+                if (path != null && matches(path))
                     return path;
 
                 index++;

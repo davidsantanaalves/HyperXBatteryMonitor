@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using HyperXBatteryTray.Devices;
 
 namespace HyperXBatteryTray.Settings;
 
@@ -193,22 +194,15 @@ public sealed class SettingsManager
         if (settings.SelectedDevice == null)
             settings.SelectedDevice = string.Empty;
 
-        if (string.Equals(settings.SelectedDevice?.Trim(), "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(settings.SelectedDevice))
         {
-            settings.SelectedDevice = "HyperX Cloud III";
+            settings.SelectedDevice =
+                HyperXDeviceManager.NormalizeSupportedDeviceName(
+                    settings.SelectedDevice);
         }
 
-        string[] supportedDeviceNames =
-        {
-            "HyperX Cloud III",
-            "HyperX Cloud III S",
-            "HyperX Cloud 2 Core",
-            "HyperX Cloud Alpha",
-            "HyperX Cloud Stinger 2"
-        };
-
         if (!string.IsNullOrWhiteSpace(settings.SelectedDevice) &&
-            !supportedDeviceNames.Contains(settings.SelectedDevice.Trim(), StringComparer.OrdinalIgnoreCase))
+            !HyperXDeviceManager.IsSupportedDeviceName(settings.SelectedDevice))
         {
             settings.SelectedDevice = string.Empty;
         }

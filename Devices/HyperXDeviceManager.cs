@@ -4,6 +4,8 @@ namespace HyperXBatteryTray.Devices;
 
 public sealed class HyperXDeviceManager : IDisposable
 {
+    private const string ThreeInOneReceiverInterfacePattern = "VID_03F0&PID_01BF";
+
     private readonly List<IHyperXDevice> _devices = new();
 
     private static readonly IReadOnlyList<HyperXDeviceRegistration>
@@ -130,6 +132,15 @@ public sealed class HyperXDeviceManager : IDisposable
         return registration?.Definition.SupportsChargingMonitoring == true;
     }
 
+    internal static bool RequiresDedicatedDongle(
+        string? selectedDeviceName)
+    {
+        HyperXDeviceRegistration? registration =
+            FindRegistration(selectedDeviceName);
+
+        return registration?.Definition.RequiresDedicatedDongle == true;
+    }
+
     public static async Task<IReadOnlyList<string>> ProbeResponsiveDevicesAsync(
         CancellationToken cancellationToken = default)
     {
@@ -179,6 +190,14 @@ public sealed class HyperXDeviceManager : IDisposable
         return registration?.Definition.NominalBatteryLifeHours;
     }
 
+    internal static bool IsSupportedDeviceName(string? selectedDeviceName) =>
+        FindRegistration(selectedDeviceName) != null;
+
+    internal static bool IsThreeInOneReceiverPresent() =>
+        !string.IsNullOrWhiteSpace(
+            HidConnection.FindDeviceByInterfacePattern(
+                ThreeInOneReceiverInterfacePattern));
+
     internal static string NormalizeSupportedDeviceName(string value) =>
         NormalizeDeviceName(value);
 
@@ -197,13 +216,42 @@ public sealed class HyperXDeviceManager : IDisposable
                 StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string NormalizeDeviceName(string value) =>
-        string.Equals(
-            value.Trim(),
-            "HyperX Cloud III Wireless",
-            StringComparison.OrdinalIgnoreCase)
-                ? "HyperX Cloud III"
-                : value.Trim();
+    private static string NormalizeDeviceName(string value)
+    {
+        string normalized = value.Trim();
+
+        if (string.Equals(
+                normalized,
+                "HyperX Cloud III Wireless",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "HyperX Cloud III";
+        }
+
+        if (string.Equals(
+                normalized,
+                Cloud3SWirelessDevice.DeviceDefinition.Name,
+                StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith(
+                Cloud3SWirelessDevice.DeviceDefinition.Name + " (",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return Cloud3SWirelessDevice.DeviceDefinition.Name;
+        }
+
+        if (string.Equals(
+                normalized,
+                CloudFlight2Device.DeviceDefinition.Name,
+                StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith(
+                CloudFlight2Device.DeviceDefinition.Name + " (",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return CloudFlight2Device.DeviceDefinition.Name;
+        }
+
+        return normalized;
+    }
 
     private void DisposeDevices()
     {
