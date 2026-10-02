@@ -120,29 +120,31 @@ These screenshots illustrate earlier versions. Version 2.3.0 updates the Device 
 
 ### Device selection
 
-<img width="762" height="552" alt="01 device" src="https://github.com/user-attachments/assets/02641fa7-336f-4d0f-a763-5e5e98ca53b9" />
+<img width="762" height="552" alt="01 device" src="https://github.com/user-attachments/assets/f0c9ed15-3635-4309-8d34-7ccacedc22a8" />
+
+<img width="440" height="250" alt="01 device-detecting" src="https://github.com/user-attachments/assets/6c605a78-12ce-4b5a-90d4-d8e01cd11cc4" />
 
 ### Interface options
 
-<img width="762" height="552" alt="02 Interface" src="https://github.com/user-attachments/assets/43d3a9e6-795f-46ec-97a2-d0afe80cad00" />
+<img width="758" height="552" alt="02 Interface" src="https://github.com/user-attachments/assets/fecaf2eb-70eb-436d-a553-1c5c380d8e67" />
 
 ### Battery monitor options
 
-<img width="762" height="552" alt="03 Battery Monitor" src="https://github.com/user-attachments/assets/b2938732-a482-447c-b9d4-f111e01f2417" />
+<img width="758" height="552" alt="03 Battery Monitor" src="https://github.com/user-attachments/assets/9000017a-50f4-4310-98db-d1d851314709" />
 
-<img width="460" height="522" alt="04 Customize Dynamic Icons Colors" src="https://github.com/user-attachments/assets/33547ce8-778d-4e1a-b8bb-4751ccff5a4b" />
+<img width="460" height="522" alt="04 Customize Dynamic Icons Colors" src="https://github.com/user-attachments/assets/4bcc7cc4-5b37-47dc-a950-a00a357dc3c5" />
 
 ### Notifications options
 
-<img width="762" height="552" alt="05 Notifications" src="https://github.com/user-attachments/assets/8cc5d4bb-3c03-4b89-8dcf-8684d08499b6" />
+<img width="758" height="552" alt="05 Notifications" src="https://github.com/user-attachments/assets/f52cf1bd-6746-4c30-a3fc-7bfda39bf9f3" />
 
-### System Tray Menu
+### System Tray Context Menu
 
-<img width="178" height="298" alt="07 Context Menu" src="https://github.com/user-attachments/assets/28d1a174-86f5-4e63-8627-0750e21699da" />
+<img width="168" height="245" alt="07 Context Menu" src="https://github.com/user-attachments/assets/c5b0377a-6e1f-473a-8346-8ebca2c369dc" />
 
 ### System Tray Icon and device monitoring
 
-<img width="132" height="144" alt="08 Tooltip" src="https://github.com/user-attachments/assets/05bc1803-c4ef-4bbd-9b0d-6a006c7e324d" />
+<img width="132" height="144" alt="08 Tooltip" src="https://github.com/user-attachments/assets/7667b4f4-7b0f-4784-b525-27dd48dfb6d9" />
 
 ## Installation
 
