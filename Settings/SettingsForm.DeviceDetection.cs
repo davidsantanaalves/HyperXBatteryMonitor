@@ -11,7 +11,7 @@ public sealed partial class SettingsForm : Form
     private const double AutoDetectionOverlayOpacity = 0.72;
     private const string DetectingImageFileName = "detecting.png";
     private const string NoDeviceImageFileName = "detecting-error.png";
-    private const string UnsupportedReceiverImageFileName = "device-unsupported.png";
+    private const string UnsupportedReceiverImageFileName = "detecting-unsupported.png";
 
     private sealed record DeviceAutoDetectionResult(
         IReadOnlyList<string> DetectedDevices,

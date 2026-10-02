@@ -30,7 +30,7 @@ if ($versionParts.Count -eq 3) {
     $versionParts += 0
 }
 
-if ($versionParts.Count -ne 4 -or ($versionParts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -ne 0) {
+if ($versionParts.Count -ne 4 -or @($versionParts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -ne 0) {
     throw "The project version '$appVersion' cannot be converted to a valid four-part MSIX version."
 }
 
