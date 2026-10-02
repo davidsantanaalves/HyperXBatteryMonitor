@@ -29,6 +29,7 @@ public sealed class CloudAlphaWirelessDevice : HyperXBatteryDeviceBase
         },
         BatteryByteIndex = 3,
         SupportsMicrophoneMuteMonitoring = true,
+        SupportsChargingMonitoring = true,
         NominalBatteryLifeHours = 300
     };
 

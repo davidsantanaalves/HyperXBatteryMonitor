@@ -33,7 +33,7 @@ public sealed partial class SettingsForm : Form
 
     private void ApplyLocalizedText()
     {
-        Text = L("WindowTitle");
+        Text = GetWindowTitle();
         _resetButton.Text = L("RestoreDefaults");
         _okButton.Text = L("Ok");
         _cancelButton.Text = L("Cancel");
@@ -47,7 +47,10 @@ public sealed partial class SettingsForm : Form
         if (_sidebarMicrophoneTitleLabel != null)
             _sidebarMicrophoneTitleLabel.Text = L("SidebarMicrophone");
         if (_deviceSelector != null)
+        {
+            _deviceSelector.SetLanguage(_selectedLanguage);
             _deviceSelector.SetPlaceholder(L("LocateDevice"));
+        }
         UpdateDeviceInformation();
 
         if (_lightThemeOption != null) _lightThemeOption.LabelText = ThemeText(AppTheme.Light);
@@ -172,6 +175,15 @@ public sealed partial class SettingsForm : Form
         {
             _deviceSelector.DarkMode = dark;
             _deviceSelector.Invalidate();
+        }
+
+        if (_autoDetectButton != null)
+        {
+            _autoDetectButton.DarkMode = dark;
+            _autoDetectButton.OutsideBackColor = dark
+                ? Color.FromArgb(42, 45, 48)
+                : Color.FromArgb(248, 249, 251);
+            _autoDetectButton.Invalidate();
         }
 
         StyleFooterButton(_resetButton, dark, false);
@@ -414,6 +426,8 @@ public sealed partial class SettingsForm : Form
             _sidebarMicrophoneIconUsesMuteAsset = null;
         }
 
+        _deviceAutoDetectToolTip?.Dispose();
+        _deviceAutoDetectToolTip = null;
         _iconCache.Dispose();
     }
 
@@ -442,7 +456,10 @@ public sealed partial class SettingsForm : Form
             new PngIconRequest("support", 25),
             new PngIconRequest("documentation", 25),
             new PngIconRequest("external", 25),
-            new PngIconRequest("legal", 25)
+            new PngIconRequest("legal", 25),
+            new PngIconRequest("auto-detect", 36),
+            new PngIconRequest("supported", 25),
+            new PngIconRequest("unsupported", 25)
         }, EffectiveTheme == AppTheme.Dark, DeviceDpi);
     }
 
@@ -452,6 +469,11 @@ public sealed partial class SettingsForm : Form
         AppTheme.System => L("ThemeSystem"),
         _ => L("ThemeLight")
     };
+
+    private string GetWindowTitle() => string.Format(
+        L("WindowTitle"),
+        Application.ProductName,
+        Application.ProductVersion.Split('+')[0]);
 
     private string L(string key) => Localization.Get(key, _selectedLanguage);
     private AppTheme EffectiveTheme => ResolveTheme(_selectedTheme);

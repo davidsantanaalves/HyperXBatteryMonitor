@@ -32,3 +32,6 @@ Thumbs.db
 Releases/
 
 temp-msix-validation/
+
+# Generated Store bundle metadata
+Packaging/BundleArtifacts/

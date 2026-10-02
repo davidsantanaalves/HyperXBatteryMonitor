@@ -131,9 +131,17 @@ internal sealed class PngIconCache : IDisposable
         string themePrefixPath = Path.Combine(
             directory,
             $"{suffix}_{iconKey}-{sizePx}x{sizePx}.png");
+        if (File.Exists(themePrefixPath))
+            return themePrefixPath;
 
-        return File.Exists(themePrefixPath)
-            ? themePrefixPath
+        string sharedPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Icons",
+            "All",
+            $"{iconKey}-{sizePx}x{sizePx}.png");
+
+        return File.Exists(sharedPath)
+            ? sharedPath
             : standardPath;
     }
 
@@ -164,43 +172,71 @@ internal sealed class PngIconCache : IDisposable
 
         string theme = darkMode ? "Dark" : "Light";
         string suffix = darkMode ? "dark" : "light";
-        string directory = Path.Combine(AppContext.BaseDirectory, "Icons", theme);
-        string[] prefixes =
-        {
-            $"{iconKey}-{suffix}-",
-            $"{suffix}_{iconKey}-"
-        };
+        string themeDirectory = Path.Combine(AppContext.BaseDirectory, "Icons", theme);
+        string sharedDirectory = Path.Combine(AppContext.BaseDirectory, "Icons", "All");
 
         List<int> sizes = new();
-        if (Directory.Exists(directory))
-        {
-            foreach (string prefix in prefixes)
-            {
-                foreach (string filePath in Directory.EnumerateFiles(directory, $"{prefix}*x*.png", SearchOption.TopDirectoryOnly))
-                {
-                    string fileName = Path.GetFileNameWithoutExtension(filePath);
-                    if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    string dimensions = fileName[prefix.Length..];
-                    int separator = dimensions.IndexOf('x');
-                    if (separator <= 0)
-                        continue;
-
-                    if (!int.TryParse(dimensions[..separator], NumberStyles.None, CultureInfo.InvariantCulture, out int width) || width <= 0)
-                        continue;
-
-                    if (!int.TryParse(dimensions[(separator + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int height) || height != width)
-                        continue;
-
-                    sizes.Add(width);
-                }
-            }
-        }
+        CollectAssetSizes(
+            sizes,
+            themeDirectory,
+            new[] { $"{iconKey}-{suffix}-", $"{suffix}_{iconKey}-" });
+        CollectAssetSizes(
+            sizes,
+            sharedDirectory,
+            new[] { $"{iconKey}-" });
 
         int[] resolved = sizes.Distinct().OrderBy(size => size).ToArray();
         _assetSizes.Add(cacheKey, resolved);
         return resolved;
+    }
+
+    private static void CollectAssetSizes(
+        ICollection<int> sizes,
+        string directory,
+        IEnumerable<string> prefixes)
+    {
+        if (!Directory.Exists(directory))
+            return;
+
+        foreach (string prefix in prefixes)
+        {
+            foreach (string filePath in Directory.EnumerateFiles(
+                directory,
+                $"{prefix}*x*.png",
+                SearchOption.TopDirectoryOnly))
+            {
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string dimensions = fileName[prefix.Length..];
+                int separator = dimensions.IndexOf('x');
+                if (separator <= 0)
+                    continue;
+
+                if (!int.TryParse(
+                        dimensions[..separator],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out int width) ||
+                    width <= 0)
+                {
+                    continue;
+                }
+
+                if (!int.TryParse(
+                        dimensions[(separator + 1)..],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out int height) ||
+                    height != width)
+                {
+                    continue;
+                }
+
+                sizes.Add(width);
+            }
+        }
     }
 
     private readonly record struct BitmapCacheKey(string IconKey, bool DarkMode, int SizePx, int Dpi);

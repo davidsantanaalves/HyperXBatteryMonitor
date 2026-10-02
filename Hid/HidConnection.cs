@@ -161,6 +161,40 @@ public sealed class HidConnection : IDisposable
         _writeStream.Flush();
     }
 
+    public void SetFeatureReport(byte[] report)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(report);
+        ValidateFeatureReportHandle();
+
+        if (report.Length == 0 || report.Length > FeatureReportByteLength)
+            throw new ArgumentException("Invalid HID feature report size.", nameof(report));
+
+        byte[] buffer = new byte[FeatureReportByteLength];
+        Buffer.BlockCopy(report, 0, buffer, 0, report.Length);
+        if (!HidD_SetFeature(_writeHandle!, buffer, buffer.Length))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+
+    public byte[] GetFeatureReport(byte reportId)
+    {
+        ThrowIfDisposed();
+        ValidateFeatureReportHandle();
+
+        byte[] buffer = new byte[FeatureReportByteLength];
+        buffer[0] = reportId;
+        if (!HidD_GetFeature(_writeHandle!, buffer, buffer.Length))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+
+        return buffer;
+    }
+
+    private void ValidateFeatureReportHandle()
+    {
+        if (_writeHandle is not { IsInvalid: false, IsClosed: false } || FeatureReportByteLength <= 0)
+            throw new InvalidOperationException("HID feature reports are unavailable.");
+    }
+
     public async Task<byte[]?> ReadAsync(
         CancellationToken cancellationToken)
     {
@@ -217,6 +251,23 @@ public sealed class HidConnection : IDisposable
 
     public static string? FindDevice(HyperXDeviceDefinition definition)
     {
+        ArgumentNullException.ThrowIfNull(definition);
+        return FindDevicePath(definition.Matches);
+    }
+
+    public static string? FindDeviceByInterfacePattern(string interfacePattern)
+    {
+        if (string.IsNullOrWhiteSpace(interfacePattern))
+            return null;
+
+        return FindDevicePath(path =>
+            path.Contains(
+                interfacePattern,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? FindDevicePath(Func<string, bool> matches)
+    {
         Guid hidGuid = HidClassGuid;
 
         IntPtr deviceInfoSet =
@@ -264,7 +315,7 @@ public sealed class HidConnection : IDisposable
                     deviceInfoSet,
                     ref interfaceData);
 
-                if (path != null && definition.Matches(path))
+                if (path != null && matches(path))
                     return path;
 
                 index++;
@@ -436,6 +487,16 @@ public sealed class HidConnection : IDisposable
         INVALID_HANDLE_VALUE = new(-1);
 
     private const int HIDP_STATUS_SUCCESS = 0x00110000;
+
+    [DllImport("hid.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    private static extern bool HidD_SetFeature(
+        SafeFileHandle hidDeviceObject, byte[] reportBuffer, int reportBufferLength);
+
+    [DllImport("hid.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    private static extern bool HidD_GetFeature(
+        SafeFileHandle hidDeviceObject, [In, Out] byte[] reportBuffer, int reportBufferLength);
 
     [DllImport(
         "hid.dll",

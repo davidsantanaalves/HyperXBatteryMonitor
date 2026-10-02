@@ -15,7 +15,7 @@ public sealed partial class SettingsForm : Form
     private sealed class PngIconControl : Control
     {
         private readonly PngIconCache _iconCache;
-        private readonly string _iconKey;
+        private string _iconKey;
         private bool _dark;
 
         public PngIconControl(PngIconCache iconCache, string iconKey)
@@ -28,6 +28,23 @@ public sealed partial class SettingsForm : Form
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DarkMode { get => _dark; set { _dark = value; Invalidate(); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string IconKey
+        {
+            get => _iconKey;
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value) ||
+                    string.Equals(_iconKey, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _iconKey = value;
+                Invalidate();
+            }
+        }
 
         protected override void OnPaint(PaintEventArgs e)
         {

@@ -428,7 +428,11 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
     private void UpdateNotifyIconTooltip()
     {
         bool selected = !string.IsNullOrWhiteSpace(_settings.SelectedDevice);
-        string deviceName = selected ? NormalizeDeviceName(_settings.SelectedDevice) : L("UnknownHeadphones");
+        string deviceName = selected
+            ? Localization.DeviceDisplayName(
+                NormalizeDeviceName(_settings.SelectedDevice),
+                _settings.Language)
+            : L("UnknownHeadphones");
         string battery;
         string status;
 
@@ -507,8 +511,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             _isCharging);
 
     private static string NormalizeDeviceName(string value) =>
-        string.Equals(value, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III" : value;
+        HyperXDeviceManager.NormalizeSupportedDeviceName(value);
 
     private void RestartBlinkTimer()
     {

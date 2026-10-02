@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using HyperXBatteryTray.Devices;
 
 namespace HyperXBatteryTray.Settings;
 
@@ -100,7 +102,7 @@ public sealed class SettingsManager
         try
         {
             if (!File.Exists(_batteryHistoryFile))
-                return new BatteryHistoryData();
+                return BatteryHistoryData.CreateCurrent();
 
             string json = File.ReadAllText(_batteryHistoryFile);
 
@@ -109,19 +111,26 @@ public sealed class SettingsManager
                     json,
                     JsonOptions);
 
-            if (history?.Devices == null)
-                return new BatteryHistoryData();
+            if (history?.Devices == null ||
+                history.Version != BatteryHistoryData.CurrentVersion)
+            {
+                return ResetBatteryHistory();
+            }
 
             return history;
         }
-        catch
+        catch (Exception ex)
         {
-            return new BatteryHistoryData();
+            Debug.WriteLine(
+                $"Could not load battery history; resetting it: {ex.Message}");
+            return ResetBatteryHistory();
         }
     }
 
     public void SaveBatteryHistory(BatteryHistoryData history)
     {
+        history.Version = BatteryHistoryData.CurrentVersion;
+
         Directory.CreateDirectory(_settingsDirectory);
 
         string json = JsonSerializer.Serialize(
@@ -147,6 +156,23 @@ public sealed class SettingsManager
             File.Delete(_settingsFile);
     }
 
+    private BatteryHistoryData ResetBatteryHistory()
+    {
+        BatteryHistoryData history = BatteryHistoryData.CreateCurrent();
+
+        try
+        {
+            SaveBatteryHistory(history);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"Could not persist the reset battery history: {ex.Message}");
+        }
+
+        return history;
+    }
+
     private static AppLanguage DetectWindowsLanguage()
     {
         string cultureName = CultureInfo.CurrentUICulture.Name;
@@ -168,22 +194,15 @@ public sealed class SettingsManager
         if (settings.SelectedDevice == null)
             settings.SelectedDevice = string.Empty;
 
-        if (string.Equals(settings.SelectedDevice?.Trim(), "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(settings.SelectedDevice))
         {
-            settings.SelectedDevice = "HyperX Cloud III";
+            settings.SelectedDevice =
+                HyperXDeviceManager.NormalizeSupportedDeviceName(
+                    settings.SelectedDevice);
         }
 
-        string[] supportedDeviceNames =
-        {
-            "HyperX Cloud III",
-            "HyperX Cloud III S",
-            "HyperX Cloud 2 Core",
-            "HyperX Cloud Alpha",
-            "HyperX Cloud Stinger 2"
-        };
-
         if (!string.IsNullOrWhiteSpace(settings.SelectedDevice) &&
-            !supportedDeviceNames.Contains(settings.SelectedDevice.Trim(), StringComparer.OrdinalIgnoreCase))
+            !HyperXDeviceManager.IsSupportedDeviceName(settings.SelectedDevice))
         {
             settings.SelectedDevice = string.Empty;
         }

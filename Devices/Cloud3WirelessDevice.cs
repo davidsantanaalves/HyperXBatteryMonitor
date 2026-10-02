@@ -22,6 +22,7 @@ public sealed class Cloud3WirelessDevice : IHyperXDevice
         BatteryCommandBytes = new byte[] { ProtocolReportId, BatteryResponseSelector },
         BatteryByteIndex = 4,
         SupportsMicrophoneMuteMonitoring = true,
+        SupportsChargingMonitoring = true,
         NominalBatteryLifeHours = 120
     };
 

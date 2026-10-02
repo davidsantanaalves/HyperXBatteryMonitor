@@ -29,25 +29,16 @@ The application provides a convenient way to monitor your headset directly from 
 * 🪟 Native Windows / Windows Forms interface
 * 🚀 Lightweight and designed to run in the background
 
-## What's New in Version 2.2.0
+## What's New in Version 2.3.0
 
-### Estimated remaining battery time
+* **Five new devices:** Cloud Flight S, Cloud Flight Wireless, Cloud Stinger Core Wireless + 7.1, Cloud Flight 2 (Dedicated Dongle), and Cloud Mix 2.
+* **Automatic device detection:** visual progress and guidance when no compatible device or multiple devices are found.
+* **Clear connection requirements:** Cloud III S and Cloud Flight 2 are labeled as requiring a Dedicated Dongle. A detected HyperX Three-In-One receiver is identified as an unsupported connection; monitoring through TIO is not supported.
+* **Updated Device page:** supported features, connection information, and battery information in a revised layout.
+* **More robust remaining-time estimates:** each session starts from nominal battery life and gradually incorporates validated discharge windows. Incompatible old history is reset, and implausible readings are filtered.
+* **Localization improvements:** updated English, Portuguese (Brazil), and Spanish text.
 
-The Settings sidebar, system tray menu, and tray tooltip now show estimated remaining battery time alongside the battery percentage.
-
-Estimates start from the selected model's nominal battery life and adapt to observed discharge history, saved locally across application restarts. They are approximate, are shown in hours or minutes, and are hidden while charging or disconnected.
-
-### Device monitoring fixes
-
-* Cloud Stinger 2 now implements charging-status queries and validates battery and charging responses separately.
-* Device communication uses the specific HID control interface for each supported model and report sizes provided by Windows.
-* Microphone status remains unavailable until the headset reports a known state, including after reconnection.
-* Tray tooltip text is kept within the Windows length limit.
-
-### Interface improvements
-
-* The sidebar and tray menu use the battery icon's charging indication without a separate lightning image beside the percentage.
-* Unavailable battery/device information labels are more consistent in Portuguese and Spanish.
+Remaining-time estimates are approximate and hidden while charging or disconnected.
 
 ## Headset Status Monitoring
 
@@ -73,14 +64,7 @@ When microphone mute indication is enabled, the system tray icon alternates betw
 
 When the microphone is unmuted, the tray returns to displaying only the current battery-status icon.
 
-Microphone mute monitoring is currently supported on:
-
-* **HyperX Cloud III Wireless**
-* **HyperX Cloud III S**
-* **HyperX Cloud 2 Core**
-* **HyperX Cloud Alpha**
-
-Microphone mute monitoring is not currently available for the **HyperX Cloud Stinger 2**.
+Microphone mute monitoring is available on Cloud III Wireless, Cloud III S (Dedicated Dongle), Cloud 2 Core, Cloud Alpha, Cloud Flight 2 (Dedicated Dongle), and Cloud Mix 2. See the feature matrix below for all models.
 
 ### Improved charging monitoring
 
@@ -103,37 +87,36 @@ The same information is also available from the system tray context menu and too
 
 ## Supported Devices
 
-Currently supported:
-
-* **HyperX Cloud III Wireless**
-* **HyperX Cloud III S**
-* **HyperX Cloud 2 Core**
-* **HyperX Cloud Alpha**
-* **HyperX Cloud Stinger 2**
-
-Additional HyperX devices may be supported in future versions.
+Ten headset models are currently supported. Feature availability is shown below.
 
 ### Feature availability
-
-Some headset capabilities vary by model.
 
 | Device | Battery | Charging | Microphone Mute |
 |---|:---:|:---:|:---:|
 | HyperX Cloud III Wireless | ✅ | ✅ | ✅ |
-| HyperX Cloud III S | ✅ | ✅ | ✅ |
+| HyperX Cloud III S **(Dedicated Dongle)** | ✅ | ✅ | ✅ |
 | HyperX Cloud 2 Core | ✅ | ✅ | ✅ |
 | HyperX Cloud Alpha | ✅ | ✅ | ✅ |
 | HyperX Cloud Stinger 2 | ✅ | ✅ | ⛔ |
+| HyperX Cloud Flight S | ✅ | ✅ | ⛔ |
+| HyperX Cloud Flight Wireless | ✅ | ✅ | ⛔ |
+| HyperX Cloud Stinger Core Wireless + 7.1 | ✅ | ✅ | ⛔ |
+| HyperX Cloud Flight 2 **(Dedicated Dongle)** | ✅ | ✅ | ✅ |
+| HyperX Cloud Mix 2 | ✅ | ⛔ | ✅ |
+
+**Cloud III S and Cloud Flight 2 require their Dedicated Dongle.** HyperX Three-In-One (TIO) receiver presence is detected only to explain that this connection is not yet supported for monitoring.
+
+Cloud Mix 2 supports battery and microphone mute monitoring; charging-state monitoring is unavailable.
 
 ## Requirements
 
 * Windows 10 or later
-* .NET 10
+* .NET 10 (included in the self-contained installer)
 * A supported HyperX wireless headset
 
 ## Screenshots
 
-These screenshots illustrate earlier versions; version 2.2.0 adds remaining-time estimates and updates the charging and microphone status presentation.
+These screenshots illustrate earlier versions. Version 2.3.0 updates the Device page and adds automatic detection.
 
 ### Device selection
 
@@ -165,17 +148,15 @@ These screenshots illustrate earlier versions; version 2.2.0 adds remaining-time
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.2.0, download:
+For version 2.3.0, download:
 
-✅ https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.2.0/HyperXBatteryMonitor-Setup-v2.2.0.exe (`HyperXBatteryMonitor-Setup-v2.2.0.exe`)
+[HyperXBatteryMonitor-Setup-v2.3.0.exe](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.3.0/HyperXBatteryMonitor-Setup-v2.3.0.exe)
 
 Run the installer and follow the installation instructions.
 
 After installation, HyperX Battery Monitor runs in the Windows system tray.
 
-If you prefer, you can install HyperX Battery Monitor directly from the Microsoft Store:
-
-✅ https://apps.microsoft.com/detail/9N4G6WKMM4QJ?hl=en-us&gl=BR&ocid=pdpshare
+You can also install HyperX Battery Monitor from the [Microsoft Store](https://apps.microsoft.com/detail/9N4G6WKMM4QJ).
 
 ## Usage
 
@@ -184,6 +165,8 @@ After launching the application, the HyperX Battery Monitor icon will appear in 
 Right-click the tray icon to access the device status and available options.
 
 Double-click the tray icon to open the application settings.
+
+Use automatic detection with your headset powered on and connected, or select a model manually. If several compatible headsets are detected, select the desired model manually.
 
 Selecting a headset previews its status in Settings. Click Apply or OK to save the selection and use it for system tray monitoring.
 
@@ -208,13 +191,13 @@ Microphone-related options are automatically unavailable for headset models that
 
 HyperX Battery Monitor provides multiple ways to display battery information in the Windows system tray.
 
-### Static
+### Static icon
 
 Displays the standard headset icon, with a separate charging indication when applicable.
 
-### Battery Indicator
+### Dynamic glow icon
 
-Displays the battery status using predefined battery-level indicators.
+Displays a glow around the headset icon using predefined battery-level colors.
 
 The default battery ranges are:
 
@@ -224,11 +207,9 @@ The default battery ranges are:
 * < 15% — Red
 * Charging — Charging indicator
 
-### Advanced
+### Custom dynamic icon
 
-Advanced display modes provide additional customization for the battery indicator.
-
-The Battery Gradient mode can use custom battery colors and an optional gradient transition.
+Customize battery-level colors and thresholds, with an optional gradient transition.
 
 ## Microphone Monitoring
 
@@ -282,11 +263,11 @@ These options can be configured independently through the Settings window.
 
 ## Project Status
 
-**Version:** 2.2.0
+**Version:** 2.3.0
 
 **Status:** Stable release
 
-Version 2.2.0 adds estimated remaining battery time and improves device communication, Cloud Stinger 2 charging monitoring, and microphone status handling. The five supported headset models remain unchanged.
+Version 2.3.0 supports ten headset models and adds automatic device detection, a revised Device page, and more robust adaptive remaining-time estimates.
 
 The project remains under active development, and additional devices and features may be added in future versions.
 

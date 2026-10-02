@@ -10,11 +10,17 @@ public sealed class HyperXDeviceDefinition
 
     public required string InterfacePattern { get; init; }
 
+    public IReadOnlyList<string> AlternateInterfacePatterns { get; init; } = Array.Empty<string>();
+
     public required byte[] BatteryCommandBytes { get; init; }
 
     public required int BatteryByteIndex { get; init; }
 
     public bool SupportsMicrophoneMuteMonitoring { get; init; }
+
+    public bool SupportsChargingMonitoring { get; init; }
+
+    public bool RequiresDedicatedDongle { get; init; }
 
     public double? NominalBatteryLifeHours { get; init; }
 
@@ -22,6 +28,9 @@ public sealed class HyperXDeviceDefinition
     {
         return devicePath.Contains(
             InterfacePattern,
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.OrdinalIgnoreCase) ||
+            AlternateInterfacePatterns.Any(pattern =>
+                !string.IsNullOrWhiteSpace(pattern) &&
+                devicePath.Contains(pattern, StringComparison.OrdinalIgnoreCase));
     }
 }

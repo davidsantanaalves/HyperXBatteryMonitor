@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <AssemblyName>HyperX Battery Monitor</AssemblyName>
     <Product>HyperX Battery Monitor</Product>
     <Title>HyperX Battery Monitor</Title>
@@ -34,6 +34,10 @@
     <None Update="Icons\Dark\*.png;Icons\Light\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Icons\Dark\*-bkp.png;Icons\Light\*-bkp.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
     <None Update="Icons\Vector\battery.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -43,6 +47,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Devices\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Icons\All\auto-detect-*.png;Icons\All\supported-*.png;Icons\All\unsupported-*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -198,9 +198,9 @@ public sealed partial class SettingsForm : Form
             return;
 
         string deviceName = _deviceSelector?.SelectedDeviceName ?? string.Empty;
-        string normalized = string.Equals(deviceName, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III"
-            : deviceName;
+        string normalized = string.IsNullOrWhiteSpace(deviceName)
+            ? string.Empty
+            : HyperXDeviceManager.NormalizeSupportedDeviceName(deviceName);
 
         string imageFile = normalized switch
         {
@@ -209,10 +209,17 @@ public sealed partial class SettingsForm : Form
             "HyperX Cloud 2 Core" => "cloud2core.png",
             "HyperX Cloud Alpha" => "cloudalpha.png",
             "HyperX Cloud Stinger 2" => "cloudstinger2.png",
+            "HyperX Cloud Flight S" => "cloudflights.png",
+            "HyperX Cloud Flight Wireless" => "cloudflightwireless.png",
+            "HyperX Cloud Stinger Core Wireless + 7.1" => "cloudstingercorewireless7.1.png",
+            "HyperX Cloud Flight 2" => "cloudflight2.png",
+            "HyperX Cloud Mix 2" => "cloudmix2.png",
             _ => "unknown-device.png"
         };
 
-        _sidebarDeviceNameLabel.Text = selected ? normalized : L("UnknownHeadphones");
+        _sidebarDeviceNameLabel.Text = selected
+            ? Localization.DeviceDisplayName(normalized, _selectedLanguage)
+            : L("UnknownHeadphones");
         _sidebarStatusLabel.Text = connected
             ? L("Connected")
             : selected ? L("Disconnected") : L("SidebarUnknown");
@@ -334,9 +341,9 @@ public sealed partial class SettingsForm : Form
         if (_wirelessTechnologyValueLabel == null) return;
 
         string device = _deviceSelector?.SelectedDeviceName ?? string.Empty;
-        string normalized = string.Equals(device, "HyperX Cloud III Wireless", StringComparison.OrdinalIgnoreCase)
-            ? "HyperX Cloud III"
-            : device;
+        string normalized = string.IsNullOrWhiteSpace(device)
+            ? string.Empty
+            : HyperXDeviceManager.NormalizeSupportedDeviceName(device);
 
         string[] values = normalized switch
         {
@@ -380,6 +387,46 @@ public sealed partial class SettingsForm : Form
                 L("CloudStinger2_Battery"),
                 L("CloudStinger2_ChargeTime")
             },
+            "HyperX Cloud Flight S" => new[]
+            {
+                L("CloudFlightS_WirelessTechnology"),
+                L("CloudFlightS_ConnectionMethod"),
+                L("CloudFlightS_Range"),
+                L("CloudFlightS_Battery"),
+                L("CloudFlightS_ChargeTime")
+            },
+            "HyperX Cloud Flight Wireless" => new[]
+            {
+                L("CloudFlightWireless_WirelessTechnology"),
+                L("CloudFlightWireless_ConnectionMethod"),
+                L("CloudFlightWireless_Range"),
+                L("CloudFlightWireless_Battery"),
+                L("CloudFlightWireless_ChargeTime")
+            },
+            "HyperX Cloud Stinger Core Wireless + 7.1" => new[]
+            {
+                L("CloudStingerCoreWireless_WirelessTechnology"),
+                L("CloudStingerCoreWireless_ConnectionMethod"),
+                L("CloudStingerCoreWireless_Range"),
+                L("CloudStingerCoreWireless_Battery"),
+                L("CloudStingerCoreWireless_ChargeTime")
+            },
+            "HyperX Cloud Flight 2" => new[]
+            {
+                L("CloudFlight2_WirelessTechnology"),
+                L("CloudFlight2_ConnectionMethod"),
+                L("CloudFlight2_Range"),
+                L("CloudFlight2_Battery"),
+                L("CloudFlight2_ChargeTime")
+            },
+            "HyperX Cloud Mix 2" => new[]
+            {
+                L("CloudMix2_WirelessTechnology"),
+                L("CloudMix2_ConnectionMethod"),
+                L("CloudMix2_Range"),
+                L("CloudMix2_Battery"),
+                L("CloudMix2_ChargeTime")
+            },
             _ => new[]
             {
                 L("DeviceInformationNA"),
@@ -402,6 +449,7 @@ public sealed partial class SettingsForm : Form
         _wirelessRangeValueLabel.ForeColor = valueColor;
         _batteryLifeValueLabel.ForeColor = valueColor;
         _chargeTimeValueLabel.ForeColor = valueColor;
+        UpdateDeviceCapabilities();
     }
 
     private void Device_BatteryChanged(object? sender, int battery)

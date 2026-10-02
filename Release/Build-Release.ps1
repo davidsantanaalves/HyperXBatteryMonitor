@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$BuildStorePackage
 )
 
@@ -8,13 +8,41 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'HyperXBatteryMonitor.csproj'
 $installer = Join-Path $root 'Installer\HyperXBatteryTray.iss'
+
+[xml]$projectXml = Get-Content -LiteralPath $project -Raw
+$versionNodes = @(
+    $projectXml.Project.PropertyGroup |
+        ForEach-Object { $_.Version } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+)
+
+if ($versionNodes.Count -ne 1) {
+    throw "Expected exactly one <Version> element in $project, but found $($versionNodes.Count)."
+}
+
+$appVersion = ([string]$versionNodes[0]).Trim()
+if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') {
+    throw "The project version '$appVersion' is not a numeric release version supported by the installer."
+}
+
+$versionParts = @($appVersion.Split('.') | ForEach-Object { [int]$_ })
+if ($versionParts.Count -eq 3) {
+    $versionParts += 0
+}
+
+if ($versionParts.Count -ne 4 -or @($versionParts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -ne 0) {
+    throw "The project version '$appVersion' cannot be converted to a valid four-part MSIX version."
+}
+
+$storePackageVersion = ($versionParts -join '.')
 $packageProject = Join-Path $root 'Packaging\HyperXBatteryMonitor.Package.wapproj'
+$packageManifest = Join-Path $root 'Packaging\Package.appxmanifest'
 $publish = Join-Path $root 'bin\Release\net10.0-windows10.0.17763.0\win-x64\publish'
 $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host 'Publishing HyperX Battery Monitor 2.2.0...' -ForegroundColor Cyan
+Write-Host "Publishing HyperX Battery Monitor $appVersion..." -ForegroundColor Cyan
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) {
     throw "Application publish failed with exit code $LASTEXITCODE."
@@ -44,7 +72,7 @@ if ($isccCandidates.Count -eq 0) {
 }
 
 Write-Host 'Building installer...' -ForegroundColor Cyan
-& $isccCandidates[0] $installer
+& $isccCandidates[0] "/DMyAppVersion=$appVersion" $installer
 if ($LASTEXITCODE -ne 0) {
     throw "Installer build failed with exit code $LASTEXITCODE."
 }
@@ -81,11 +109,49 @@ if ($BuildStorePackage) {
         throw 'MSBuild.exe was not found. Install Visual Studio with the Windows Application Packaging Project workload.'
     }
 
-    Write-Host 'Building Microsoft Store MSIX package...' -ForegroundColor Cyan
-    # Rebuild to prevent cached upload manifests from retaining a previous release version.
-    & $msbuild $packageProject /restore /t:Rebuild /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Store package build failed with exit code $LASTEXITCODE."
+    if (-not (Test-Path $packageManifest)) {
+        throw "Package manifest was not found: $packageManifest"
+    }
+
+    Write-Host "Building Microsoft Store MSIX package $storePackageVersion..." -ForegroundColor Cyan
+
+    # Package.appxmanifest requires a four-part numeric Identity version.
+    # HyperXBatteryMonitor.csproj remains the single version source; the manifest is
+    # updated only for the duration of this build and restored byte-for-byte afterwards.
+    $originalManifestBytes = [System.IO.File]::ReadAllBytes($packageManifest)
+    try {
+        [xml]$manifestXml = Get-Content -LiteralPath $packageManifest -Raw
+        $identityNode = $manifestXml.Package.Identity
+        if (-not $identityNode) {
+            throw "The package manifest does not contain a Package/Identity element: $packageManifest"
+        }
+
+        $identityNode.Version = $storePackageVersion
+
+        $writerSettings = [System.Xml.XmlWriterSettings]::new()
+        $writerSettings.Indent = $true
+        $writerSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
+        $writerSettings.NewLineChars = "`r`n"
+        $writerSettings.NewLineHandling = [System.Xml.NewLineHandling]::Replace
+
+        $writer = [System.Xml.XmlWriter]::Create($packageManifest, $writerSettings)
+        try {
+            $manifestXml.Save($writer)
+        }
+        finally {
+            $writer.Dispose()
+        }
+
+        # Rebuild to prevent cached upload manifests from retaining a previous release version.
+        # AppxPackageVersion is passed explicitly as an additional guard so MSBuild and the
+        # manifest agree on the exact version being packaged.
+        & $msbuild $packageProject /restore /t:Rebuild /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\" /p:AppxPackageVersion=$storePackageVersion
+        if ($LASTEXITCODE -ne 0) {
+            throw "Store package build failed with exit code $LASTEXITCODE."
+        }
+    }
+    finally {
+        [System.IO.File]::WriteAllBytes($packageManifest, $originalManifestBytes)
     }
 }
 

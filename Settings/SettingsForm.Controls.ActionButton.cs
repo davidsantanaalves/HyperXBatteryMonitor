@@ -20,6 +20,9 @@ public sealed partial class SettingsForm : Form
         private bool _dark;
         private bool _primary;
         private bool _showResetIcon;
+        private string? _iconKey;
+        private int _iconLogicalSize = 20;
+        private bool _iconOnly;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowResetIcon { get => _showResetIcon; set { _showResetIcon = value; Invalidate(); } }
@@ -29,6 +32,19 @@ public sealed partial class SettingsForm : Form
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Primary { get => _primary; set { _primary = value; Invalidate(); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string? IconKey { get => _iconKey; set { _iconKey = value; Invalidate(); } }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int IconLogicalSize
+        {
+            get => _iconLogicalSize;
+            set { _iconLogicalSize = Math.Max(1, value); Invalidate(); }
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool IconOnly { get => _iconOnly; set { _iconOnly = value; Invalidate(); } }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color OutsideBackColor { get; set; } = LightBackground;
@@ -78,19 +94,39 @@ public sealed partial class SettingsForm : Form
                 e.Graphics.DrawPath(pen, path);
 
             Rectangle textRect = Rectangle.Round(rect);
-            if (_showResetIcon)
+            string? iconKey = _showResetIcon ? "reset" : _iconKey;
+            if (!string.IsNullOrWhiteSpace(iconKey))
             {
-                float iconLeft = rect.X + PngIconCache.ScaleLogical(10f, DeviceDpi);
-                float iconTop = rect.Y + PngIconCache.ScaleLogical(8f, DeviceDpi);
-                float iconSize = PngIconCache.ScaleLogical(20f, DeviceDpi);
-                _iconCache.Draw(e.Graphics, "reset", new RectangleF(iconLeft, iconTop, iconSize, iconSize), _dark, DeviceDpi);
-                int textInset = PngIconCache.ScaleLogicalToInt(30, DeviceDpi);
-                textRect.X += textInset;
-                textRect.Width -= textInset;
+                float iconSize = PngIconCache.ScaleLogical(_iconLogicalSize, DeviceDpi);
+                float iconLeft;
+                float iconTop = rect.Y + (rect.Height - iconSize) / 2f;
+
+                if (_iconOnly)
+                {
+                    iconLeft = rect.X + (rect.Width - iconSize) / 2f;
+                }
+                else
+                {
+                    iconLeft = rect.X + PngIconCache.ScaleLogical(10f, DeviceDpi);
+                    int textInset = PngIconCache.ScaleLogicalToInt(30, DeviceDpi);
+                    textRect.X += textInset;
+                    textRect.Width -= textInset;
+                }
+
+                _iconCache.Draw(
+                    e.Graphics,
+                    iconKey,
+                    new RectangleF(iconLeft, iconTop, iconSize, iconSize),
+                    _dark,
+                    DeviceDpi);
             }
-            TextRenderer.DrawText(e.Graphics, Text, Font, textRect,
-                _primary ? Color.White : (_dark ? Color.WhiteSmoke : LightText),
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+            if (!_iconOnly)
+            {
+                TextRenderer.DrawText(e.Graphics, Text, Font, textRect,
+                    _primary ? Color.White : (_dark ? Color.WhiteSmoke : LightText),
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
         }
     }
 }
