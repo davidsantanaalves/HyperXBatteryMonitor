@@ -1,5 +1,6 @@
 ﻿param(
-    [switch]$BuildStorePackage
+    [switch]$BuildStorePackage,
+    [string]$Prerelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,30 +21,52 @@ if ($versionNodes.Count -ne 1) {
     throw "Expected exactly one <Version> element in $project, but found $($versionNodes.Count)."
 }
 
-$appVersion = ([string]$versionNodes[0]).Trim()
-if ($appVersion -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') {
-    throw "The project version '$appVersion' is not a numeric release version supported by the installer."
+$baseVersion = ([string]$versionNodes[0]).Trim()
+if ($baseVersion -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') {
+    throw "The project version '$baseVersion' is not a numeric release version supported by the installer."
 }
 
-$versionParts = @($appVersion.Split('.') | ForEach-Object { [int]$_ })
+$versionParts = @($baseVersion.Split('.') | ForEach-Object { [int]$_ })
 if ($versionParts.Count -eq 3) {
     $versionParts += 0
 }
 
 if ($versionParts.Count -ne 4 -or @($versionParts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -ne 0) {
-    throw "The project version '$appVersion' cannot be converted to a valid four-part MSIX version."
+    throw "The project version '$baseVersion' cannot be converted to a valid four-part MSIX version."
 }
 
-$storePackageVersion = ($versionParts -join '.')
+$numericVersion = ($versionParts -join '.')
+$releaseVersion = $baseVersion
+if ($PSBoundParameters.ContainsKey('Prerelease')) {
+    if ($baseVersion.Split('.').Count -ne 3) {
+        throw 'Prerelease builds require a three-part SemVer base version.'
+    }
+    if ([string]::IsNullOrWhiteSpace($Prerelease) -or
+        $Prerelease -cnotmatch '^[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$' -or
+        @($Prerelease.Split('.') | Where-Object { $_ -match '^0[0-9]+$' }).Count -ne 0) {
+        throw "Invalid SemVer prerelease identifier '$Prerelease'. Use identifiers such as beta.1 or rc.1."
+    }
+    $releaseVersion = "$baseVersion-$Prerelease"
+}
+
+$storePackageVersion = $numericVersion
 $packageProject = Join-Path $root 'Packaging\HyperXBatteryMonitor.Package.wapproj'
 $packageManifest = Join-Path $root 'Packaging\Package.appxmanifest'
-$publish = Join-Path $root 'bin\Release\net10.0-windows10.0.17763.0\win-x64\publish'
+# A fresh publish directory prevents stale assets from earlier builds entering the installer.
+$publish = Join-Path $root ("bin\Release\release-staging\" + [Guid]::NewGuid().ToString('N') + '\publish')
 $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host "Publishing HyperX Battery Monitor $appVersion..." -ForegroundColor Cyan
-dotnet publish $project -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false
+Write-Host "Publishing HyperX Battery Monitor $releaseVersion..." -ForegroundColor Cyan
+$versionProperties = @(
+    "-p:Version=$releaseVersion",
+    "-p:InformationalVersion=$releaseVersion",
+    "-p:AssemblyVersion=$numericVersion",
+    "-p:FileVersion=$numericVersion",
+    '-p:IncludeSourceRevisionInInformationalVersion=false'
+)
+dotnet publish $project -c Release -r win-x64 --self-contained true --output $publish -p:DebugType=None -p:DebugSymbols=false @versionProperties
 if ($LASTEXITCODE -ne 0) {
     throw "Application publish failed with exit code $LASTEXITCODE."
 }
@@ -72,9 +95,14 @@ if ($isccCandidates.Count -eq 0) {
 }
 
 Write-Host 'Building installer...' -ForegroundColor Cyan
-& $isccCandidates[0] "/DMyAppVersion=$appVersion" $installer
+& $isccCandidates[0] "/DMyAppVersion=$releaseVersion" "/DMyAppNumericVersion=$numericVersion" "/DMyPublishDir=$publish" $installer
 if ($LASTEXITCODE -ne 0) {
     throw "Installer build failed with exit code $LASTEXITCODE."
+}
+
+$installerOutput = Join-Path $release "HyperXBatteryMonitor-Setup-v$releaseVersion.exe"
+if (-not (Test-Path -LiteralPath $installerOutput) -or (Get-Item -LiteralPath $installerOutput).Length -eq 0) {
+    throw "Expected installer was not generated: $installerOutput"
 }
 
 if ($BuildStorePackage) {
@@ -145,7 +173,7 @@ if ($BuildStorePackage) {
         # Rebuild to prevent cached upload manifests from retaining a previous release version.
         # AppxPackageVersion is passed explicitly as an additional guard so MSBuild and the
         # manifest agree on the exact version being packaged.
-        & $msbuild $packageProject /restore /t:Rebuild /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\" /p:AppxPackageVersion=$storePackageVersion
+        & $msbuild $packageProject /restore /t:Rebuild /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$root\" /p:AppxPackageVersion=$storePackageVersion /p:Version=$releaseVersion /p:InformationalVersion=$releaseVersion /p:AssemblyVersion=$numericVersion /p:FileVersion=$numericVersion /p:IncludeSourceRevisionInInformationalVersion=false
         if ($LASTEXITCODE -ne 0) {
             throw "Store package build failed with exit code $LASTEXITCODE."
         }
@@ -156,4 +184,5 @@ if ($BuildStorePackage) {
 }
 
 Write-Host ''
+Write-Host "Published application: $publish"
 Write-Host "Release artifacts are in: $release" -ForegroundColor Green

@@ -701,10 +701,8 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
 
     private Icon LoadIconFile(string fileName)
     {
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            GetEffectiveTheme() == AppTheme.Dark ? "Dark" : "Light",
+        string path = AssetPaths.GetThemeIconPath(
+            GetEffectiveTheme() == AppTheme.Dark,
             fileName);
 
         try

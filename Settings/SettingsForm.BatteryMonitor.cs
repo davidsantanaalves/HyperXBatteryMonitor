@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -274,12 +275,9 @@ public sealed partial class SettingsForm : Form
 
     private static string GetBatteryMonitorThemeIconPath(bool dark)
     {
-        string themeFolder = dark ? "Dark" : "Light";
         string themeName = dark ? "dark" : "light";
-        return Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            themeFolder,
+        return AssetPaths.GetThemeIconPath(
+            dark,
             $"theme-{themeName}-25x25.png");
     }
 

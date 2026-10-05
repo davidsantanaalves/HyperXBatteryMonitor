@@ -454,13 +454,10 @@ internal sealed class TrayContextMenuForm : Form
         _microphoneBitmap?.Dispose();
         _microphoneBitmap = null;
 
-        string themeDirectory = dark ? "Dark" : "Light";
         string themePrefix = dark ? "dark" : "light";
         string iconName = useMuteIcon ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            themeDirectory,
+        string path = AssetPaths.GetThemeIconPath(
+            dark,
             $"{themePrefix}_{iconName}-{MicrophoneIconLogicalSize}x{MicrophoneIconLogicalSize}.png");
 
         if (File.Exists(path))
@@ -491,7 +488,7 @@ internal sealed class TrayContextMenuForm : Form
             return;
         }
 
-        string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices", fileName);
+        string path = AssetPaths.GetDeviceImagePath(fileName);
         // Detach the current image before disposing its bitmap. PictureBox can
         // access Image during layout/paint, and keeping a disposed bitmap
         // assigned to Image can result in "Parameter is not valid" exceptions.

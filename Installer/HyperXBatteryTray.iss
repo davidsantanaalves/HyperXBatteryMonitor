@@ -2,6 +2,12 @@
 #ifndef MyAppVersion
   #error MyAppVersion must be supplied by Release\Build-Release.ps1
 #endif
+#ifndef MyAppNumericVersion
+  #error MyAppNumericVersion must be supplied by Release\Build-Release.ps1
+#endif
+#ifndef MyPublishDir
+  #error MyPublishDir must be supplied by Release\Build-Release.ps1
+#endif
 #define MyAppPublisher "Dave Santana"
 #define MyAppExeName "HyperX Battery Monitor.exe"
 #define MyAppUserModelId "DaveSantana.HyperXBatteryMonitor"
@@ -15,8 +21,10 @@
 AppId={{8D7E0A6C-9D5B-4F0B-9C3E-5F5E9C2A1B71}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-VersionInfoVersion={#MyAppVersion}
-VersionInfoProductVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppNumericVersion}
+VersionInfoProductVersion={#MyAppNumericVersion}
+VersionInfoTextVersion={#MyAppVersion}
+VersionInfoProductTextVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
@@ -30,7 +38,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=admin
 
 [Files]
-Source: "..\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "{#MyAppUserModelId}"

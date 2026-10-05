@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -499,7 +500,7 @@ public sealed partial class SettingsForm : Form
 
     private static Icon? LoadApplicationIcon()
     {
-        string path = Path.Combine(AppContext.BaseDirectory, "Icons", "All", "hxbm-logo.ico");
+        string path = AssetPaths.GetBrandingAssetPath("hxbm-logo.ico");
         if (!File.Exists(path)) return null;
         using FileStream stream = File.OpenRead(path);
         return new Icon(stream);
@@ -507,7 +508,8 @@ public sealed partial class SettingsForm : Form
 
     private static Icon? LoadThemeIcon(AppTheme theme)
     {
-        string path = Path.Combine(AppContext.BaseDirectory, "Icons", theme == AppTheme.Dark ? "Dark" : "Light", theme == AppTheme.Dark ? "dark.ico" : "light.ico");
+        bool dark = theme == AppTheme.Dark;
+        string path = AssetPaths.GetThemeIconPath(dark, dark ? "dark.ico" : "light.ico");
         if (!File.Exists(path)) return null;
         using FileStream stream = File.OpenRead(path);
         return new Icon(stream);

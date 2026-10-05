@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -98,7 +99,7 @@ public sealed partial class SettingsForm : Form
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
 
-            string devicesPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices");
+            string devicesPath = AssetPaths.DevicesDirectory;
             _options = new List<DeviceOption>
             {
                 new("HyperX Cloud III", Path.Combine(devicesPath, "cloud3.png")),

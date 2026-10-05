@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -74,12 +75,9 @@ public sealed partial class SettingsForm : Form
     private Control CreateMicrophoneMuteTableIcon()
     {
         bool dark = EffectiveTheme == AppTheme.Dark;
-        string themeDirectory = dark ? "Dark" : "Light";
         string themePrefix = dark ? "dark" : "light";
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            themeDirectory,
+        string path = AssetPaths.GetThemeIconPath(
+            dark,
             $"{themePrefix}_mute-{StandardUiIconLogicalSize}x{StandardUiIconLogicalSize}.png");
 
         return File.Exists(path)

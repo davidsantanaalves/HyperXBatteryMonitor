@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HyperXBatteryTray.Devices;
@@ -12,7 +13,7 @@ public static class Localization
     private const string ResourcePrefix = "HyperXBatteryTray.Languages.";
 
     private static readonly Regex FormatPlaceholderRegex = new(
-        @"(?<!\{)\{(\d+)(?:,[^}:]+)?(?::[^}]+)?\}(?!\})",
+        @"(?:\{\{|\}\})|\{([0-9]+) *(?:,[^}:]+)?(?::[^}]*)?\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly LanguageDefinition[] LanguageDefinitions =
@@ -138,6 +139,19 @@ public static class Localization
             DefinitionsByLanguage[AppLanguage.English];
 
         Dictionary<string, string> english = LoadCatalog(englishDefinition);
+        foreach ((string key, string value) in english)
+        {
+            try
+            {
+                CompositeFormat.Parse(value);
+            }
+            catch (FormatException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Invalid canonical English format string: {englishDefinition.ResourceFileName} / {key}",
+                    ex);
+            }
+        }
         catalogs[AppLanguage.English] = english;
 
         foreach (LanguageDefinition definition in LanguageDefinitions)
@@ -227,7 +241,7 @@ public static class Localization
             if (!HasMatchingFormatPlaceholders(englishValue, localized[key]))
             {
                 Debug.WriteLine(
-                    $"Localization placeholders do not match English; English fallback will be used: " +
+                    $"Localization format string is malformed or placeholders do not match English; English fallback will be used: " +
                     $"{definition.ResourceFileName} / {key}");
                 localized.Remove(key);
             }
@@ -246,6 +260,21 @@ public static class Localization
 
     private static bool HasMatchingFormatPlaceholders(string english, string localized)
     {
+        // Syntax belongs to the native parser; the regex only extracts argument indices.
+        CompositeFormat englishFormat = CompositeFormat.Parse(english);
+        CompositeFormat localizedFormat;
+        try
+        {
+            localizedFormat = CompositeFormat.Parse(localized);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        if (englishFormat.MinimumArgumentCount != localizedFormat.MinimumArgumentCount)
+            return false;
+
         int[] englishPlaceholders = ExtractFormatPlaceholders(english);
         int[] localizedPlaceholders = ExtractFormatPlaceholders(localized);
 
@@ -257,6 +286,7 @@ public static class Localization
         return FormatPlaceholderRegex
             .Matches(text)
             .Cast<Match>()
+            .Where(match => match.Groups[1].Success)
             .Select(match => int.Parse(
                 match.Groups[1].Value,
                 CultureInfo.InvariantCulture))

@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -193,17 +194,17 @@ public sealed partial class SettingsForm : Form
 
         private void LoadBitmaps()
         {
-            _darkIcon = LoadIcon("Dark", "dark.ico");
-            _lightIcon = LoadIcon("Light", "light.ico");
-            _darkCharging = LoadIcon("Dark", "dark_charging.ico");
-            _lightCharging = LoadIcon("Light", "light_charging.ico");
+            _darkIcon = LoadIcon(true, "dark.ico");
+            _lightIcon = LoadIcon(false, "light.ico");
+            _darkCharging = LoadIcon(true, "dark_charging.ico");
+            _lightCharging = LoadIcon(false, "light_charging.ico");
         }
 
-        private static Bitmap? LoadIcon(string folder, string file)
+        private static Bitmap? LoadIcon(bool darkMode, string file)
         {
             try
             {
-                string path = Path.Combine(AppContext.BaseDirectory, "Icons", folder, file);
+                string path = AssetPaths.GetThemeIconPath(darkMode, file);
                 if (!File.Exists(path))
                     return null;
 

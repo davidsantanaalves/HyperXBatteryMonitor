@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using Microsoft.Toolkit.Uwp.Notifications;
 using HyperXBatteryTray.Settings;
 
@@ -215,11 +216,7 @@ public sealed class NotificationService
         if (fileName == null)
             return null;
 
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Assets",
-            "Devices",
-            fileName);
+        string path = AssetPaths.GetDeviceImagePath(fileName);
 
         return File.Exists(path)
             ? path

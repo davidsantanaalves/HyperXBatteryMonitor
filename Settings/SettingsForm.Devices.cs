@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -277,7 +278,7 @@ public sealed partial class SettingsForm : Form
 
         if (!string.IsNullOrWhiteSpace(imageFile))
         {
-            string imagePath = Path.Combine(AppContext.BaseDirectory, "Assets", "Devices", imageFile);
+            string imagePath = AssetPaths.GetDeviceImagePath(imageFile);
             if (File.Exists(imagePath))
             {
                 try
@@ -308,13 +309,10 @@ public sealed partial class SettingsForm : Form
         _sidebarMicrophoneIcon.Image = null;
         previous?.Dispose();
 
-        string themeDirectory = dark ? "Dark" : "Light";
         string themePrefix = dark ? "dark" : "light";
         string iconName = useMuteIcon ? MicrophoneMutedIconAssetName : MicrophoneOpenIconAssetName;
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Icons",
-            themeDirectory,
+        string path = AssetPaths.GetThemeIconPath(
+            dark,
             $"{themePrefix}_{iconName}-{SidebarMicrophoneIconLogicalSize}x{SidebarMicrophoneIconLogicalSize}.png");
 
         if (File.Exists(path))

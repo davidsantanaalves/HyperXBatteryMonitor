@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -38,7 +39,7 @@ public sealed partial class SettingsForm : Form
         };
         try
         {
-            string logoPath = Path.Combine(AppContext.BaseDirectory, "Icons", "All", "hxbm-logo-64x64.png");
+            string logoPath = AssetPaths.GetBrandingAssetPath("hxbm-logo-64x64.png");
             if (File.Exists(logoPath))
             {
                 using Image source = Image.FromFile(logoPath);

@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using HyperXBatteryTray.Devices;
@@ -566,20 +567,12 @@ public sealed partial class SettingsForm : Form
             _detectionImage?.Dispose();
             _detectionImage = null;
 
-            string imagePath = Path.Combine(
-                AppContext.BaseDirectory,
-                "Assets",
-                "Devices",
-                fileName);
+            string imagePath = AssetPaths.GetDeviceImagePath(fileName);
 
             if (!File.Exists(imagePath) &&
                 !string.IsNullOrWhiteSpace(fallbackFileName))
             {
-                imagePath = Path.Combine(
-                    AppContext.BaseDirectory,
-                    "Assets",
-                    "Devices",
-                    fallbackFileName);
+                imagePath = AssetPaths.GetDeviceImagePath(fallbackFileName);
             }
 
             if (File.Exists(imagePath))

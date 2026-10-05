@@ -1,3 +1,4 @@
+using HyperXBatteryTray;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -182,23 +183,23 @@ public sealed partial class SettingsForm : Form
 
         private void LoadBitmaps()
         {
-            _darkIcon = LoadIconBitmap("Dark", "dark.ico");
-            _lightIcon = LoadIconBitmap("Light", "light.ico");
-            _darkChargingIcon = LoadIconBitmap("Dark", "dark_charging.ico");
-            _lightChargingIcon = LoadIconBitmap("Light", "light_charging.ico");
+            _darkIcon = LoadIconBitmap(true, "dark.ico");
+            _lightIcon = LoadIconBitmap(false, "light.ico");
+            _darkChargingIcon = LoadIconBitmap(true, "dark_charging.ico");
+            _lightChargingIcon = LoadIconBitmap(false, "light_charging.ico");
 
             if (!string.IsNullOrWhiteSpace(_levelIconStem))
             {
-                _darkLevelIcon = LoadIconBitmap("Dark", $"dark_{_levelIconStem}.ico");
-                _lightLevelIcon = LoadIconBitmap("Light", $"light_{_levelIconStem}.ico");
+                _darkLevelIcon = LoadIconBitmap(true, $"dark_{_levelIconStem}.ico");
+                _lightLevelIcon = LoadIconBitmap(false, $"light_{_levelIconStem}.ico");
             }
         }
 
-        private static Bitmap? LoadIconBitmap(string themeFolder, string fileName)
+        private static Bitmap? LoadIconBitmap(bool darkMode, string fileName)
         {
             try
             {
-                string path = Path.Combine(AppContext.BaseDirectory, "Icons", themeFolder, fileName);
+                string path = AssetPaths.GetThemeIconPath(darkMode, fileName);
                 if (!File.Exists(path))
                     return null;
 
