@@ -137,7 +137,7 @@ public sealed partial class SettingsForm : Form
         base.OnHandleCreated(e);
         ApplyTitleBarTheme(EffectiveTheme == AppTheme.Dark);
         ApplyCurrentScrollThemes(EffectiveTheme == AppTheme.Dark);
-        PositionFooterButtons();
+        PositionFooter();
         _iconCache.ClearBitmaps();
         WarmUpIcons();
     }
@@ -443,7 +443,7 @@ public sealed partial class SettingsForm : Form
         BuildSidebar();
         ShowPage("Device");
 
-        _resetButton = CreateFooterButton(L("RestoreDefaults"), false);
+        _resetButton = CreateFooterButton(L("ResetToDefaults"), false, showResetIcon: true);
         _okButton = CreateFooterButton(L("Ok"), true);
         _cancelButton = CreateFooterButton(L("Cancel"), false);
         _applyButton = CreateFooterButton(L("Apply"), false);

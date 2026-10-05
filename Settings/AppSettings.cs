@@ -3,6 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace HyperXBatteryTray.Settings;
 
+public enum AppTheme
+{
+    Light,
+    Dark,
+    System
+}
+
 public enum BatteryDisplayMode
 {
     StaticIcon,

@@ -15,7 +15,7 @@ public sealed partial class SettingsForm : Form
     private void LanguageComboBox_SelectedIndexChanged(object? sender, EventArgs e)
     {
         if (_updatingLanguage || _languageComboBox.SelectedIndex < 0) return;
-        _selectedLanguage = (AppLanguage)_languageComboBox.SelectedIndex;
+        _selectedLanguage = Localization.LanguageAt(_languageComboBox.SelectedIndex);
         ApplyLocalizedText();
         ShowPage(_currentPage);
         ApplyTheme(_selectedTheme);
@@ -34,10 +34,12 @@ public sealed partial class SettingsForm : Form
     private void ApplyLocalizedText()
     {
         Text = GetWindowTitle();
-        _resetButton.Text = L("RestoreDefaults");
+        _resetButton.Text = L("ResetToDefaults");
         _okButton.Text = L("Ok");
         _cancelButton.Text = L("Cancel");
         _applyButton.Text = L("Apply");
+        _footer?.PerformLayout();
+        PositionFooter();
         foreach ((string key, SidebarItem item) in _navButtons)
             item.Text = L(GetSidebarLocalizationKey(key));
         if (_sidebarStatusTitleLabel != null)
@@ -58,12 +60,16 @@ public sealed partial class SettingsForm : Form
         if (_systemThemeOption != null) _systemThemeOption.LabelText = ThemeText(AppTheme.System);
         if (_startupToggle != null) _startupToggle.Invalidate();
 
-        if (_languageComboBox != null && _languageComboBox.Items.Count == 3)
+        if (_languageComboBox != null &&
+            _languageComboBox.Items.Count == Localization.SupportedLanguages.Count)
         {
             _updatingLanguage = true;
-            _languageComboBox.Items[0] = Localization.LanguageDisplay(AppLanguage.English);
-            _languageComboBox.Items[1] = Localization.LanguageDisplay(AppLanguage.PortugueseBrazil);
-            _languageComboBox.Items[2] = Localization.LanguageDisplay(AppLanguage.Spanish);
+            for (int i = 0; i < Localization.SupportedLanguages.Count; i++)
+            {
+                _languageComboBox.Items[i] =
+                    Localization.LanguageDisplay(Localization.SupportedLanguages[i]);
+            }
+            _languageComboBox.SelectedIndex = Localization.LanguageIndex(_selectedLanguage);
             _updatingLanguage = false;
         }
     }

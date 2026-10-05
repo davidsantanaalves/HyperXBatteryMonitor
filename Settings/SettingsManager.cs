@@ -7,6 +7,8 @@ namespace HyperXBatteryTray.Settings;
 
 public sealed class SettingsManager
 {
+    private const string TemporaryFileSuffix = ".tmp";
+
     private readonly string _settingsDirectory;
     private readonly string _settingsFile;
     private readonly string _batteryHistoryFile;
@@ -85,7 +87,7 @@ public sealed class SettingsManager
             JsonOptions);
 
         string temporaryFile =
-            _settingsFile + ".tmp";
+            _settingsFile + TemporaryFileSuffix;
 
         File.WriteAllText(
             temporaryFile,
@@ -138,7 +140,7 @@ public sealed class SettingsManager
             JsonOptions);
 
         string temporaryFile =
-            _batteryHistoryFile + ".tmp";
+            _batteryHistoryFile + TemporaryFileSuffix;
 
         File.WriteAllText(
             temporaryFile,
@@ -150,10 +152,18 @@ public sealed class SettingsManager
             overwrite: true);
     }
 
-    public void Reset()
+    public void DeleteUserData()
     {
-        if (File.Exists(_settingsFile))
-            File.Delete(_settingsFile);
+        DeleteFileIfExists(_settingsFile);
+        DeleteFileIfExists(_settingsFile + TemporaryFileSuffix);
+        DeleteFileIfExists(_batteryHistoryFile);
+        DeleteFileIfExists(_batteryHistoryFile + TemporaryFileSuffix);
+    }
+
+    private static void DeleteFileIfExists(string path)
+    {
+        if (File.Exists(path))
+            File.Delete(path);
     }
 
     private BatteryHistoryData ResetBatteryHistory()
@@ -175,18 +185,7 @@ public sealed class SettingsManager
 
     private static AppLanguage DetectWindowsLanguage()
     {
-        string cultureName = CultureInfo.CurrentUICulture.Name;
-
-        if (cultureName.StartsWith("pt-", StringComparison.OrdinalIgnoreCase))
-            return AppLanguage.PortugueseBrazil;
-
-        if (cultureName.StartsWith("es-", StringComparison.OrdinalIgnoreCase))
-            return AppLanguage.Spanish;
-
-        if (cultureName.StartsWith("en-", StringComparison.OrdinalIgnoreCase))
-            return AppLanguage.English;
-
-        return AppLanguage.English;
+        return Localization.DetectLanguage(CultureInfo.CurrentUICulture);
     }
 
     private static void Normalize(AppSettings settings)

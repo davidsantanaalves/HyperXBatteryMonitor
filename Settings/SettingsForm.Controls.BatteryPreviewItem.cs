@@ -15,6 +15,10 @@ public sealed partial class SettingsForm : Form
     private sealed class BatteryPreviewItem : Control
     {
         private const int PreviewIconLogicalSize = 24;
+        private const int PreviewLabelHorizontalInsetLogical = 4;
+        private const int PreviewMinimumLineHeightLogical = 14;
+        private const int PreviewMinimumIconLogicalSize = 20;
+        private const int PreviewIconLabelGapLogical = 2;
 
         private readonly BatteryPreviewKind _kind;
         private readonly Color _accentColor;
@@ -87,9 +91,33 @@ public sealed partial class SettingsForm : Form
                 e.Graphics.DrawRoundedRectangle(tilePen, tile, ScaleLogical(8));
             }
 
-            int labelHeight = Math.Max(ScaleLogical(16), Math.Min(ScaleLogical(20), Height / 3));
-            int iconAreaHeight = Math.Max(ScaleLogical(20), Height - labelHeight - ScaleLogical(2));
-            int availableIconSize = Math.Max(1, Math.Min(Width - ScaleLogical(12), iconAreaHeight - ScaleLogical(2)));
+            using Font labelFont = new("Segoe UI", 8.2f);
+            int labelHorizontalInset = ScaleLogical(PreviewLabelHorizontalInsetLogical);
+            int availableLabelWidth = Math.Max(1, Width - labelHorizontalInset * 2);
+            Size singleLineSize = TextRenderer.MeasureText(
+                _label,
+                labelFont,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            int lineHeight = Math.Max(ScaleLogical(PreviewMinimumLineHeightLogical), TextRenderer.MeasureText(
+                "Ag",
+                labelFont,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Height);
+            bool needsSecondLine = singleLineSize.Width > availableLabelWidth;
+            int desiredLabelHeight = lineHeight * (needsSecondLine ? 2 : 1);
+            int minimumIconAreaHeight = ScaleLogical(PreviewMinimumIconLogicalSize) + ScaleLogical(PreviewIconLabelGapLogical);
+            int labelHeight = Math.Min(
+                desiredLabelHeight,
+                Math.Max(lineHeight, Height - minimumIconAreaHeight));
+            int iconAreaHeight = Math.Max(
+                ScaleLogical(PreviewMinimumIconLogicalSize),
+                Height - labelHeight - ScaleLogical(PreviewIconLabelGapLogical));
+            int availableIconSize = Math.Max(
+                1,
+                Math.Min(
+                    Width - ScaleLogical(12),
+                    iconAreaHeight - ScaleLogical(PreviewIconLabelGapLogical)));
             int iconSize = Math.Min(ScaleLogical(PreviewIconLogicalSize), availableIconSize);
 
             float contentHeight = iconSize + labelHeight;
@@ -132,11 +160,10 @@ public sealed partial class SettingsForm : Form
                 }
             }
 
-            using Font labelFont = new("Segoe UI", 8.2f);
             Color text = _dark ? Color.WhiteSmoke : LightText;
             Rectangle labelRect = _showTile
-                ? new Rectangle(0, (int)Math.Round(contentTop + iconSize), Width, labelHeight)
-                : new Rectangle(0, Height - labelHeight, Width, labelHeight);
+                ? new Rectangle(labelHorizontalInset, (int)Math.Round(contentTop + iconSize), availableLabelWidth, labelHeight)
+                : new Rectangle(labelHorizontalInset, Height - labelHeight, availableLabelWidth, labelHeight);
             TextRenderer.DrawText(
                 e.Graphics,
                 _label,
@@ -145,6 +172,7 @@ public sealed partial class SettingsForm : Form
                 text,
                 TextFormatFlags.HorizontalCenter |
                 TextFormatFlags.VerticalCenter |
+                TextFormatFlags.WordBreak |
                 TextFormatFlags.NoPrefix |
                 TextFormatFlags.EndEllipsis);
         }
