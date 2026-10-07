@@ -1,4 +1,4 @@
-# HyperX Battery Monitor
+# Hyper Battery Monitor
 
 A lightweight Windows system tray application for monitoring the battery, charging, connection, and microphone mute status of supported **HyperX wireless headsets**.
 
@@ -42,11 +42,11 @@ Remaining-time estimates are approximate and hidden while charging or disconnect
 
 ## Headset Status Monitoring
 
-HyperX Battery Monitor displays battery, charging, connection, and supported microphone mute information.
+Hyper Battery Monitor displays battery, charging, connection, and supported microphone mute information.
 
 ### Microphone mute monitoring
 
-Supported headsets can report their microphone mute state directly to HyperX Battery Monitor.
+Supported headsets can report their microphone mute state directly to Hyper Battery Monitor.
 
 The microphone state is displayed in:
 
@@ -70,7 +70,7 @@ Microphone mute monitoring is available on Cloud III Wireless, Cloud III S (Dedi
 
 Charging-state support has been expanded across the supported headset implementations.
 
-When a headset is charging, HyperX Battery Monitor can indicate the charging state through the system tray and device monitoring interface.
+When a headset is charging, Hyper Battery Monitor can indicate the charging state through the system tray and device monitoring interface.
 
 The sidebar and tray menu indicate charging through the battery icon when applicable.
 
@@ -148,19 +148,19 @@ These screenshots illustrate earlier versions. Version 2.3.0 updates the Device 
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.3.0, download:
+For version 2.3.1, download:
 
-[HyperXBatteryMonitor-Setup-v2.3.0.exe](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.3.0/HyperXBatteryMonitor-Setup-v2.3.0.exe)
+[HyperBatteryMonitor-Setup-v2.3.1.exe](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.3.1/HyperBatteryMonitor-Setup-v2.3.1.exe)
 
 Run the installer and follow the installation instructions.
 
-After installation, HyperX Battery Monitor runs in the Windows system tray.
+After installation, Hyper Battery Monitor runs in the Windows system tray.
 
-You can also install HyperX Battery Monitor from the [Microsoft Store](https://apps.microsoft.com/detail/9N4G6WKMM4QJ).
+You can also install Hyper Battery Monitor from the [Microsoft Store](https://apps.microsoft.com/detail/9N4G6WKMM4QJ).
 
 ## Usage
 
-After launching the application, the HyperX Battery Monitor icon will appear in the Windows notification area.
+After launching the application, the Hyper Battery Monitor icon will appear in the Windows notification area.
 
 Right-click the tray icon to access the device status and available options.
 
@@ -189,7 +189,7 @@ Microphone-related options are automatically unavailable for headset models that
 
 ## Battery Monitor Modes
 
-HyperX Battery Monitor provides multiple ways to display battery information in the Windows system tray.
+Hyper Battery Monitor provides multiple ways to display battery information in the Windows system tray.
 
 ### Static icon
 
@@ -213,7 +213,7 @@ Customize battery-level colors and thresholds, with an optional gradient transit
 
 ## Microphone Monitoring
 
-For supported headsets, HyperX Battery Monitor monitors microphone mute-state changes and updates the interface automatically.
+For supported headsets, Hyper Battery Monitor monitors microphone mute-state changes and updates the interface automatically.
 
 The current microphone state can be viewed in:
 
@@ -234,7 +234,7 @@ This feature is enabled by default for headset models that support microphone mu
 
 ## Charging Status
 
-HyperX Battery Monitor monitors charging state on supported devices.
+Hyper Battery Monitor monitors charging state on supported devices.
 
 When charging is detected, the application can:
 
@@ -288,7 +288,7 @@ The project does not distribute third-party proprietary HyperX software or requi
 
 ## Independent Project
 
-HyperX Battery Monitor is an independent, community-developed utility.
+Hyper Battery Monitor is an independent, community-developed utility.
 
 It is **not affiliated with, endorsed by, sponsored by, or officially associated with HyperX or HP Inc.**
 
@@ -314,7 +314,7 @@ Independent developer.
 
 ## Support the Project
 
-If you find HyperX Battery Monitor useful and would like to support its development:
+If you find Hyper Battery Monitor useful and would like to support its development:
 
 ☕ [Buy Me a Coffee](https://buymeacoffee.com/davesantana)
 
@@ -340,7 +340,7 @@ Use the application at your own discretion.
 
 A special thank you to auto94, the author of HyperX-Cloud-2-Battery-Monitor.
 
-This project was an important reference during the development of HyperX Battery Monitor, particularly in expanding device support beyond the original HyperX Cloud III Wireless implementation.
+This project was an important reference during the development of Hyper Battery Monitor, particularly in expanding device support beyond the original HyperX Cloud III Wireless implementation.
 
 We are grateful to the author for making the project available under the MIT License and for contributing to the HyperX community with an open-source solution that helped make further development possible.
 

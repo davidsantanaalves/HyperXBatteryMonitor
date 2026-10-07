@@ -7,11 +7,19 @@ namespace HyperXBatteryTray.Settings;
 
 public sealed class SettingsManager
 {
+    private const string CurrentSettingsDirectoryName = "Hyper Battery Monitor";
+    private const string LegacySettingsDirectoryName = "HyperXBatteryTray";
+    private const string SettingsFileName = "settings.json";
+    private const string BatteryHistoryFileName = "battery-history.json";
     private const string TemporaryFileSuffix = ".tmp";
+    private const string MigrationTemporaryFileSuffix = ".migration.tmp";
 
     private readonly string _settingsDirectory;
     private readonly string _settingsFile;
     private readonly string _batteryHistoryFile;
+    private readonly string _legacySettingsDirectory;
+    private readonly string _legacySettingsFile;
+    private readonly string _legacyBatteryHistoryFile;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -20,18 +28,32 @@ public sealed class SettingsManager
 
     public SettingsManager()
     {
+        string localApplicationData = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData);
+
         _settingsDirectory = Path.Combine(
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData),
-            "HyperXBatteryTray");
+            localApplicationData,
+            CurrentSettingsDirectoryName);
 
         _settingsFile = Path.Combine(
             _settingsDirectory,
-            "settings.json");
+            SettingsFileName);
 
         _batteryHistoryFile = Path.Combine(
             _settingsDirectory,
-            "battery-history.json");
+            BatteryHistoryFileName);
+
+        _legacySettingsDirectory = Path.Combine(
+            localApplicationData,
+            LegacySettingsDirectoryName);
+
+        _legacySettingsFile = Path.Combine(
+            _legacySettingsDirectory,
+            SettingsFileName);
+
+        _legacyBatteryHistoryFile = Path.Combine(
+            _legacySettingsDirectory,
+            BatteryHistoryFileName);
     }
 
     public AppSettings Load()
@@ -152,18 +174,148 @@ public sealed class SettingsManager
             overwrite: true);
     }
 
+    public void MigrateLegacyUserData()
+    {
+        if (!Directory.Exists(_legacySettingsDirectory) ||
+            PathsEqual(_legacySettingsDirectory, _settingsDirectory))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(_settingsDirectory);
+
+        MigrateJsonFile(
+            _legacySettingsFile,
+            _settingsFile,
+            IsValidSettingsFile);
+
+        MigrateJsonFile(
+            _legacyBatteryHistoryFile,
+            _batteryHistoryFile,
+            IsValidBatteryHistoryFile);
+
+        DeleteFileIfExists(
+            _legacySettingsFile + TemporaryFileSuffix);
+        DeleteFileIfExists(
+            _legacyBatteryHistoryFile + TemporaryFileSuffix);
+
+        DeleteFileIfExists(_legacySettingsFile);
+        DeleteFileIfExists(_legacyBatteryHistoryFile);
+
+        if (!Directory.EnumerateFileSystemEntries(
+                _legacySettingsDirectory).Any())
+        {
+            Directory.Delete(_legacySettingsDirectory);
+        }
+    }
+
     public void DeleteUserData()
     {
-        DeleteFileIfExists(_settingsFile);
-        DeleteFileIfExists(_settingsFile + TemporaryFileSuffix);
-        DeleteFileIfExists(_batteryHistoryFile);
-        DeleteFileIfExists(_batteryHistoryFile + TemporaryFileSuffix);
+        DeleteDirectoryIfExists(_settingsDirectory);
+
+        if (!PathsEqual(
+                _legacySettingsDirectory,
+                _settingsDirectory))
+        {
+            DeleteDirectoryIfExists(_legacySettingsDirectory);
+        }
+    }
+
+    private static void MigrateJsonFile(
+        string sourcePath,
+        string destinationPath,
+        Func<string, bool> validator)
+    {
+        if (!File.Exists(sourcePath))
+            return;
+
+        if (File.Exists(destinationPath) && validator(destinationPath))
+            return;
+
+        string migrationTemporaryFile =
+            destinationPath + MigrationTemporaryFileSuffix;
+
+        DeleteFileIfExists(migrationTemporaryFile);
+
+        try
+        {
+            File.Copy(
+                sourcePath,
+                migrationTemporaryFile,
+                overwrite: true);
+
+            if (!validator(migrationTemporaryFile))
+            {
+                throw new InvalidDataException(
+                    $"Legacy user data is invalid and was preserved at '{sourcePath}'.");
+            }
+
+            File.Move(
+                migrationTemporaryFile,
+                destinationPath,
+                overwrite: true);
+        }
+        finally
+        {
+            DeleteFileIfExists(migrationTemporaryFile);
+        }
+    }
+
+    private static bool IsValidSettingsFile(string path)
+    {
+        try
+        {
+            string json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<AppSettings>(
+                json,
+                JsonOptions) != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidBatteryHistoryFile(string path)
+    {
+        try
+        {
+            string json = File.ReadAllText(path);
+            BatteryHistoryData? history =
+                JsonSerializer.Deserialize<BatteryHistoryData>(
+                    json,
+                    JsonOptions);
+
+            return history?.Devices != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool PathsEqual(
+        string firstPath,
+        string secondPath)
+    {
+        return string.Equals(
+            Path.GetFullPath(firstPath)
+                .TrimEnd(Path.DirectorySeparatorChar),
+            Path.GetFullPath(secondPath)
+                .TrimEnd(Path.DirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static void DeleteFileIfExists(string path)
     {
         if (File.Exists(path))
             File.Delete(path);
+    }
+
+    private static void DeleteDirectoryIfExists(string path)
+    {
+        if (Directory.Exists(path))
+            Directory.Delete(path, recursive: true);
     }
 
     private BatteryHistoryData ResetBatteryHistory()

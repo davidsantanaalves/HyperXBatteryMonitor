@@ -8,9 +8,12 @@ public sealed class StartupManager
         @"Software\Microsoft\Windows\CurrentVersion\Run";
 
     private const string AppName =
-        "HyperXBatteryMonitor";
+        "HyperBatteryMonitor";
 
     private const string LegacyAppName =
+        "HyperXBatteryMonitor";
+
+    private const string OlderLegacyAppName =
         "HyperXBatteryTray";
 
     public bool IsEnabled()
@@ -21,22 +24,26 @@ public sealed class StartupManager
         if (key == null)
             return false;
 
-        object? value = key.GetValue(AppName);
+        return HasStartupEntry(key, AppName) ||
+               HasStartupEntry(key, LegacyAppName) ||
+               HasStartupEntry(key, OlderLegacyAppName);
+    }
 
-        if (value is not string)
-            value = key.GetValue(LegacyAppName);
+    public void MigrateLegacyRegistration()
+    {
+        using RegistryKey? readKey =
+            Registry.CurrentUser.OpenSubKey(RunKey);
 
-        string? command = value as string;
+        bool wasEnabled =
+            readKey != null &&
+            (HasStartupEntry(readKey, AppName) ||
+             HasStartupEntry(readKey, LegacyAppName) ||
+             HasStartupEntry(readKey, OlderLegacyAppName));
 
-        if (command == null)
-            return false;
+        if (!wasEnabled)
+            return;
 
-        string executablePath = Application.ExecutablePath;
-
-        return !string.IsNullOrWhiteSpace(command) &&
-               command.Equals(
-                   $"\"{executablePath}\"",
-                   StringComparison.OrdinalIgnoreCase);
+        Enable();
     }
 
     public void Enable()
@@ -64,8 +71,12 @@ public sealed class StartupManager
             command,
             RegistryValueKind.String);
 
-        // Remove the legacy startup entry after successfully configuring the new one.
-        key.DeleteValue(LegacyAppName, throwOnMissingValue: false);
+        key.DeleteValue(
+            LegacyAppName,
+            throwOnMissingValue: false);
+        key.DeleteValue(
+            OlderLegacyAppName,
+            throwOnMissingValue: false);
 
         object? savedValue = key.GetValue(AppName);
 
@@ -92,5 +103,16 @@ public sealed class StartupManager
         key?.DeleteValue(
             LegacyAppName,
             throwOnMissingValue: false);
+        key?.DeleteValue(
+            OlderLegacyAppName,
+            throwOnMissingValue: false);
+    }
+
+    private static bool HasStartupEntry(
+        RegistryKey key,
+        string valueName)
+    {
+        return key.GetValue(valueName) is string command &&
+               !string.IsNullOrWhiteSpace(command);
     }
 }

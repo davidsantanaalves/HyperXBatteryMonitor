@@ -7,9 +7,9 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>2.3.1</Version>
-    <AssemblyName>HyperX Battery Monitor</AssemblyName>
-    <Product>HyperX Battery Monitor</Product>
-    <Title>HyperX Battery Monitor</Title>
+    <AssemblyName>Hyper Battery Monitor</AssemblyName>
+    <Product>Hyper Battery Monitor</Product>
+    <Title>Hyper Battery Monitor</Title>
     <ApplicationIcon>Assets\Branding\hxbm-logo.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>

@@ -51,7 +51,7 @@ public sealed partial class SettingsForm : Form
         identityLayout.Controls.Add(logo, 0, 0);
         TableLayoutPanel identityText = new() { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Color.Transparent };
         identityText.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(30))); identityText.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(22))); identityText.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        identityText.Controls.Add(new Label { Text = "HyperX Battery Monitor", Dock = DockStyle.Fill, Font = new Font("Segoe UI Semibold", 15f), ForeColor = foreground, BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
+        identityText.Controls.Add(new Label { Text = Application.ProductName, Dock = DockStyle.Fill, Font = new Font("Segoe UI Semibold", 15f), ForeColor = foreground, BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         identityText.Controls.Add(new Label { Text = string.Format(L("AboutVersion"), Application.ProductVersion.Split('+')[0]), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8.5f), ForeColor = secondary, BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
         identityText.Controls.Add(new Label { Text = L("AboutTagline"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9f), ForeColor = foreground, BackColor = Color.Transparent, TextAlign = ContentAlignment.TopLeft }, 0, 2);
         identityLayout.Controls.Add(identityText, 1, 0);
@@ -75,11 +75,11 @@ public sealed partial class SettingsForm : Form
             actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / actions.ColumnCount));
 
         AboutActionButton githubButton = CreateAboutActionButton(L("AboutGitHub"), AboutActionIcon.GitHub, dark, 0, 0, 118);
-        githubButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryTray");
+        githubButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryMonitor");
         AboutActionButton supportButton = CreateAboutActionButton(L("AboutSupportButton"), AboutActionIcon.Support, dark, 0, 0, 118);
         supportButton.Click += (_, _) => OpenExternalUrl("https://buymeacoffee.com/davesantana");
         AboutActionButton documentationButton = CreateAboutActionButton(L("AboutDocumentation"), AboutActionIcon.Documentation, dark, 0, 0, 138);
-        documentationButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryTray#readme");
+        documentationButton.Click += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryMonitor#readme");
         AboutActionButton hyperXButton = CreateAboutActionButton(L("AboutHyperX"), AboutActionIcon.External, dark, 0, 0, 118);
         hyperXButton.Click += (_, _) => OpenExternalUrl("https://hyperx.com/");
 

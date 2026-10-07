@@ -58,7 +58,7 @@ $release = Join-Path $root 'Releases'
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
-Write-Host "Publishing HyperX Battery Monitor $releaseVersion..." -ForegroundColor Cyan
+Write-Host "Publishing Hyper Battery Monitor $releaseVersion..." -ForegroundColor Cyan
 $versionProperties = @(
     "-p:Version=$releaseVersion",
     "-p:InformationalVersion=$releaseVersion",
@@ -71,7 +71,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Application publish failed with exit code $LASTEXITCODE."
 }
 
-$exe = Join-Path $publish 'HyperX Battery Monitor.exe'
+$exe = Join-Path $publish 'Hyper Battery Monitor.exe'
 if (-not (Test-Path $exe)) {
     throw "Published executable was not found: $exe"
 }
@@ -100,7 +100,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Installer build failed with exit code $LASTEXITCODE."
 }
 
-$installerOutput = Join-Path $release "HyperXBatteryMonitor-Setup-v$releaseVersion.exe"
+$installerOutput = Join-Path $release "HyperBatteryMonitor-Setup-v$releaseVersion.exe"
 if (-not (Test-Path -LiteralPath $installerOutput) -or (Get-Item -LiteralPath $installerOutput).Length -eq 0) {
     throw "Expected installer was not generated: $installerOutput"
 }

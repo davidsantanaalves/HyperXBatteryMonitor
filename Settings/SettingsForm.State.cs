@@ -411,7 +411,7 @@ public sealed partial class SettingsForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, string.Format(L("StartupError"), ex.Message), "HyperX Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, string.Format(L("StartupError"), ex.Message), Application.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return false;
         }
         StopDevicePreview();

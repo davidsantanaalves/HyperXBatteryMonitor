@@ -319,7 +319,7 @@ public sealed class HyperXBatteryMonitorApplicationContext : ApplicationContext
             MessageBox.Show(
                 _settingsForm,
                 string.Format(L("SaveError"), ex.Message),
-                "HyperX Battery Monitor",
+                Application.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
