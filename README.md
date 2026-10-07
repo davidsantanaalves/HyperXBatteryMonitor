@@ -146,7 +146,7 @@ These screenshots illustrate earlier versions. Version 2.3.0 updates the Device 
 
 ## Installation
 
-Download the latest available version from the [Releases](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases) section of this repository.
+Download the latest available version from the [Releases](https://github.com/davidsantanaalves/HyperBatteryMonitor/releases) section of this repository.
 
 The expected installer filename for version 2.3.1 is:
 
