@@ -114,34 +114,17 @@ public sealed partial class SettingsForm : Form
         licensesLink.LinkClicked += (_, _) => OpenExternalUrl("https://github.com/davidsantanaalves/HyperXBatteryMonitor/blob/main/LICENSE");
         legal.Controls.Add(licensesLink, 1, 2);
 
-        RoundedPanel acknowledgementsCard = CreateResponsiveCard(135);
-        AddResponsiveRow(acknowledgementsCard, 0);
-        TableLayoutPanel acknowledgements = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, Padding = ScaleUiPadding(12, 8, 12, 8), BackColor = Color.Transparent };
-        acknowledgements.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(30))); acknowledgements.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        acknowledgements.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(StandardUiIconLogicalSize))); acknowledgements.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(40))); acknowledgements.RowStyles.Add(new RowStyle(SizeType.Absolute, ScaleUi(20))); acknowledgements.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        acknowledgementsCard.Controls.Add(acknowledgements);
-        acknowledgements.Controls.Add(CreateTableIcon("code", StandardUiIconLogicalSize), 0, 0);
-        acknowledgements.Controls.Add(new Label { Text = L("AboutAcknowledgementsTitle"), Dock = DockStyle.Fill, Font = new Font("Segoe UI Semibold", 9.5f), ForeColor = foreground, BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft }, 1, 0);
-        acknowledgements.Controls.Add(new Label { Text = L("AboutAcknowledgementsText"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8f), ForeColor = secondary, BackColor = Color.Transparent, TextAlign = ContentAlignment.TopLeft }, 1, 1);
-        acknowledgements.Controls.Add(new Label { Text = L("AboutAcknowledgementsThanks"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8f), ForeColor = secondary, BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft }, 1, 2);
-        TableLayoutPanel repository = new()
+        // Keep any unused vertical space outside the Legal card. Without a trailing
+        // flexible row, WinForms can visually stretch the final content row to fill
+        // the remaining page height after the acknowledgements section was removed.
+        int spacerRow = page.RowCount++;
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        page.Controls.Add(new Panel
         {
-            Dock = DockStyle.Top,
-            Height = ScaleUi(StandardUiIconLogicalSize),
-            ColumnCount = 2,
-            RowCount = 1,
+            Dock = DockStyle.Fill,
             Margin = new Padding(0),
             BackColor = Color.Transparent
-        };
-        repository.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ScaleUi(30)));
-        repository.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        repository.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        repository.Controls.Add(CreateTableIcon("git", StandardUiIconLogicalSize), 0, 0);
-        LinkLabel repositoryLink = new() { Text = L("AboutAcknowledgementsRepository"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8f), BackColor = Color.Transparent, LinkColor = dark ? Accent : Color.FromArgb(0, 102, 204), ActiveLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204), VisitedLinkColor = dark ? Accent : Color.FromArgb(0, 102, 204), AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
-        repositoryLink.LinkClicked += (_, _) => OpenExternalUrl(L("AboutAcknowledgementsRepository"));
-        repository.Controls.Add(repositoryLink, 1, 0);
-        acknowledgements.Controls.Add(repository, 0, 3);
-        acknowledgements.SetColumnSpan(repository, 2);
+        }, 0, spacerRow);
     }
 
     private AboutActionButton CreateAboutActionButton(string text, AboutActionIcon icon, bool dark, int x, int y, int width)

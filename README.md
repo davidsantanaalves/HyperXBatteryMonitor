@@ -146,11 +146,11 @@ These screenshots illustrate earlier versions. Version 2.3.0 updates the Device 
 
 ## Installation
 
-Download the latest version from the **Releases** section of this repository.
+Download the latest available version from the [Releases](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases) section of this repository.
 
-For version 2.3.1, download:
+The expected installer filename for version 2.3.1 is:
 
-[HyperBatteryMonitor-Setup-v2.3.1.exe](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.3.1/HyperBatteryMonitor-Setup-v2.3.1.exe)
+`HyperBatteryMonitor-Setup-v2.3.1.exe`
 
 Run the installer and follow the installation instructions.
 
@@ -294,11 +294,11 @@ It is **not affiliated with, endorsed by, sponsored by, or officially associated
 
 HyperX and the respective headset names are trademarks of their respective owners.
 
-## Third-Party Acknowledgement
+## Device Protocol Implementation
 
-Support for multiple HyperX devices uses code and references from the **HyperX-Cloud-2-Battery-Monitor** project by **auto94**, released under the MIT License.
+The current device protocol implementation is based primarily on independent analysis of HyperX NGENUITY and the protocol research maintained by this project.
 
-The original project is acknowledged in the application's About page.
+Historical development references and the original license notice are preserved in [Third-Party Notices](THIRD_PARTY_NOTICES.md). See the [v2.3.1 provenance audit](ProvenanceAudit-auto94-v2.3.1.md) for the technical comparison and its limitations.
 
 ## License
 
@@ -335,18 +335,3 @@ This software is provided "as is", without warranty of any kind.
 The developer is not responsible for any damage, data loss, hardware issues, or other consequences resulting from the use of this software.
 
 Use the application at your own discretion.
-
-## Special Thanks
-
-A special thank you to auto94, the author of HyperX-Cloud-2-Battery-Monitor.
-
-This project was an important reference during the development of Hyper Battery Monitor, particularly in expanding device support beyond the original HyperX Cloud III Wireless implementation.
-
-We are grateful to the author for making the project available under the MIT License and for contributing to the HyperX community with an open-source solution that helped make further development possible.
-
-Please visit the original project and consider supporting its development:
-
-HyperX-Cloud-2-Battery-Monitor  
-https://github.com/auto94/HyperX-Cloud-2-Battery-Monitor
-
-Thank you, auto94, for sharing your work with the community.
