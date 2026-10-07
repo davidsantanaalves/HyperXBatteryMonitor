@@ -22,7 +22,7 @@ The application provides a convenient way to monitor your headset directly from 
 * 🔌 Disconnected headset indication
 * 🖥️ Windows startup option
 * 🌙 Light, Dark, and System themes
-* 🌐 English, Portuguese (Brazil), and Spanish interface
+* 🌐 Interface in 11 languages: English, Portuguese (Brazil), Spanish, Ukrainian, German, French, Polish, Russian, Simplified Chinese, Japanese, and Korean
 * ⚙️ Dedicated settings window
 * 💾 Persistent application settings
 * 🖼️ Custom application and tray icons

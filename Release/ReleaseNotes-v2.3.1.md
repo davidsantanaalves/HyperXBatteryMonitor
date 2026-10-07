@@ -59,6 +59,11 @@ Additional localization improvements include:
 - Fixed legacy application-name references in the interface and project documentation.
 - Fixed upgrades that could leave the previous application running while files were being replaced.
 - Fixed uninstallations leaving current or legacy **Start with Windows** registry entries behind, which could make Windows keep trying to launch the application after it had been removed.
+- Fixed excess empty space inside the About page's Legal card.
+
+## Third-party notices
+
+The historical development reference and original MIT notice are preserved in `THIRD_PARTY_NOTICES.md`, which is now included with the application. The technical provenance audit remains in the source repository.
 
 ## Upgrade notes
 

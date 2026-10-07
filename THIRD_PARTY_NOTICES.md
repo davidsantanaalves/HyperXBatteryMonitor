@@ -17,7 +17,7 @@ Original repository: https://github.com/auto94/HyperX-Cloud-2-Battery-Monitor
 
 The original notice is retained conservatively for historical development use.
 It does not assert that the current implementation contains that project's code.
-See [the provenance audit](ProvenanceAudit-auto94-v2.3.1.md) for evidence and limits.
+See [the provenance audit](https://github.com/davidsantanaalves/HyperXBatteryMonitor/blob/v2.3.1/ProvenanceAudit-auto94-v2.3.1.md) for evidence and limits.
 
 ## Original MIT notice
 
