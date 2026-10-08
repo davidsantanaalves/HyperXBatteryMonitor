@@ -1,4 +1,4 @@
-# HyperX Battery Monitor
+# Hyper Battery Monitor (HBM)
 
 A lightweight Windows system tray application for monitoring the battery, charging, connection, and microphone mute status of supported **HyperX wireless headsets**.
 
@@ -7,42 +7,52 @@ The application provides a convenient way to monitor your headset directly from 
 ## Features
 
 * 🔋 Battery level monitoring directly from the Windows system tray
-* ⏳ Estimated remaining battery time, with locally saved discharge history per headset model
-* 🎧 Support for multiple HyperX wireless headsets
-* 📊 Multiple battery indicator display modes
-* 🎨 Customizable battery indicator colors
+* ⏳ Estimated remaining battery time with locally saved discharge history per headset model
+* 🎧 Support for 10 HyperX wireless headset models
+* 🔎 Automatic detection of supported HyperX devices
+* 📊 Multiple battery display modes
+* 🎨 Customizable battery indicator colors and thresholds
 * 🌈 Optional battery color gradient
-* ⚡ Charging status monitoring and indication
+* ⚡ Charging status monitoring and indication on supported headsets
 * 🎙️ Microphone mute status monitoring on supported headsets
 * 🔇 Optional microphone mute indication in the system tray
 * 🔄 Alternating battery/microphone-mute tray icon while the microphone is muted
-* 🧾 Microphone status displayed in the sidebar, tray menu, and tray tooltip
-* 🔴 Configurable critical battery notification
-* ✅ Fully charged notification
+* 🧾 Battery, connection, charging, and microphone status available from the Settings interface, tray menu, and tooltip
+* 🔴 Configurable critical battery notifications
+* ✅ Fully charged notifications
 * 🔌 Disconnected headset indication
-* 🖥️ Windows startup option
+* 🖥️ Start with Windows option
 * 🌙 Light, Dark, and System themes
-* 🌐 English, Portuguese (Brazil), and Spanish interface
-* ⚙️ Dedicated settings window
-* 💾 Persistent application settings
-* 🖼️ Custom application and tray icons
+* 🌐 Interface available in 11 languages: English, Portuguese (Brazil), Spanish, Ukrainian, German, French, Polish, Russian, Simplified Chinese, Japanese, and Korean
+* 🌍 Automatic Windows language detection for new profiles
+* ⚙️ Dedicated and responsive Settings interface
+* 🖥️ High-DPI-aware interface with improved scaling and text wrapping
+* 💾 Persistent application settings and battery history
+* 🔄 Automatic migration of settings and battery history from previous versions
+* 🧹 Optional clean installation
+* 🖼️ Custom application, device, notification, and system tray icons
 * 🪟 Native Windows / Windows Forms interface
-* 🚀 Lightweight and designed to run in the background
+* 🚀 Lightweight and designed to run continuously in the background
 
-## What's New in Version 2.3.0
+## What's New in Version 2.3.1
 
-* **Five new devices:** Cloud Flight S, Cloud Flight Wireless, Cloud Stinger Core Wireless + 7.1, Cloud Flight 2 (Dedicated Dongle), and Cloud Mix 2.
-* **Automatic device detection:** visual progress and guidance when no compatible device or multiple devices are found.
-* **Clear connection requirements:** Cloud III S and Cloud Flight 2 are labeled as requiring a Dedicated Dongle. A detected HyperX Three-In-One receiver is identified as an unsupported connection; monitoring through TIO is not supported.
-* **Updated Device page:** supported features, connection information, and battery information in a revised layout.
-* **More robust remaining-time estimates:** each session starts from nominal battery life and gradually incorporates validated discharge windows. Incompatible old history is reset, and implausible readings are filtered.
-* **Localization improvements:** updated English, Portuguese (Brazil), and Spanish text.
-
-Remaining-time estimates are approximate and hidden while charging or disconnected.
+* **New product name:** HyperX Battery Monitor is now **Hyper Battery Monitor**, with updated application branding and installation paths.
+* **Seamless migration:** existing settings and battery history from previous versions are automatically migrated to the new application data location.
+* **Improved installation experience:** the installer now handles the renamed application, legacy installation paths, running-process detection, startup migration, and cleanup of obsolete shortcuts and startup entries.
+* **Optional clean installation:** users can choose to start with a fresh profile instead of preserving previous settings and history.
+* **Expanded localization:** the interface is now available in **11 languages** — English, Portuguese (Brazil), Spanish, Ukrainian, German, French, Polish, Russian, Simplified Chinese, Japanese, and Korean.
+* **Automatic language detection:** new installations automatically select the Windows display language when supported.
+* **New localization system:** application translations were moved to embedded JSON language catalogs, with English fallback and validation for localized format strings.
+* **Improved Settings interface:** multiple pages and dialogs were refined for better responsiveness, text wrapping, localization, and high-DPI scaling.
+* **Simplified Battery section:** the Battery Monitor section is now presented simply as **Battery** in the Settings navigation.
+* **Improved Dynamic Icon Colors:** layout, sizing, painting, and DPI behavior were refined for a more consistent customization experience.
+* **Improved upgrade compatibility:** current and legacy startup registrations, application paths, executable names, and user-data locations are handled during migration.
+* **Cleaner application resources:** obsolete and duplicate visual assets and legacy references were removed or consolidated.
+* **General stability and maintenance improvements:** additional cleanup and compatibility work was completed in preparation for the stable 2.3.1 release.
 
 ## Headset Status Monitoring
 
-HyperX Battery Monitor displays battery, charging, connection, and supported microphone mute information.
+Hyper Battery Monitor displays battery, charging, connection, and supported microphone mute information.
 
 ### Microphone mute monitoring
 
@@ -76,7 +86,7 @@ The sidebar and tray menu indicate charging through the battery icon when applic
 
 ### Improved device monitoring
 
-The device monitor now provides a more complete overview of the current headset state:
+The device monitor provides a more complete overview of the current headset state:
 
 * Connection status
 * Battery percentage
@@ -116,7 +126,7 @@ Cloud Mix 2 supports battery and microphone mute monitoring; charging-state moni
 
 ## Screenshots
 
-These screenshots illustrate earlier versions. Version 2.3.0 updates the Device page and adds automatic detection.
+These screenshots illustrate earlier versions.
 
 ### Device selection
 
@@ -150,9 +160,9 @@ These screenshots illustrate earlier versions. Version 2.3.0 updates the Device 
 
 Download the latest version from the **Releases** section of this repository.
 
-For version 2.3.0, download:
+For version 2.3.1, download:
 
-[HyperXBatteryMonitor-Setup-v2.3.0.exe](https://github.com/davidsantanaalves/HyperXBatteryMonitor/releases/download/v2.3.0/HyperXBatteryMonitor-Setup-v2.3.0.exe)
+[HyperBatteryMonitor-Setup-v2.3.1.exe](https://github.com/davidsantanaalves/HyperBatteryMonitor/releases/download/v2.3.1/HyperBatteryMonitor-Setup-v2.3.1.exe)
 
 Run the installer and follow the installation instructions.
 
@@ -265,11 +275,11 @@ These options can be configured independently through the Settings window.
 
 ## Project Status
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 
 **Status:** Stable release
 
-Version 2.3.0 supports ten headset models and adds automatic device detection, a revised Device page, and more robust adaptive remaining-time estimates.
+Version 2.3.1 supports ten headset models and adds automatic device detection, a revised Device page, and more robust adaptive remaining-time estimates.
 
 The project remains under active development, and additional devices and features may be added in future versions.
 
@@ -290,17 +300,11 @@ The project does not distribute third-party proprietary HyperX software or requi
 
 ## Independent Project
 
-HyperX Battery Monitor is an independent, community-developed utility.
+Hyper Battery Monitor is an independent, community-developed utility.
 
 It is **not affiliated with, endorsed by, sponsored by, or officially associated with HyperX or HP Inc.**
 
 HyperX and the respective headset names are trademarks of their respective owners.
-
-## Third-Party Acknowledgement
-
-Support for multiple HyperX devices uses code and references from the **HyperX-Cloud-2-Battery-Monitor** project by **auto94**, released under the MIT License.
-
-The original project is acknowledged in the application's About page.
 
 ## License
 
@@ -320,10 +324,6 @@ If you find HyperX Battery Monitor useful and would like to support its developm
 
 ☕ [Buy Me a Coffee](https://buymeacoffee.com/davesantana)
 
-You can also support the project via PIX:
-
-`davesantana@outlook.com.br`
-
 ## Contributing
 
 Suggestions, bug reports, and contributions are welcome.
@@ -340,15 +340,10 @@ Use the application at your own discretion.
 
 ## Special Thanks
 
-A special thank you to auto94, the author of HyperX-Cloud-2-Battery-Monitor.
+Special thanks to the following people and projects for their contributions to the HyperX community and to the development of this project:
 
-This project was an important reference during the development of HyperX Battery Monitor, particularly in expanding device support beyond the original HyperX Cloud III Wireless implementation.
+- auto94 — for making the HyperX-Cloud-2-Battery-Monitor project available to the community. It served as a historical reference during earlier development of HyperX Battery Monitor. The applicable historical provenance and license notice are preserved in THIRD_PARTY_NOTICES.md and the project history.
 
-We are grateful to the author for making the project available under the MIT License and for contributing to the HyperX community with an open-source solution that helped make further development possible.
+- minoga11 — for active participation in testing and for suggesting new improvements.
 
-Please visit the original project and consider supporting its development:
-
-HyperX-Cloud-2-Battery-Monitor  
-https://github.com/auto94/HyperX-Cloud-2-Battery-Monitor
-
-Thank you, auto94, for sharing your work with the community.
+- sladkOy — for the suggestion and help with the Ukrainian translation.
